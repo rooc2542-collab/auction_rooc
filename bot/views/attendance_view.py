@@ -1,6 +1,6 @@
 from __future__ import annotations
+from datetime import date, datetime, timezone
 import discord
-from datetime import date
 from services.supabase_client import supabase
 from services import auction_service
 
@@ -45,14 +45,44 @@ def build_attendance_embed(event_name: str, event_date: str, counts: dict | None
     return embed
 
 
+def extract_event_from_message(message: discord.Message | None, fallback_encoded: str = '') -> tuple[str, str]:
+    """ดึงชื่ออีเวนต์และวันที่จาก Embed ของโพล หรือจาก custom_id สำรอง"""
+    if message and message.embeds:
+        emb = message.embeds[0]
+        title = (emb.title or '').removeprefix('⚔️ ').strip()
+        desc = (emb.description or '').removeprefix('📅 ').strip()
+        if title and desc:
+            return title, desc
+    if fallback_encoded and '|' in fallback_encoded:
+        parts = fallback_encoded.split('|', 1)
+        return parts[0], parts[1]
+    return 'Event', str(date.today())
+
+
+async def refresh_poll_message(message: discord.Message | None, event_name: str, event_date: str) -> None:
+    if not message:
+        return
+    try:
+        res = supabase.table('event_attendance') \
+            .select('status') \
+            .eq('event_name', event_name) \
+            .eq('event_date', event_date) \
+            .execute()
+        counts = {'want_bid': 0, 'no_bid': 0, 'absent': 0}
+        for row in (res.data or []):
+            s = row.get('status', '')
+            if s in counts:
+                counts[s] += 1
+        embed = build_attendance_embed(event_name, event_date, counts)
+        await message.edit(embed=embed)
+    except Exception as e:
+        print(f'[AttendanceView] refresh_poll_message error: {e}')
+
+
 class ItemSelectView(discord.ui.View):
-    """View ให้เลือกไอเทมที่ต้องการ"""
+    """View ให้เลือกไอเทมที่ต้องการประมูล"""
     def __init__(self, event_name: str, event_date: str, discord_id: str, user_id: str, current_items: list, poll_message: discord.Message | None = None):
-        super().__init__(timeout=120)
-        self._event = event_name
-        self._date = event_date
-        self._discord_id = discord_id
-        self._user_id = user_id
+        super().__init__(timeout=180)
         self.add_item(ItemMultiSelect(event_name, event_date, discord_id, user_id, current_items, poll_message))
 
 
@@ -68,7 +98,7 @@ class ItemMultiSelect(discord.ui.Select):
             for key, lbl in ITEM_LABELS.items()
         ]
         super().__init__(
-            placeholder='เลือกไอเทมที่ต้องการประมูล...',
+            placeholder='เลือกไอเทมที่ต้องการประมูล (เลือกได้หลายชิ้น)...',
             min_values=1,
             max_values=4,
             options=options,
@@ -77,9 +107,10 @@ class ItemMultiSelect(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         if str(interaction.user.id) != self._discord_id:
-            await interaction.response.send_message('❌ นี่ไม่ใช่การเลือกของคุณ', ephemeral=True)
+            await interaction.response.send_message('❌ นี่ไม่ใช่เมนูของคุณ', ephemeral=True)
             return
 
+        await interaction.response.defer(ephemeral=True)
         selected = self.values
         try:
             supabase.table('event_attendance').upsert({
@@ -89,7 +120,7 @@ class ItemMultiSelect(discord.ui.Select):
                 'user_id': self._user_id,
                 'status': 'want_bid',
                 'interested_items': selected,
-                'updated_at': 'now()'
+                'updated_at': datetime.now(timezone.utc).isoformat()
             }, on_conflict='event_name,event_date,discord_id').execute()
 
             items_text = ', '.join(ITEM_LABELS.get(i, i) for i in selected)
@@ -99,47 +130,25 @@ class ItemMultiSelect(discord.ui.Select):
                 color=discord.Color.green()
             )
             self.disabled = True
-            await interaction.response.edit_message(embed=embed, view=self.view)
-
-            # อัปเดตตัวเลขบนโพลหลักทันที
-            if self._poll_message:
-                try:
-                    res = supabase.table('event_attendance') \
-                        .select('status').eq('event_name', self._event).eq('event_date', self._date).execute()
-                    counts = {'want_bid': 0, 'no_bid': 0, 'absent': 0}
-                    for row in (res.data or []):
-                        s = row.get('status', '')
-                        if s in counts:
-                            counts[s] += 1
-                    poll_embed = build_attendance_embed(self._event, self._date, counts)
-                    await self._poll_message.edit(embed=poll_embed)
-                except Exception:
-                    pass
+            await interaction.edit_original_response(embed=embed, view=self.view)
+            await refresh_poll_message(self._poll_message, self._event, self._date)
         except Exception as e:
-            await interaction.response.send_message(f'❌ เกิดข้อผิดพลาด: {e}', ephemeral=True)
+            print(f'[ItemMultiSelect] error: {e}')
+            await interaction.followup.send(f'❌ เกิดข้อผิดพลาด: {e}', ephemeral=True)
 
 
-class AttendanceView(discord.ui.View):
-    """View ปุ่มนับคนเข้าร่วมวอร์ (persistent)"""
+async def handle_attendance_action(interaction: discord.Interaction, status: str, fallback_encoded: str = '') -> None:
+    """ฟังก์ชันหลักสำหรับจัดการเมื่อมีคนกดปุ่มโพล (รองรับทั้งปุ่มใหม่และปุ่มเก่า)"""
+    await interaction.response.defer(ephemeral=True)
 
-    def __init__(self):
-        super().__init__(timeout=None)
+    event_name, event_date = extract_event_from_message(interaction.message, fallback_encoded)
+    discord_id = str(interaction.user.id)
 
-    async def _get_round_info(self, message_id: str) -> dict | None:
-        res = supabase.table('event_attendance') \
-            .select('event_name, event_date') \
-            .limit(1) \
-            .execute()
-        # ดึง event จาก message embed (ใช้ message_id ตรวจ)
-        # เก็บใน metadata table หรือ encodeใน custom_id
-        return None
-
-    async def _handle_vote(self, interaction: discord.Interaction, status: str, event_name: str, event_date: str):
-        discord_id = str(interaction.user.id)
+    try:
         profile = await auction_service.get_profile_by_discord_id(discord_id)
         if not profile:
-            await interaction.response.send_message(
-                '❌ คุณยังไม่ได้ลงทะเบียน กรุณาใช้คำสั่ง /register ก่อน',
+            await interaction.followup.send(
+                '❌ คุณยังไม่ได้ลงทะเบียน กรุณาพิมพ์คำสั่ง `/register` ก่อนครับ',
                 ephemeral=True
             )
             return
@@ -147,191 +156,128 @@ class AttendanceView(discord.ui.View):
         user_id = profile['id']
 
         if status == 'want_bid':
-            # ดึง interested_items เดิม
-            existing = supabase.table('event_attendance') \
-                .select('interested_items') \
-                .eq('event_name', event_name) \
-                .eq('event_date', event_date) \
-                .eq('discord_id', discord_id) \
-                .maybeSingle() \
-                .execute()
-            current_items = (existing.data or {}).get('interested_items') or []
-            # แสดง item select
-            view = ItemSelectView(event_name, event_date, discord_id, user_id, current_items)
-            embed = discord.Embed(
-                title='🎯 เลือกไอเทมที่ต้องการประมูล',
-                description='เลือกได้มากกว่า 1 ไอเทม สามารถเปลี่ยนใจได้จนกว่าจะปิดรับ',
-                color=discord.Color.green()
-            )
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-        else:
-            # no_bid หรือ absent
-            try:
-                supabase.table('event_attendance').upsert({
-                    'event_name': event_name,
-                    'event_date': event_date,
-                    'discord_id': discord_id,
-                    'user_id': user_id,
-                    'status': status,
-                    'interested_items': [],
-                    'updated_at': 'now()'
-                }, on_conflict='event_name,event_date,discord_id').execute()
-
-                # ถ้า no_bid -> เพิ่ม credit (logic ใน auction_service)
-                if status == 'no_bid':
-                    from services import credit_service
-                    # Credit เพิ่มในแต่ละไอเทมที่เลือกไว้
-                    # เนื่องจากเปลี่ยนเป็น no_bid ไม่รู้ไอเทม -> เพิ่มทุก item ที่มี limit
-                    pass  # credit จัดการตอน announce_allocation
-
-                label_map = {
-                    'no_bid': '📦 Join the war / Do not want to bid',
-                    'absent': '⛔ Unable to attend'
-                }
-                await interaction.response.send_message(
-                    f'✅ บันทึกแล้ว: **{label_map.get(status, status)}**',
-                    ephemeral=True
-                )
-
-                # อัปเดต embed นับใหม่
-                await self._refresh_embed(interaction, event_name, event_date)
-
-            except Exception as e:
-                await interaction.response.send_message(f'❌ เกิดข้อผิดพลาด: {e}', ephemeral=True)
-
-    async def _refresh_embed(self, interaction: discord.Interaction, event_name: str, event_date: str):
-        try:
             res = supabase.table('event_attendance') \
-                .select('status') \
-                .eq('event_name', event_name) \
-                .eq('event_date', event_date) \
-                .execute()
-            counts = {'want_bid': 0, 'no_bid': 0, 'absent': 0}
-            for row in (res.data or []):
-                s = row.get('status', '')
-                if s in counts:
-                    counts[s] += 1
-            embed = build_attendance_embed(event_name, event_date, counts)
-            await interaction.message.edit(embed=embed)
-        except Exception:
-            pass
-
-    # ปุ่มทั้งหมดจะถูกเพิ่มแบบ dynamic ผ่าน EventPollView แทน
-
-
-class EventPollView(discord.ui.View):
-    """View สำหรับโพลนับคน ส่ง event_name+date ผ่าน custom_id"""
-    def __init__(self, event_name: str, event_date: str):
-        super().__init__(timeout=None)
-        self.event_name = event_name
-        self.event_date = event_date
-        # custom_id encode event_name|event_date
-        encoded = f'{event_name}|{event_date}'
-        self.add_item(AttendanceButton('🎮 Join the war / Want to bid', discord.ButtonStyle.success, 'want_bid', encoded))
-        self.add_item(AttendanceButton('🚫 Join the war / Do not want to bid', discord.ButtonStyle.secondary, 'no_bid', encoded))
-        self.add_item(AttendanceButton('⛔ Unable to attend', discord.ButtonStyle.danger, 'absent', encoded))
-        self.add_item(CloseEventButton(encoded))
-
-
-class AttendanceButton(discord.ui.Button):
-    def __init__(self, label: str, style: discord.ButtonStyle, status: str, encoded: str):
-        super().__init__(
-            label=label,
-            style=style,
-            custom_id=f'attend_{status}_{encoded[:50]}'
-        )
-        self._status = status
-        self._encoded = encoded
-
-    async def callback(self, interaction: discord.Interaction):
-        # decode
-        parts = self._encoded.split('|')
-        event_name = parts[0] if parts else 'Event'
-        event_date = parts[1] if len(parts) > 1 else str(date.today())
-
-        discord_id = str(interaction.user.id)
-        profile = await auction_service.get_profile_by_discord_id(discord_id)
-        if not profile:
-            await interaction.response.send_message('❌ คุณยังไม่ได้ลงทะเบียน ใช้ /register ก่อน', ephemeral=True)
-            return
-
-        user_id = profile['id']
-
-        if self._status == 'want_bid':
-            existing = supabase.table('event_attendance') \
                 .select('interested_items') \
                 .eq('event_name', event_name) \
                 .eq('event_date', event_date) \
                 .eq('discord_id', discord_id) \
-                .maybeSingle().execute()
-            current_items = (existing.data or {}).get('interested_items') or []
+                .limit(1) \
+                .execute()
+            first_row = res.data[0] if res.data else {}
+            current_items = first_row.get('interested_items') or []
+
             view = ItemSelectView(event_name, event_date, discord_id, user_id, current_items, interaction.message)
             embed = discord.Embed(
                 title='🎯 เลือกไอเทมที่ต้องการประมูล',
-                description='เลือกได้มากกว่า 1 ไอเทม สามารถเปลี่ยนใจกดใหม่ได้ตลอด',
+                description='เลือกได้มากกว่า 1 ไอเทม สามารถเปลี่ยนใจกดเลือกใหม่ได้ตลอดจนกว่าจะปิดโพล',
                 color=discord.Color.green()
             )
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         else:
             supabase.table('event_attendance').upsert({
                 'event_name': event_name,
                 'event_date': event_date,
                 'discord_id': discord_id,
                 'user_id': user_id,
-                'status': self._status,
+                'status': status,
                 'interested_items': [],
-                'updated_at': 'now()'
+                'updated_at': datetime.now(timezone.utc).isoformat()
             }, on_conflict='event_name,event_date,discord_id').execute()
 
-            label_map = {'no_bid': '🚫 Join / Do not bid', 'absent': '⛔ Unable to attend'}
-            await interaction.response.send_message(f'✅ บันทึกแล้ว: **{label_map.get(self._status, self._status)}**', ephemeral=True)
-
-            # อัปเดต embed
-            try:
-                res = supabase.table('event_attendance') \
-                    .select('status').eq('event_name', event_name).eq('event_date', event_date).execute()
-                counts = {'want_bid': 0, 'no_bid': 0, 'absent': 0}
-                for row in (res.data or []):
-                    s = row.get('status', '')
-                    if s in counts:
-                        counts[s] += 1
-                embed = build_attendance_embed(event_name, event_date, counts)
-                await interaction.message.edit(embed=embed)
-            except Exception:
-                pass
+            label_map = {
+                'no_bid': '🚫 Join the war / Do not want to bid (สะสมแต้มลัดคิวรอบหน้า)',
+                'absent': '⛔ Unable to attend'
+            }
+            await interaction.followup.send(
+                f'✅ บันทึกแล้ว: **{label_map.get(status, status)}**',
+                ephemeral=True
+            )
+            await refresh_poll_message(interaction.message, event_name, event_date)
+    except Exception as e:
+        print(f'[AttendanceView] handle_attendance_action error: {e}')
+        await interaction.followup.send(f'❌ เกิดข้อผิดพลาด: {e}', ephemeral=True)
 
 
-class CloseEventButton(discord.ui.Button):
-    def __init__(self, encoded: str):
-        super().__init__(
-            label='🔒 ปิดรับ [Admin]',
-            style=discord.ButtonStyle.primary,
-            custom_id=f'close_event_{encoded[:50]}',
-            row=1
-        )
-        self._encoded = encoded
+async def handle_close_event_action(interaction: discord.Interaction, fallback_encoded: str = '') -> None:
+    """ฟังก์ชันสำหรับปุ่มปิดรับโพล [Admin]"""
+    await interaction.response.defer(ephemeral=True)
+    discord_id = str(interaction.user.id)
+    profile = await auction_service.get_profile_by_discord_id(discord_id)
+    if not profile or profile.get('role') != 'admin':
+        await interaction.followup.send('❌ เฉพาะ Admin เท่านั้นที่ปิดโพลได้', ephemeral=True)
+        return
 
-    async def callback(self, interaction: discord.Interaction):
-        discord_id = str(interaction.user.id)
-        profile = await auction_service.get_profile_by_discord_id(discord_id)
-        if not profile or profile.get('role') != 'admin':
-            await interaction.response.send_message('❌ เฉพาะ Admin เท่านั้น', ephemeral=True)
-            return
+    event_name, event_date = extract_event_from_message(interaction.message, fallback_encoded)
 
-        for child in self.view.children:
-            child.disabled = True
-        parts = self._encoded.split('|')
-        event_name = parts[0] if parts else 'Event'
-        event_date = parts[1] if len(parts) > 1 else ''
-
-        res = supabase.table('event_attendance').select('status') \
-            .eq('event_name', event_name).eq('event_date', event_date).execute()
+    try:
+        res = supabase.table('event_attendance') \
+            .select('status') \
+            .eq('event_name', event_name) \
+            .eq('event_date', event_date) \
+            .execute()
         counts = {'want_bid': 0, 'no_bid': 0, 'absent': 0}
         for row in (res.data or []):
             s = row.get('status', '')
             if s in counts:
                 counts[s] += 1
+
         embed = build_attendance_embed(event_name, event_date, counts)
-        embed.set_footer(text=f'โพลปิดรับแล้ว | ปิดโดย {interaction.user.display_name}')
+        embed.set_footer(text=f'🔒 โพลปิดรับแล้ว • ปิดโดย {interaction.user.display_name}')
         embed.color = discord.Color.greyple()
-        await interaction.response.edit_message(embed=embed, view=self.view)
+
+        disabled_view = EventPollView(event_name, event_date, disabled=True)
+        if interaction.message:
+            await interaction.message.edit(embed=embed, view=disabled_view)
+
+        await interaction.followup.send('✅ ปิดรับโพลเรียบร้อยแล้ว', ephemeral=True)
+    except Exception as e:
+        print(f'[AttendanceView] handle_close_event_action error: {e}')
+        await interaction.followup.send(f'❌ เกิดข้อผิดพลาด: {e}', ephemeral=True)
+
+
+class EventPollView(discord.ui.View):
+    """Persistent View สำหรับโพลนับคนเข้าร่วมวอร์ (ทำงานได้แม้บอทรีสตาร์ท)"""
+    def __init__(self, event_name: str = '', event_date: str = '', disabled: bool = False):
+        super().__init__(timeout=None)
+        self.event_name = event_name
+        self.event_date = event_date
+
+        for child in self.children:
+            if isinstance(child, discord.ui.Button):
+                child.disabled = disabled
+
+    @discord.ui.button(
+        label='🎮 Join the war / Want to bid',
+        style=discord.ButtonStyle.success,
+        custom_id='poll_btn_want_bid',
+        row=0
+    )
+    async def btn_want_bid(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await handle_attendance_action(interaction, 'want_bid')
+
+    @discord.ui.button(
+        label='🚫 Join the war / Do not want to bid',
+        style=discord.ButtonStyle.secondary,
+        custom_id='poll_btn_no_bid',
+        row=0
+    )
+    async def btn_no_bid(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await handle_attendance_action(interaction, 'no_bid')
+
+    @discord.ui.button(
+        label='⛔ Unable to attend',
+        style=discord.ButtonStyle.danger,
+        custom_id='poll_btn_absent',
+        row=0
+    )
+    async def btn_absent(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await handle_attendance_action(interaction, 'absent')
+
+    @discord.ui.button(
+        label='🔒 ปิดรับ [Admin]',
+        style=discord.ButtonStyle.primary,
+        custom_id='poll_btn_close',
+        row=1
+    )
+    async def btn_close(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await handle_close_event_action(interaction)

@@ -67,31 +67,35 @@ class AuctionBot(commands.Bot):
         await self.load_extension("cogs.auction")
         await self.load_extension("cogs.member")
 
-        # Register persistent views เพื่อให้ปุ่มยังคง active หลัง bot restart
+        # Register persistent views เพื่อให้ปุ่มยังคง active หลัง bot restart ตลอดไป
+        from views.attendance_view import EventPollView
         self.add_view(VoteView())
         self.add_view(ResultView())
-
-        # Register attendance views for recent events (last 7 days)
-        from services.supabase_client import supabase
-        from views.attendance_view import EventPollView
-        from datetime import date, timedelta
-        try:
-            week_ago = str(date.today() - timedelta(days=7))
-            res = supabase.table('event_attendance').select('event_name, event_date').gte('event_date', week_ago).execute()
-            seen = set()
-            for row in (res.data or []):
-                key = (row['event_name'], row['event_date'])
-                if key not in seen:
-                    seen.add(key)
-                    self.add_view(EventPollView(row['event_name'], row['event_date']))
-        except Exception as e:
-            print(f'[Bot] Could not register attendance views: {e}')
+        self.add_view(EventPollView())
 
         # Sync slash commands เฉพาะ guild นี้
         guild = discord.Object(id=GUILD_ID)
         self.tree.copy_global_to(guild=guild)
         synced = await self.tree.sync(guild=guild)
         print(f"[Bot] Synced {len(synced)} slash command(s) to guild {GUILD_ID}")
+
+    async def on_interaction(self, interaction: discord.Interaction) -> None:
+        """รองรับปุ่มโพลที่ถูกสร้างไว้ก่อนหน้านี้ (custom_id แบบ attend_* และ close_event_*)"""
+        if interaction.type == discord.InteractionType.component and interaction.data:
+            cid = interaction.data.get("custom_id", "")
+            from views.attendance_view import handle_attendance_action, handle_close_event_action
+            if cid.startswith("attend_want_bid_"):
+                await handle_attendance_action(interaction, "want_bid", cid.removeprefix("attend_want_bid_"))
+                return
+            elif cid.startswith("attend_no_bid_"):
+                await handle_attendance_action(interaction, "no_bid", cid.removeprefix("attend_no_bid_"))
+                return
+            elif cid.startswith("attend_absent_"):
+                await handle_attendance_action(interaction, "absent", cid.removeprefix("attend_absent_"))
+                return
+            elif cid.startswith("close_event_"):
+                await handle_close_event_action(interaction, cid.removeprefix("close_event_"))
+                return
 
     async def on_ready(self) -> None:
         print(f"[Bot] Logged in as {self.user} (ID: {self.user.id})")  # type: ignore

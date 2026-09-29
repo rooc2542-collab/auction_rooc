@@ -107,9 +107,9 @@ async def get_event_session(event_name: str, session_date: str, item_type: str) 
         .eq('event_name', event_name) \
         .eq('session_date', session_date) \
         .eq('item_type', item_type) \
-        .maybeSingle() \
+        .limit(1) \
         .execute()
-    return res.data
+    return res.data[0] if res.data else None
 
 
 async def get_event_attendees(event_name: str, session_date: str, item_type: str) -> list[dict]:

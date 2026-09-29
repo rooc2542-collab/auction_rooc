@@ -55,15 +55,21 @@ CREATE TABLE IF NOT EXISTS allocated_slots (
   allocated_at    TIMESTAMPTZ DEFAULT now()
 );
 
--- RLS
+-- RLS (Idempotent with DROP POLICY IF EXISTS)
 ALTER TABLE event_attendance ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public read attendance" ON event_attendance;
 CREATE POLICY "public read attendance" ON event_attendance FOR SELECT USING (true);
+DROP POLICY IF EXISTS "service write attendance" ON event_attendance;
 CREATE POLICY "service write attendance" ON event_attendance FOR ALL USING (auth.role() = 'service_role');
 
 ALTER TABLE event_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public read sessions" ON event_sessions;
 CREATE POLICY "public read sessions" ON event_sessions FOR SELECT USING (true);
+DROP POLICY IF EXISTS "service write sessions" ON event_sessions;
 CREATE POLICY "service write sessions" ON event_sessions FOR ALL USING (auth.role() = 'service_role');
 
 ALTER TABLE allocated_slots ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public read slots" ON allocated_slots;
 CREATE POLICY "public read slots" ON allocated_slots FOR SELECT USING (true);
+DROP POLICY IF EXISTS "service write slots" ON allocated_slots;
 CREATE POLICY "service write slots" ON allocated_slots FOR ALL USING (auth.role() = 'service_role');
