@@ -1,4 +1,6 @@
--- Add job_class to profiles
+-- Remove uid_game and add job_class to profiles
+ALTER TABLE profiles DROP COLUMN IF EXISTS uid_game;
+
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS job_class TEXT
   CHECK (job_class IN (
     'Lord Knight','Paladin','Biochemist','Mastersmith','Bard',

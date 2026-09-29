@@ -20,11 +20,11 @@ export default async function QueuesPage() {
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, display_name, discord_id, uid_game, job_class, role")
+      .select("id, display_name, discord_id, job_class, role")
       .order("display_name", { ascending: true }),
     supabase
       .from("event_attendance")
-      .select("*, profiles:user_id(display_name, discord_id, job_class, uid_game)")
+      .select("*, profiles:user_id(display_name, discord_id, job_class)")
       .order("created_at", { ascending: true }),
     supabase
       .from("event_sessions")
@@ -32,7 +32,7 @@ export default async function QueuesPage() {
       .order("session_date", { ascending: false }),
     supabase
       .from("allocated_slots")
-      .select("*, profiles:user_id(display_name, discord_id, job_class, uid_game)")
+      .select("*, profiles:user_id(display_name, discord_id, job_class)")
       .order("page_number", { ascending: true })
       .order("slot_number", { ascending: true }),
     supabase

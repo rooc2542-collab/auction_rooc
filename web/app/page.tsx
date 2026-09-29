@@ -41,7 +41,7 @@ export default async function HomePage() {
       .limit(12),
     supabase
       .from("profiles")
-      .select("id, display_name, discord_id, uid_game, job_class, role, created_at")
+      .select("id, display_name, discord_id, job_class, role, created_at")
       .order("created_at", { ascending: false })
       .limit(6),
     supabase.from("profiles").select("*", { count: "exact", head: true }),
@@ -325,7 +325,7 @@ export default async function HomePage() {
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-white text-sm truncate">{m.display_name}</div>
                   <div className="text-xs text-slate-400 truncate">
-                    {m.job_class || "ไม่ระบุอาชีพ"} • UID: {m.uid_game || "-"}
+                    {m.job_class || "ไม่ระบุอาชีพ"}
                   </div>
                 </div>
                 <span

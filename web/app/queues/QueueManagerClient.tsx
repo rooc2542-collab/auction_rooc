@@ -660,9 +660,6 @@ export default function QueueManagerClient({
                                 ? `${JOB_EMOJI[slotData.profiles.job_class] || "⚔️"} ${slotData.profiles.job_class}`
                                 : "ไม่ระบุอาชีพ"}
                             </span>
-                            {slotData.profiles?.uid_game && (
-                              <span className="font-mono text-slate-500">• UID: {slotData.profiles.uid_game}</span>
-                            )}
                           </div>
                         </div>
                       </div>

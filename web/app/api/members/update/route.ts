@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Admin only" }, { status: 403 })
   }
 
-  const { display_name, discord_id, uid_game, job_class, role } = await req.json()
+  const { display_name, discord_id, job_class, role } = await req.json()
   if (!display_name || !discord_id) {
     return NextResponse.json({ error: "กรุณาระบุชื่อและ Discord ID" }, { status: 400 })
   }
@@ -29,7 +29,6 @@ export async function POST(req: NextRequest) {
   const insertData: Record<string, any> = {
     display_name: display_name.trim(),
     discord_id: discord_id.trim(),
-    uid_game: uid_game ? uid_game.trim() : null,
     job_class: job_class || null,
     role: role === "admin" ? "admin" : "member",
   }
@@ -44,7 +43,7 @@ export async function PATCH(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const { id, display_name, uid_game, job_class, role } = await req.json()
+  const { id, display_name, job_class, role } = await req.json()
   if (!id || !display_name) return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
 
   const supabase = createAdminClient()
@@ -52,7 +51,6 @@ export async function PATCH(req: NextRequest) {
   const isAdmin = (session.user as any)?.role === "admin"
   const updateData: Record<string, any> = {
     display_name: display_name.trim(),
-    uid_game: uid_game ? uid_game.trim() : null,
     job_class: job_class || null,
   }
   if (isAdmin && role) updateData.role = role

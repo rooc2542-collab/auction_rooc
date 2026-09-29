@@ -19,7 +19,6 @@ interface Member {
   id: string
   display_name: string
   discord_id: string
-  uid_game: string | null
   job_class: string | null
   role: "admin" | "member"
   created_at: string
@@ -36,15 +35,14 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
   const [filterRole, setFilterRole] = useState("")
   const [editMember, setEditMember] = useState<Member | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [editForm, setEditForm] = useState({ display_name: "", discord_id: "", uid_game: "", job_class: "", role: "member" })
+  const [editForm, setEditForm] = useState({ display_name: "", discord_id: "", job_class: "", role: "member" })
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   const filtered = members.filter((m) => {
     const q = search.toLowerCase()
     const matchSearch = !q || m.display_name?.toLowerCase().includes(q) ||
-      m.discord_id?.toLowerCase().includes(q) ||
-      (m.uid_game || "").toLowerCase().includes(q)
+      m.discord_id?.toLowerCase().includes(q)
     const matchJob = !filterJob || m.job_class === filterJob
     const matchRole = !filterRole || m.role === filterRole
     return matchSearch && matchJob && matchRole
@@ -52,7 +50,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
 
   function openAdd() {
     setEditMember(null)
-    setEditForm({ display_name: "", discord_id: "", uid_game: "", job_class: "Lord Knight", role: "member" })
+    setEditForm({ display_name: "", discord_id: "", job_class: "Lord Knight", role: "member" })
     setMessage(null)
     setIsAddModalOpen(true)
   }
@@ -63,7 +61,6 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
     setEditForm({
       display_name: m.display_name || "",
       discord_id: m.discord_id || "",
-      uid_game: m.uid_game || "",
       job_class: m.job_class || "",
       role: m.role || "member",
     })
@@ -119,7 +116,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
       <div className="bg-slate-900/90 backdrop-blur-md rounded-2xl border border-slate-800 p-4 flex flex-wrap items-center gap-3 shadow-lg">
         <input
           type="text"
-          placeholder="🔍 ค้นหาชื่อตัวละคร, Discord ID, UID..."
+          placeholder="🔍 ค้นหาชื่อตัวละคร หรือ Discord ID..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 min-w-56 bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
@@ -162,7 +159,6 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
               <tr className="border-b border-slate-800 bg-slate-900/50 text-slate-400 text-left">
                 <th className="px-5 py-3.5 font-semibold">ชื่อตัวละคร</th>
                 <th className="px-5 py-3.5 font-semibold">อาชีพ</th>
-                <th className="px-5 py-3.5 font-semibold">UID Game</th>
                 <th className="px-5 py-3.5 font-semibold">Discord ID</th>
                 <th className="px-5 py-3.5 font-semibold">ระดับสิทธิ์</th>
                 <th className="px-5 py-3.5 font-semibold">วันที่ลงทะเบียน</th>
@@ -172,7 +168,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
             <tbody className="divide-y divide-slate-800/70">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 7 : 6} className="text-center text-slate-500 py-14">
+                  <td colSpan={isAdmin ? 6 : 5} className="text-center text-slate-500 py-14">
                     ไม่พบสมาชิกที่ตรงกับเงื่อนไข
                   </td>
                 </tr>
@@ -196,7 +192,6 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
                       <span className="text-slate-600 text-xs">ยังไม่ระบุ</span>
                     )}
                   </td>
-                  <td className="px-5 py-3.5 font-mono text-slate-300 text-xs">{m.uid_game || "-"}</td>
                   <td className="px-5 py-3.5 font-mono text-slate-500 text-xs">{m.discord_id}</td>
                   <td className="px-5 py-3.5">
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
@@ -269,15 +264,6 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
                   value={editForm.display_name}
                   onChange={(e) => setEditForm(f => ({ ...f, display_name: e.target.value }))}
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5">User Name (UID Game)</label>
-                <input
-                  placeholder="UID ในเกม"
-                  value={editForm.uid_game}
-                  onChange={(e) => setEditForm(f => ({ ...f, uid_game: e.target.value }))}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-purple-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
