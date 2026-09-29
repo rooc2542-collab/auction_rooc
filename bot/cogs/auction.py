@@ -1,193 +1,345 @@
 from __future__ import annotations
-
 import discord
 from discord import app_commands
 from discord.ext import commands
-
+from datetime import date
 from services import auction_service
-from views.vote_view import item_label, ITEM_LABELS, build_vote_embed, VoteView
-from views.result_view import build_result_embed, ResultView
+from services import allocation_service
+from views.attendance_view import EventPollView, build_attendance_embed, ITEM_LABELS
 
+ITEM_CHOICES = [
+    app_commands.Choice(name='Album (สมุดการ์ด)', value='Album'),
+    app_commands.Choice(name='Puppet (เศษการ์ดบอส)', value='Puppet'),
+    app_commands.Choice(name='White (ขนนกขาว)', value='White'),
+    app_commands.Choice(name='RedBlack (ขนนกดำแดง)', value='RedBlack'),
+]
 
-# ─── Admin check helper ──────────────────────────────────────────────────────
+SLOT_CHOICES = [
+    app_commands.Choice(name='ช่อง 1', value=1),
+    app_commands.Choice(name='ช่อง 2', value=2),
+    app_commands.Choice(name='ช่อง 3', value=3),
+    app_commands.Choice(name='ช่อง 4', value=4),
+]
+
 
 async def check_admin(interaction: discord.Interaction) -> bool:
-    """ตรวจสอบว่าผู้ใช้เป็น admin"""
     profile = await auction_service.get_profile_by_discord_id(str(interaction.user.id))
-    if not profile or profile.get("role") != "admin":
-        await interaction.response.send_message(
-            "❌ คำสั่งนี้ใช้ได้เฉพาะ Admin เท่านั้น", ephemeral=True
-        )
+    if not profile or profile.get('role') != 'admin':
+        await interaction.response.send_message('❌ คำสั่งนี้ใช้ได้เฉพาะ Admin เท่านั้น', ephemeral=True)
         return False
     return True
 
 
-# ─── Item type choices ───────────────────────────────────────────────────────
-
-ITEM_CHOICES = [
-    app_commands.Choice(name="Album (สมุดการ์ด)", value="Album"),
-    app_commands.Choice(name="Puppet (เศษการ์ดบอส)", value="Puppet"),
-    app_commands.Choice(name="White (ขนนกขาว)", value="White"),
-    app_commands.Choice(name="RedBlack (ขนนกดำแดง)", value="RedBlack"),
-]
-
-
-# ─── Cog ─────────────────────────────────────────────────────────────────────
-
 class AuctionCog(commands.Cog):
-    """คำสั่ง slash สำหรับ Admin จัดการรอบประมูล"""
-
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    # ─── /start_vote ──────────────────────────────────────────────────────
-    @app_commands.command(
-        name="start_vote", description="[Admin] เปิดรอบโหวตประมูลใหม่"
-    )
+    # ─── /event_poll ─────────────────────────────────────────────────────
+    @app_commands.command(name='event_poll', description='[Admin] เปิดโพลนับคนเข้าร่วมกิจกรรม/วอร์')
     @app_commands.describe(
-        item_type="ประเภทไอเทม",
-        quantity="จำนวนไอเทมทั้งหมดในรอบนี้",
-        limit="จำนวนสูงสุดที่แต่ละคนรับได้",
-        channel="ช่องที่จะส่งข้อความโหวต",
+        event_name='ชื่ออีเวนต์ เช่น Emperium Overrun',
+        channel='ช่องที่จะส่งโพล',
+        event_date='วันที่ (YYYY-MM-DD) ค่าเริ่มต้นคือวันนี้',
     )
-    @app_commands.choices(item_type=ITEM_CHOICES)
-    async def start_vote(
+    async def event_poll(
         self,
         interaction: discord.Interaction,
-        item_type: app_commands.Choice[str],
-        quantity: int,
-        limit: int,
+        event_name: str,
         channel: discord.TextChannel,
+        event_date: str | None = None,
     ) -> None:
         await interaction.response.defer(ephemeral=True)
-
         if not await check_admin(interaction):
             return
 
-        # ตรวจสอบว่ามีรอบ active อยู่หรือยัง
-        active = await auction_service.get_active_round()
-        if active:
-            await interaction.followup.send(
-                f"❌ มีรอบที่กำลังดำเนินอยู่แล้ว (status: {active['status']}) "
-                f"กรุณาปิดรอบเดิมก่อน",
-                ephemeral=True,
-            )
-            return
-
-        if quantity <= 0 or limit <= 0:
-            await interaction.followup.send(
-                "❌ จำนวนและลิมิตต้องมากกว่า 0", ephemeral=True
-            )
-            return
-
-        # สร้างรอบในฐานข้อมูล
-        round_data = await auction_service.create_round(
-            item_type=item_type.value,
-            total_qty=quantity,
-            personal_limit=limit,
-            channel_id=str(channel.id),
-            created_by_discord_id=str(interaction.user.id),
-        )
-
-        if not round_data:
-            await interaction.followup.send(
-                "❌ ไม่สามารถสร้างรอบประมูลได้ กรุณาตรวจสอบ log", ephemeral=True
-            )
-            return
-
-        # ส่ง VoteEmbed ไปยัง channel ที่กำหนด
-        vote_embed = build_vote_embed(round_data)
-        vote_view = VoteView()
-        vote_msg = await channel.send(embed=vote_embed, view=vote_view)
-
-        # บันทึก vote_message_id
-        await auction_service.update_round_message_id(
-            round_data["id"], str(vote_msg.id)
-        )
+        today = event_date or str(date.today())
+        embed = build_attendance_embed(event_name, today)
+        view = EventPollView(event_name, today)
+        msg = await channel.send(embed=embed, view=view)
 
         await interaction.followup.send(
-            f"✅ โหวตเปิดแล้วที่ {channel.mention}", ephemeral=True
+            f'✅ โพสต์โพลสำเร็จที่ {channel.mention}\n'
+            f'📝 ชื่ออีเวนต์: **{event_name}**\n📅 วันที่: **{today}**',
+            ephemeral=True
         )
 
-    # ─── /close_vote ──────────────────────────────────────────────────────
-    @app_commands.command(
-        name="close_vote", description="[Admin] ปิดรอบโหวตและเปิดรับจองคิว"
+    # ─── /set_item_coords ────────────────────────────────────────────────
+    @app_commands.command(name='set_item_coords', description='[Admin] ตั้งค่าไอเทมโดยระบุพิกัดหน้า/ช่องในเกม')
+    @app_commands.describe(
+        event_name='ชื่ออีเวนต์',
+        item_type='ประเภทไอเทม',
+        start_page='หน้าเริ่มต้น',
+        start_slot='ช่องเริ่มต้น (1-4)',
+        end_page='หน้าสิ้นสุด',
+        end_slot='ช่องสิ้นสุด (1-4)',
+        limit='จำนวนสูงสุดที่แต่ละคนรับได้',
+        event_date='วันที่ (YYYY-MM-DD) ค่าเริ่มต้นคือวันนี้',
     )
-    async def close_vote(self, interaction: discord.Interaction) -> None:
+    @app_commands.choices(item_type=ITEM_CHOICES, start_slot=SLOT_CHOICES, end_slot=SLOT_CHOICES)
+    async def set_item_coords(
+        self,
+        interaction: discord.Interaction,
+        event_name: str,
+        item_type: app_commands.Choice[str],
+        start_page: int,
+        start_slot: app_commands.Choice[int],
+        end_page: int,
+        end_slot: app_commands.Choice[int],
+        limit: int,
+        event_date: str | None = None,
+    ) -> None:
         await interaction.response.defer(ephemeral=True)
-
         if not await check_admin(interaction):
             return
 
-        round_data = await auction_service.get_active_round()
-        if not round_data:
-            await interaction.followup.send(
-                "❌ ไม่มีรอบที่กำลังดำเนินอยู่", ephemeral=True
-            )
-            return
-
-        if round_data["status"] != "voting":
-            await interaction.followup.send(
-                f"❌ รอบปัจจุบันอยู่ในสถานะ '{round_data['status']}' ไม่สามารถปิดโหวตได้",
-                ephemeral=True,
-            )
-            return
-
-        # ปิดโหวต
-        await auction_service.close_voting(round_data["id"])
-
-        # พยายาม edit vote message เพื่อ disable ปุ่ม
-        channel_id = round_data.get("channel_id")
-        vote_message_id = round_data.get("vote_message_id")
-
-        channel: discord.TextChannel | None = None
-        if channel_id:
-            channel = self.bot.get_channel(int(channel_id))  # type: ignore
-
-        if channel and vote_message_id:
-            try:
-                vote_msg = await channel.fetch_message(int(vote_message_id))
-                # สร้าง VoteView ที่ disabled ทุกปุ่ม
-                disabled_view = VoteView()
-                for item in disabled_view.children:
-                    item.disabled = True  # type: ignore
-
-                summary = await auction_service.get_round_summary(round_data["id"])
-                closed_embed = build_vote_embed(
-                    {**round_data, "status": "bidding"}, summary["vote_counts"]
-                )
-                closed_embed.title = f"🔒 ปิดการโหวตแล้ว | {item_label(round_data['item_type'])}"
-                closed_embed.color = discord.Color.greyple()
-                closed_embed.add_field(
-                    name="สถานะ", value="ปิดโหวตแล้ว — เปิดรับจองคิว", inline=False
-                )
-                await vote_msg.edit(embed=closed_embed, view=disabled_view)
-            except Exception as e:
-                print(f"[AuctionCog] ไม่สามารถ edit vote message: {e}")
-
-        # ส่ง ResultEmbed + ResultView ไปยัง channel เดิม
-        summary = await auction_service.get_round_summary(round_data["id"])
-        result_embed = build_result_embed(
-            round_data, summary["vote_counts"], summary["queues"]
+        today = event_date or str(date.today())
+        total = allocation_service.compute_total_from_coords(
+            start_page, start_slot.value, end_page, end_slot.value
         )
-        result_view = ResultView()
 
-        if channel:
-            result_msg = await channel.send(embed=result_embed, view=result_view)
-            await auction_service.update_round_result_message_id(
-                round_data["id"], str(result_msg.id)
+        if total <= 0:
+            await interaction.followup.send('❌ พิกัดไม่ถูกต้อง หน้าสิ้นสุดต้องมากกว่าหน้าเริ่มต้น', ephemeral=True)
+            return
+
+        from services.supabase_client import supabase
+        supabase.table('event_sessions').upsert({
+            'event_name': event_name,
+            'session_date': today,
+            'item_type': item_type.value,
+            'start_page': start_page,
+            'start_slot': start_slot.value,
+            'end_page': end_page,
+            'end_slot': end_slot.value,
+            'total_quantity': total,
+            'personal_limit': limit,
+            'status': 'active',
+        }, on_conflict='event_name,session_date,item_type').execute()
+
+        iname = ITEM_LABELS.get(item_type.value, item_type.value)
+        embed = discord.Embed(title='✅ บันทึกข้อมูลไอเทมสำเร็จ', color=discord.Color.green())
+        embed.add_field(name='📦 ไอเทม', value=iname, inline=True)
+        embed.add_field(name='🔢 จำนวน', value=f'{total} ชิ้น', inline=True)
+        embed.add_field(name='👤 Limit', value=f'{limit} ต่อคน', inline=True)
+        embed.add_field(
+            name='📍 พิกัด',
+            value=f'หน้า {start_page} ช่อง {start_slot.value} → หน้า {end_page} ช่อง {end_slot.value}',
+            inline=False
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    # ─── /set_item_qty ───────────────────────────────────────────────────
+    @app_commands.command(name='set_item_qty', description='[Admin] ตั้งค่าไอเทมโดยระบุจำนวนชิ้นรวมโดยตรง')
+    @app_commands.describe(
+        event_name='ชื่ออีเวนต์',
+        item_type='ประเภทไอเทม',
+        total_qty='จำนวนชิ้นรวม',
+        limit='จำนวนสูงสุดที่แต่ละคนรับได้',
+        event_date='วันที่ (YYYY-MM-DD) ค่าเริ่มต้นคือวันนี้',
+    )
+    @app_commands.choices(item_type=ITEM_CHOICES)
+    async def set_item_qty(
+        self,
+        interaction: discord.Interaction,
+        event_name: str,
+        item_type: app_commands.Choice[str],
+        total_qty: int,
+        limit: int,
+        event_date: str | None = None,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await check_admin(interaction):
+            return
+
+        if total_qty <= 0 or limit <= 0:
+            await interaction.followup.send('❌ จำนวนต้องมากกว่า 0', ephemeral=True)
+            return
+
+        today = event_date or str(date.today())
+        from services.supabase_client import supabase
+        supabase.table('event_sessions').upsert({
+            'event_name': event_name,
+            'session_date': today,
+            'item_type': item_type.value,
+            'start_page': 1, 'start_slot': 1,
+            'end_page': (total_qty - 1) // 4 + 1,
+            'end_slot': ((total_qty - 1) % 4) + 1,
+            'total_quantity': total_qty,
+            'personal_limit': limit,
+            'status': 'active',
+        }, on_conflict='event_name,session_date,item_type').execute()
+
+        iname = ITEM_LABELS.get(item_type.value, item_type.value)
+        embed = discord.Embed(title='✅ บันทึกข้อมูลไอเทมสำเร็จ', color=discord.Color.green())
+        embed.add_field(name='📦 ไอเทม', value=iname, inline=True)
+        embed.add_field(name='🔢 จำนวน', value=f'{total_qty} ชิ้น', inline=True)
+        embed.add_field(name='👤 Limit', value=f'{limit} ต่อคน', inline=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    # ─── /announce_allocation ────────────────────────────────────────────
+    @app_commands.command(name='announce_allocation', description='[Admin] คำนวณและประกาศผลการจัดสรรสล็อต')
+    @app_commands.describe(
+        event_name='ชื่ออีเวนต์',
+        channel='ช่องที่จะประกาศผล',
+        event_date='วันที่ (YYYY-MM-DD) ค่าเริ่มต้นคือวันนี้',
+    )
+    async def announce_allocation(
+        self,
+        interaction: discord.Interaction,
+        event_name: str,
+        channel: discord.TextChannel,
+        event_date: str | None = None,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await check_admin(interaction):
+            return
+
+        today = event_date or str(date.today())
+        from services.supabase_client import supabase
+
+        # ดึง sessions ทั้งหมดของวันนี้
+        sessions_res = supabase.table('event_sessions').select('*') \
+            .eq('event_name', event_name).eq('session_date', today) \
+            .eq('status', 'active').execute()
+        sessions = sessions_res.data or []
+
+        if not sessions:
+            await interaction.followup.send(
+                f'❌ ไม่พบข้อมูลไอเทมสำหรับ **{event_name}** วันที่ {today}\n'
+                f'กรุณาใช้ /set_item_coords หรือ /set_item_qty ก่อน',
+                ephemeral=True
+            )
+            return
+
+        # ประมวลผลทุก item type
+        all_announcements: list[str] = []
+        header_embed = discord.Embed(
+            title=f'📋 ผลการจัดสรรสล็อต — {event_name}',
+            description=f'📅 {today} | ประกาศโดย {interaction.user.display_name}',
+            color=discord.Color.gold()
+        )
+
+        for session in sessions:
+            item_type = session['item_type']
+            total_qty = session['total_quantity']
+            personal_limit = session['personal_limit']
+            start_page = session['start_page']
+            start_slot = session['start_slot']
+
+            iname = ITEM_LABELS.get(item_type, item_type)
+
+            # ดึงรายชื่อสมาชิกที่ต้องการไอเทมนี้
+            members = await allocation_service.get_event_attendees(event_name, today, item_type)
+
+            if not members:
+                header_embed.add_field(
+                    name=f'{iname}',
+                    value=f'จำนวน {total_qty} ชิ้น | ไม่มีผู้เข้าร่วมขอไอเทมนี้',
+                    inline=False
+                )
+                continue
+
+            # ดึง credit map
+            user_ids = [m['user_id'] for m in members]
+            credit_map = await allocation_service.get_credit_map(user_ids, item_type)
+
+            # คำนวณ allocation
+            slots = allocation_service.allocate_slots(
+                item_type, total_qty, personal_limit,
+                start_page, start_slot, members, credit_map
             )
 
-        await interaction.followup.send("🔒 ปิดโหวตเรียบร้อย เปิดรับจองคิวแล้ว", ephemeral=True)
+            # บันทึก DB
+            await allocation_service.save_allocation(event_name, today, item_type, slots)
 
-    # ─── /award ───────────────────────────────────────────────────────────
-    @app_commands.command(
-        name="award", description="[Admin] มอบไอเทมให้สมาชิก"
-    )
+            # สร้าง announcement text แบบรูปที่ 3
+            # Group by member -> list pages/slots
+            member_slots: dict[str, list] = {}
+            total_pages_val = slots[0]['total_pages'] if slots else start_page
+            for s in slots:
+                did = s['discord_id']
+                if did not in member_slots:
+                    member_slots[did] = {'name': s['display_name'], 'uid': did, 'slots': []}
+                member_slots[did]['slots'].append((s['page'], s['slot']))
+
+            lines = []
+            for did, info in member_slots.items():
+                pages_grouped: dict[int, list] = {}
+                for pg, sl in info['slots']:
+                    pages_grouped.setdefault(pg, []).append(sl)
+                page_texts = []
+                for pg in sorted(pages_grouped):
+                    slots_str = ', '.join(str(s) for s in sorted(pages_grouped[pg]))
+                    page_texts.append(f'Page {pg}/{total_pages_val}: {slots_str}')
+                lines.append(f'<@{did}> | {event_name}: {today}\n' + '\n'.join(page_texts))
+
+            announcement = f'**{iname}** — {len(members)} คน | จำนวน {total_qty} ชิ้น | Limit {personal_limit}/คน\n'
+            announcement += '\n-----\n'.join(lines)
+            all_announcements.append(announcement)
+
+            header_embed.add_field(
+                name=f'{iname}',
+                value=f'จำนวน {total_qty} ชิ้น | {len(members)} คนขอ | Limit {personal_limit}/คน',
+                inline=True
+            )
+
+        # โพสต์ header embed
+        await channel.send(embed=header_embed)
+
+        # โพสต์ announcement แยกไอเทม
+        for ann in all_announcements:
+            # Discord message limit 2000 chars
+            if len(ann) <= 1900:
+                await channel.send(ann)
+            else:
+                # แบ่งส่งหลายข้อความ
+                lines = ann.split('\n-----\n')
+                chunk = lines[0]
+                for line in lines[1:]:
+                    if len(chunk) + len(line) + 8 <= 1900:
+                        chunk += '\n-----\n' + line
+                    else:
+                        await channel.send(chunk)
+                        chunk = line
+                if chunk:
+                    await channel.send(chunk)
+
+        await interaction.followup.send(
+            f'✅ ประกาศผลสำเร็จที่ {channel.mention}',
+            ephemeral=True
+        )
+
+    # ─── /round_status ───────────────────────────────────────────────────
+    @app_commands.command(name='round_status', description='ดูสรุปสถานะโพลและการจัดสรรล่าสุด')
     @app_commands.describe(
-        member="สมาชิกที่ต้องการ award",
-        item_type="ประเภทไอเทม",
-        note="หมายเหตุ (ไม่บังคับ)",
+        event_name='ชื่ออีเวนต์',
+        event_date='วันที่ (YYYY-MM-DD) ค่าเริ่มต้นคือวันนี้',
+    )
+    async def round_status(
+        self,
+        interaction: discord.Interaction,
+        event_name: str,
+        event_date: str | None = None,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        from services.supabase_client import supabase
+        today = event_date or str(date.today())
+
+        res = supabase.table('event_attendance').select('status') \
+            .eq('event_name', event_name).eq('event_date', today).execute()
+        counts = {'want_bid': 0, 'no_bid': 0, 'absent': 0}
+        for row in (res.data or []):
+            s = row.get('status', '')
+            if s in counts:
+                counts[s] += 1
+
+        embed = build_attendance_embed(event_name, today, counts)
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    # ─── /award ──────────────────────────────────────────────────────────
+    @app_commands.command(name='award', description='[Admin] บันทึกการมอบไอเทมให้สมาชิก')
+    @app_commands.describe(
+        member='สมาชิกที่ได้รับไอเทม',
+        item_type='ประเภทไอเทม',
     )
     @app_commands.choices(item_type=ITEM_CHOICES)
     async def award(
@@ -195,153 +347,32 @@ class AuctionCog(commands.Cog):
         interaction: discord.Interaction,
         member: discord.Member,
         item_type: app_commands.Choice[str],
-        note: str | None = None,
     ) -> None:
         await interaction.response.defer(ephemeral=True)
-
         if not await check_admin(interaction):
             return
 
-        round_data = await auction_service.get_active_round()
-        if not round_data:
-            await interaction.followup.send(
-                "❌ ไม่มีรอบที่กำลังดำเนินอยู่", ephemeral=True
-            )
+        target_profile = await auction_service.get_profile_by_discord_id(str(member.id))
+        if not target_profile:
+            await interaction.followup.send(f'❌ {member.display_name} ยังไม่ได้ลงทะเบียนในระบบ', ephemeral=True)
             return
 
-        ok, msg = await auction_service.award_item(
-            round_id=round_data["id"],
-            discord_id=str(member.id),
-            item_type=item_type.value,
-            awarded_by_discord_id=str(interaction.user.id),
-            note=note,
-        )
+        admin_profile = await auction_service.get_profile_by_discord_id(str(interaction.user.id))
+        from services.supabase_client import supabase
+        supabase.table('auction_history').insert({
+            'user_id': target_profile['id'],
+            'item_type': item_type.value,
+            'qty_awarded': 1,
+            'awarded_by': admin_profile['id'] if admin_profile else None,
+            'note': f'Award ผ่านคำสั่ง /award โดย {interaction.user.display_name}',
+            'awarded_at': 'now()'
+        }).execute()
 
-        if ok:
-            result_embed = discord.Embed(
-                title="✅ Award สำเร็จ",
-                color=discord.Color.green(),
-            )
-            result_embed.add_field(name="ผู้รับ", value=member.mention, inline=True)
-            result_embed.add_field(
-                name="ไอเทม", value=item_label(item_type.value), inline=True
-            )
-            if note:
-                result_embed.add_field(name="หมายเหตุ", value=note, inline=False)
-
-            await interaction.followup.send(embed=result_embed, ephemeral=True)
-
-            # ประกาศใน channel ของรอบ
-            channel_id = round_data.get("channel_id")
-            if channel_id:
-                channel: discord.TextChannel | None = self.bot.get_channel(int(channel_id))  # type: ignore
-                if channel:
-                    announce_embed = discord.Embed(
-                        title="🏆 Award ประกาศ",
-                        description=(
-                            f"{member.mention} ได้รับ **{item_label(item_type.value)}** แล้ว! 🎉"
-                        ),
-                        color=discord.Color.gold(),
-                    )
-                    if note:
-                        announce_embed.add_field(name="หมายเหตุ", value=note, inline=False)
-
-                    await channel.send(embed=announce_embed)
-
-                    # อัปเดต result embed ถ้ามี result_message_id
-                    result_msg_id = round_data.get("result_message_id")
-                    if result_msg_id:
-                        try:
-                            result_msg = await channel.fetch_message(int(result_msg_id))
-                            summary = await auction_service.get_round_summary(round_data["id"])
-                            from views.result_view import build_result_embed
-
-                            updated_embed = build_result_embed(
-                                round_data, summary["vote_counts"], summary["queues"]
-                            )
-                            await result_msg.edit(embed=updated_embed)
-                        except Exception as e:
-                            print(f"[AuctionCog] ไม่สามารถ update result message: {e}")
-        else:
-            await interaction.followup.send(f"❌ {msg}", ephemeral=True)
-
-    # ─── /round_status ────────────────────────────────────────────────────
-    @app_commands.command(
-        name="round_status", description="[Admin] ดูสถานะรอบประมูลปัจจุบันแบบละเอียด"
-    )
-    async def round_status(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer(ephemeral=True)
-
-        if not await check_admin(interaction):
-            return
-
-        round_data = await auction_service.get_active_round()
-        if not round_data:
-            await interaction.followup.send(
-                "📭 ไม่มีรอบที่กำลังดำเนินอยู่", ephemeral=True
-            )
-            return
-
-        summary = await auction_service.get_round_summary(round_data["id"])
-        vote_counts = summary["vote_counts"]
-        queues = summary["queues"]
-
-        status_label = {
-            "voting": "🗳️ กำลังโหวต",
-            "bidding": "🎯 เปิดรับจองคิว",
-            "closed": "🔒 ปิดแล้ว",
-        }.get(round_data["status"], round_data["status"])
-
+        iname = ITEM_LABELS.get(item_type.value, item_type.value)
         embed = discord.Embed(
-            title=f"📊 สถานะรอบ — {item_label(round_data['item_type'])}",
-            color=discord.Color.purple(),
-        )
-        embed.add_field(name="สถานะ", value=status_label, inline=True)
-        embed.add_field(
-            name="📦 ประเภท", value=item_label(round_data["item_type"]), inline=True
-        )
-        embed.add_field(
-            name="🔢 จำนวน / ลิมิต",
-            value=f"{round_data['total_quantity']} / {round_data['personal_limit']} ต่อคน",
-            inline=True,
-        )
-        embed.add_field(
-            name="📊 ผลโหวต",
-            value=(
-                f"✅ ต้องการประมูล: **{vote_counts.get('want_bid', 0)}**\n"
-                f"📦 ไม่ประมูล (carry): **{vote_counts.get('no_bid', 0)}**\n"
-                f"❌ ไม่เข้าร่วม: **{vote_counts.get('absent', 0)}**"
-            ),
-            inline=False,
-        )
-
-        # แสดงคิวแบบละเอียด
-        if queues:
-            queue_lines = []
-            for i, q in enumerate(queues, start=1):
-                profile_info = q.get("profiles") or {}
-                name = profile_info.get("display_name", "ไม่ทราบชื่อ")
-                discord_id = profile_info.get("discord_id", "")
-                credit = q.get("credit", 0)
-                status_icon = {"waiting": "⏳", "awarded": "✅", "cancelled": "❌"}.get(
-                    q.get("status", ""), "❓"
-                )
-                mention = f"<@{discord_id}>" if discord_id else name
-                credit_str = f" | credit: {credit}" if credit > 0 else ""
-                queue_lines.append(
-                    f"{i}. {status_icon} **{name}** ({mention}){credit_str}"
-                )
-
-            embed.add_field(
-                name=f"📋 คิวประมูล ({len(queues)} คน)",
-                value="\n".join(queue_lines[:20]),  # จำกัด 20 บรรทัด
-                inline=False,
-            )
-        else:
-            embed.add_field(name="📋 คิว", value="ยังไม่มีผู้จองคิว", inline=False)
-
-        embed.set_footer(
-            text=f"รอบวันที่ {round_data.get('round_date', '')} | ID: {round_data['id'][:8]}..."
+            title='🎁 Award สำเร็จ',
+            description=f'มอบ **{iname}** ให้ **{target_profile["display_name"]}** เรียบร้อยแล้ว',
+            color=discord.Color.green()
         )
         await interaction.followup.send(embed=embed, ephemeral=True)
 

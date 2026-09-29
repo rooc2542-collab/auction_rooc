@@ -1,24 +1,145 @@
 from __future__ import annotations
-
 import discord
 from discord import app_commands
 from discord.ext import commands
-
 from services import auction_service, credit_service
-from views.vote_view import item_label, ITEM_LABELS
+
+JOB_CLASSES = [
+    'Lord Knight','Paladin','Biochemist','Mastersmith','Bard',
+    'Gypsy','Sniper','Champion','Priest','Assassin','Rogue',
+    'Wizard','Sage','Summoner','Rebellion'
+]
+
+JOB_EMOJIS = {
+    'Lord Knight': '⚔️', 'Paladin': '🛡️', 'Biochemist': '🧪',
+    'Mastersmith': '🔨', 'Bard': '🎵', 'Gypsy': '💃',
+    'Sniper': '🏹', 'Champion': '👊', 'Priest': '✝️',
+    'Assassin': '🗡️', 'Rogue': '🎭', 'Wizard': '🔮',
+    'Sage': '📖', 'Summoner': '🌟', 'Rebellion': '🔫'
+}
+
+# Modal สำหรับแก้ไขข้อมูล
+class EditProfileModal(discord.ui.Modal, title='✏️ แก้ไขข้อมูลโปรไฟล์'):
+    display_name = discord.ui.TextInput(
+        label='ชื่อในระบบ (Display Name)',
+        placeholder='ชื่อที่แสดงในระบบ',
+        max_length=50,
+        required=True
+    )
+    uid_game = discord.ui.TextInput(
+        label='UID ในเกม',
+        placeholder='UID ตัวเลขในเกม',
+        required=False,
+        max_length=20
+    )
+
+    def __init__(self, current_name: str, current_uid: str, discord_id: str):
+        super().__init__()
+        self.display_name.default = current_name
+        self.uid_game.default = current_uid or ''
+        self._discord_id = discord_id
+
+    async def on_submit(self, interaction: discord.Interaction):
+        from services.supabase_client import supabase
+        # Show job class select after modal submit
+        view = JobClassSelectView(self._discord_id, str(self.display_name), str(self.uid_game) or None, is_update=True)
+        embed = discord.Embed(
+            title='🎭 เลือกอาชีพของคุณ',
+            description='กรุณาเลือกอาชีพตัวละครของคุณในเกม',
+            color=discord.Color.blue()
+        )
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+
+class JobClassSelect(discord.ui.Select):
+    def __init__(self, discord_id: str, display_name: str, uid_game: str | None, is_update: bool):
+        self._discord_id = discord_id
+        self._display_name = display_name
+        self._uid_game = uid_game
+        self._is_update = is_update
+        options = [
+            discord.SelectOption(
+                label=jc,
+                emoji=JOB_EMOJIS.get(jc, '⚔️'),
+                value=jc
+            ) for jc in JOB_CLASSES
+        ]
+        super().__init__(
+            placeholder='เลือกอาชีพของคุณ...',
+            options=options,
+            custom_id='job_class_select'
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        from services.supabase_client import supabase
+        job_class = self.values[0]
+
+        try:
+            if self._is_update:
+                update_data = {'display_name': self._display_name, 'job_class': job_class}
+                if self._uid_game:
+                    update_data['uid_game'] = self._uid_game
+                supabase.table('profiles').update(update_data).eq('discord_id', self._discord_id).execute()
+                title = '✅ อัปเดตข้อมูลสำเร็จ!'
+            else:
+                insert_data = {
+                    'discord_id': self._discord_id,
+                    'display_name': self._display_name,
+                    'job_class': job_class,
+                    'role': 'member'
+                }
+                if self._uid_game:
+                    insert_data['uid_game'] = self._uid_game
+                supabase.table('profiles').insert(insert_data).execute()
+                title = '🎉 ลงทะเบียนสำเร็จ!'
+
+            embed = discord.Embed(title=title, color=discord.Color.green())
+            embed.add_field(name='👤 ชื่อ', value=self._display_name, inline=True)
+            embed.add_field(name=f'{JOB_EMOJIS.get(job_class,"⚔️")} อาชีพ', value=job_class, inline=True)
+            if self._uid_game:
+                embed.add_field(name='🎮 UID', value=self._uid_game, inline=True)
+            embed.set_footer(text='ยินดีต้อนรับสู่ระบบประมูล!')
+
+            # Disable the select
+            self.disabled = True
+            await interaction.response.edit_message(embed=embed, view=self.view)
+        except Exception as e:
+            await interaction.response.send_message(f'❌ เกิดข้อผิดพลาด: {e}', ephemeral=True)
+
+
+class JobClassSelectView(discord.ui.View):
+    def __init__(self, discord_id: str, display_name: str, uid_game: str | None, is_update: bool):
+        super().__init__(timeout=120)
+        self.add_item(JobClassSelect(discord_id, display_name, uid_game, is_update))
+
+
+class EditProfileView(discord.ui.View):
+    def __init__(self, profile: dict, discord_id: str):
+        super().__init__(timeout=120)
+        self._profile = profile
+        self._discord_id = discord_id
+
+    @discord.ui.button(label='✏️ แก้ไขข้อมูล', style=discord.ButtonStyle.primary)
+    async def edit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if str(interaction.user.id) != self._discord_id:
+            await interaction.response.send_message('❌ คุณไม่มีสิทธิ์แก้ไขข้อมูลของคนอื่น', ephemeral=True)
+            return
+        modal = EditProfileModal(
+            current_name=self._profile.get('display_name', ''),
+            current_uid=self._profile.get('uid_game', ''),
+            discord_id=self._discord_id
+        )
+        await interaction.response.send_modal(modal)
 
 
 class MemberCog(commands.Cog):
-    """คำสั่ง slash สำหรับสมาชิกทั่วไป"""
-
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    # ─── /register ────────────────────────────────────────────────────────
-    @app_commands.command(name="register", description="ลงทะเบียน / อัปเดตข้อมูลของคุณ")
+    @app_commands.command(name='register', description='ลงทะเบียน / ดูข้อมูลของคุณในระบบ')
     @app_commands.describe(
-        display_name="ชื่อที่แสดงในระบบ",
-        uid_game="UID ในเกม (ไม่บังคับ)",
+        display_name='ชื่อที่แสดงในระบบ',
+        uid_game='UID ในเกม (ไม่บังคับ)',
     )
     async def register(
         self,
@@ -27,165 +148,72 @@ class MemberCog(commands.Cog):
         uid_game: str | None = None,
     ) -> None:
         await interaction.response.defer(ephemeral=True)
-
-        from services.supabase_client import supabase
-
         discord_id = str(interaction.user.id)
         existing = await auction_service.get_profile_by_discord_id(discord_id)
 
-        try:
-            if existing:
-                # อัปเดตข้อมูล
-                update_data: dict = {"display_name": display_name}
-                if uid_game is not None:
-                    update_data["uid_game"] = uid_game
-
-                supabase.table("profiles").update(update_data).eq(
-                    "discord_id", discord_id
-                ).execute()
-
-                embed = discord.Embed(
-                    title="✅ อัปเดตข้อมูลสำเร็จ",
-                    color=discord.Color.green(),
-                )
-                embed.add_field(name="ชื่อ", value=display_name, inline=True)
-                if uid_game:
-                    embed.add_field(name="UID Game", value=uid_game, inline=True)
-                embed.set_footer(text="ข้อมูลของคุณถูกอัปเดตแล้ว")
-            else:
-                # สร้างใหม่
-                insert_data: dict = {
-                    "discord_id": discord_id,
-                    "display_name": display_name,
-                    "role": "member",
-                }
-                if uid_game is not None:
-                    insert_data["uid_game"] = uid_game
-
-                supabase.table("profiles").insert(insert_data).execute()
-
-                embed = discord.Embed(
-                    title="🎉 ลงทะเบียนสำเร็จ!",
-                    color=discord.Color.green(),
-                )
-                embed.add_field(name="ชื่อ", value=display_name, inline=True)
-                if uid_game:
-                    embed.add_field(name="UID Game", value=uid_game, inline=True)
-                embed.set_footer(text="ยินดีต้อนรับสู่ระบบประมูล!")
-
-            await interaction.followup.send(embed=embed, ephemeral=True)
-
-        except Exception as e:
-            print(f"[MemberCog] register error: {e}")
-            await interaction.followup.send(
-                f"❌ เกิดข้อผิดพลาด: {e}", ephemeral=True
+        if existing:
+            # แสดงข้อมูลเดิม + ปุ่มแก้ไข
+            job = existing.get('job_class', 'ไม่ได้ระบุ') or 'ไม่ได้ระบุ'
+            embed = discord.Embed(
+                title='⚠️ คุณลงทะเบียนไว้แล้ว',
+                description='ข้อมูลปัจจุบันของคุณในระบบ:',
+                color=discord.Color.yellow()
             )
+            embed.add_field(name='👤 ชื่อ', value=existing.get('display_name', '-'), inline=True)
+            embed.add_field(name=f'{JOB_EMOJIS.get(job,"⚔️")} อาชีพ', value=job, inline=True)
+            embed.add_field(name='🎮 UID', value=existing.get('uid_game', '-') or '-', inline=True)
+            embed.set_footer(text='กดปุ่มด้านล่างหากต้องการแก้ไขข้อมูล')
+            view = EditProfileView(existing, discord_id)
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        else:
+            # ใหม่: เลือกอาชีพก่อนบันทึก
+            embed = discord.Embed(
+                title='🎭 เลือกอาชีพของคุณ',
+                description=f'ยินดีต้อนรับ **{display_name}**! กรุณาเลือกอาชีพตัวละครของคุณ',
+                color=discord.Color.blue()
+            )
+            view = JobClassSelectView(discord_id, display_name, uid_game, is_update=False)
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
-    # ─── /credits ─────────────────────────────────────────────────────────
-    @app_commands.command(
-        name="credits", description="ดู carry credit ของตัวเองหรือสมาชิกคนอื่น"
-    )
-    @app_commands.describe(member="สมาชิกที่ต้องการดู (ค่าเริ่มต้นคือตัวเอง)")
+    @app_commands.command(name='credits', description='ดู carry credit ของตัวเองหรือสมาชิกคนอื่น')
+    @app_commands.describe(member='สมาชิกที่ต้องการดู (ค่าเริ่มต้นคือตัวเอง)')
     async def credits(
         self,
         interaction: discord.Interaction,
         member: discord.Member | None = None,
     ) -> None:
         await interaction.response.defer(ephemeral=True)
-
         target = member or interaction.user
         profile = await auction_service.get_profile_by_discord_id(str(target.id))
-
         if not profile:
-            name = member.display_name if member else "คุณ"
-            await interaction.followup.send(
-                f"❌ {name} ยังไม่ได้ลงทะเบียนในระบบ", ephemeral=True
-            )
+            name = member.display_name if member else 'คุณ'
+            await interaction.followup.send(f'❌ {name} ยังไม่ได้ลงทะเบียนในระบบ', ephemeral=True)
             return
-
-        credits_data = await credit_service.get_credits(profile["id"])
-
-        embed = discord.Embed(
-            title=f"💳 Carry Credits ของ {profile['display_name']}",
-            color=discord.Color.gold(),
-        )
-
-        # แสดง credit ทุก item type
-        all_item_types = list(ITEM_LABELS.keys())
-        credits_map = {c["item_type"]: c["credit"] for c in credits_data}
-
-        for it in all_item_types:
-            credit_val = credits_map.get(it, 0)
-            embed.add_field(
-                name=item_label(it),
-                value=f"**{credit_val}** credits",
-                inline=True,
-            )
-
-        if not credits_data or all(c["credit"] == 0 for c in credits_data):
-            embed.description = "ยังไม่มี carry credit"
-
-        embed.set_footer(text="Credit สะสมจากการโหวต 'ไม่ประมูล'")
+        credits_data = await credit_service.get_credits(profile['id'])
+        ITEM_LABELS = {'Album': 'สมุดการ์ด', 'Puppet': 'เศษการ์ดบอส', 'White': 'ขนนกขาว', 'RedBlack': 'ขนนกดำแดง'}
+        embed = discord.Embed(title=f'💳 Carry Credits — {profile["display_name"]}', color=discord.Color.gold())
+        credits_map = {c['item_type']: c['credit'] for c in credits_data}
+        for it, lbl in ITEM_LABELS.items():
+            val = credits_map.get(it, 0)
+            embed.add_field(name=lbl, value=f'**{val}** credits', inline=True)
+        if not credits_data or all(c['credit'] == 0 for c in credits_data):
+            embed.description = 'ยังไม่มี carry credit'
+        embed.set_footer(text="Credit สะสมจากการเลือก 'Join the war / Do not want to bid'")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
-    # ─── /status ──────────────────────────────────────────────────────────
-    @app_commands.command(name="status", description="ดูสถานะรอบประมูลปัจจุบัน")
-    async def status(self, interaction: discord.Interaction) -> None:
+    @app_commands.command(name='mystatus', description='ดูโปรไฟล์และสถิติของตัวเอง')
+    async def mystatus(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
-
-        round_data = await auction_service.get_active_round()
-
-        if not round_data:
-            await interaction.followup.send(
-                "📭 ไม่มีรอบประมูลที่กำลังดำเนินอยู่ในขณะนี้", ephemeral=True
-            )
+        discord_id = str(interaction.user.id)
+        profile = await auction_service.get_profile_by_discord_id(discord_id)
+        if not profile:
+            await interaction.followup.send('❌ คุณยังไม่ได้ลงทะเบียน ใช้คำสั่ง /register ก่อนนะครับ', ephemeral=True)
             return
-
-        summary = await auction_service.get_round_summary(round_data["id"])
-        vote_counts = summary["vote_counts"]
-        queues = summary["queues"]
-
-        status_label = {
-            "voting": "🗳️ กำลังโหวต",
-            "bidding": "🎯 เปิดรับจองคิว",
-            "closed": "🔒 ปิดแล้ว",
-        }.get(round_data["status"], round_data["status"])
-
-        embed = discord.Embed(
-            title=f"📊 สถานะรอบประมูล — {item_label(round_data['item_type'])}",
-            color=discord.Color.blue(),
-        )
-        embed.add_field(name="สถานะ", value=status_label, inline=True)
-        embed.add_field(
-            name="📦 ประเภทไอเทม",
-            value=item_label(round_data["item_type"]),
-            inline=True,
-        )
-        embed.add_field(
-            name="🔢 จำนวน / ลิมิต",
-            value=f"{round_data['total_quantity']} / {round_data['personal_limit']} ต่อคน",
-            inline=True,
-        )
-        embed.add_field(
-            name="📊 ผลโหวต",
-            value=(
-                f"✅ {vote_counts.get('want_bid', 0)} | "
-                f"📦 {vote_counts.get('no_bid', 0)} | "
-                f"❌ {vote_counts.get('absent', 0)}"
-            ),
-            inline=False,
-        )
-
-        if queues:
-            waiting = [q for q in queues if q.get("status") == "waiting"]
-            awarded = [q for q in queues if q.get("status") == "awarded"]
-            embed.add_field(
-                name="📋 คิว",
-                value=f"รอ: {len(waiting)} | ได้รับแล้ว: {len(awarded)}",
-                inline=True,
-            )
-
-        embed.set_footer(text=f"รอบวันที่ {round_data.get('round_date', '')}")
+        job = profile.get('job_class', 'ไม่ได้ระบุ') or 'ไม่ได้ระบุ'
+        embed = discord.Embed(title=f'👤 โปรไฟล์ — {profile["display_name"]}', color=discord.Color.blurple())
+        embed.add_field(name=f'{JOB_EMOJIS.get(job,"⚔️")} อาชีพ', value=job, inline=True)
+        embed.add_field(name='🎮 UID', value=profile.get('uid_game', '-') or '-', inline=True)
+        embed.add_field(name='🏷️ Role', value=profile.get('role', 'member'), inline=True)
         await interaction.followup.send(embed=embed, ephemeral=True)
 
 

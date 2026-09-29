@@ -1,81 +1,101 @@
 "use client"
 
 import { useState } from "react"
-import { ITEM_CONFIG } from "@/lib/constants"
-import type { ItemType } from "@/lib/constants"
 
-interface QueueEntry {
-  id: string
-  user_id: string
-  item_type: ItemType
-  status: string
-  profiles: { display_name: string; discord_id: string } | null
-}
+const ITEM_CHOICES = [
+  { value: "Album", label: "📖 สมุดการ์ด" },
+  { value: "Puppet", label: "🎭 เศษการ์ดบอส" },
+  { value: "White", label: "🪶 ขนนกขาว" },
+  { value: "RedBlack", label: "🔴 ขนนกดำแดง" },
+]
 
-interface Props {
-  roundId: string
-  itemType: ItemType
-  waitingQueues: QueueEntry[]
-}
+interface Member { id: string; display_name: string; discord_id: string }
 
-export default function AdminAwardForm({ roundId, itemType, waitingQueues }: Props) {
-  const [loading, setLoading] = useState<string | null>(null)
-  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
-  const [localQueues, setLocalQueues] = useState(waitingQueues)
+export default function AdminAwardForm({ members }: { members: Member[] }) {
+  const [memberId, setMemberId] = useState("")
+  const [itemType, setItemType] = useState("Album")
+  const [note, setNote] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
-  const handleAward = async (queueId: string, userId: string, displayName: string) => {
-    setLoading(queueId)
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!memberId) return
+    setLoading(true)
     setResult(null)
+
     try {
       const res = await fetch("/api/award", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ queueId, roundId }),
+        body: JSON.stringify({ userId: memberId, itemType, note }),
       })
       const data = await res.json()
-      if (data.success) {
-        setResult({ success: true, message: `✅ Award ให้ ${displayName} เรียบร้อย` })
-        setLocalQueues((prev) => prev.filter((q) => q.id !== queueId))
-      } else {
-        setResult({ success: false, message: `❌ ${data.error}` })
-      }
-    } catch {
-      setResult({ success: false, message: "❌ เกิดข้อผิดพลาด ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้" })
+      if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาด")
+      setResult({ type: "success", text: `✅ Award สำเร็จ!` })
+      setMemberId("")
+      setNote("")
+    } catch (e: any) {
+      setResult({ type: "error", text: `❌ ${e.message}` })
     } finally {
-      setLoading(null)
+      setLoading(false)
     }
   }
 
   return (
-    <div className="space-y-3">
+    <form onSubmit={handleSubmit} className="flex flex-wrap gap-3 items-end">
+      <div className="flex-1 min-w-48">
+        <label className="block text-xs text-gray-400 mb-1.5">สมาชิก</label>
+        <select
+          value={memberId}
+          onChange={(e) => setMemberId(e.target.value)}
+          required
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+        >
+          <option value="">เลือกสมาชิก...</option>
+          {members.map((m) => (
+            <option key={m.id} value={m.id}>{m.display_name}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-xs text-gray-400 mb-1.5">ไอเทม</label>
+        <select
+          value={itemType}
+          onChange={(e) => setItemType(e.target.value)}
+          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+        >
+          {ITEM_CHOICES.map((c) => (
+            <option key={c.value} value={c.value}>{c.label}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex-1 min-w-48">
+        <label className="block text-xs text-gray-400 mb-1.5">หมายเหตุ (ไม่บังคับ)</label>
+        <input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="หมายเหตุ..."
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading || !memberId}
+        className="px-5 py-2.5 bg-purple-700 hover:bg-purple-600 disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm font-medium rounded-lg transition-colors"
+      >
+        {loading ? "กำลัง..." : "🎁 Award"}
+      </button>
+
       {result && (
-        <div className={`text-sm px-4 py-2 rounded-lg ${result.success ? "bg-green-900/30 text-green-400" : "bg-red-900/30 text-red-400"}`}>
-          {result.message}
+        <div className={`w-full text-sm px-4 py-2.5 rounded-lg ${result.type === "success" ? "bg-green-900/30 text-green-400" : "bg-red-900/30 text-red-400"}`}>
+          {result.text}
         </div>
       )}
-
-      {localQueues.length === 0 ? (
-        <p className="text-gray-500 text-sm">ไม่มีคิวที่รออยู่</p>
-      ) : (
-        localQueues.map((q, idx) => (
-          <div key={q.id} className="flex items-center justify-between bg-gray-800/50 rounded-xl px-4 py-3">
-            <div className="flex items-center gap-3">
-              <span className="text-gray-500 font-mono text-sm w-6">#{idx + 1}</span>
-              <div>
-                <p className="text-white font-medium text-sm">{q.profiles?.display_name ?? "—"}</p>
-                <p className="text-gray-500 text-xs">{q.profiles?.discord_id}</p>
-              </div>
-            </div>
-            <button
-              onClick={() => handleAward(q.id, q.user_id, q.profiles?.display_name ?? "—")}
-              disabled={loading === q.id}
-              className="bg-green-700 hover:bg-green-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-            >
-              {loading === q.id ? "กำลัง..." : "🎁 Award"}
-            </button>
-          </div>
-        ))
-      )}
-    </div>
+    </form>
   )
 }

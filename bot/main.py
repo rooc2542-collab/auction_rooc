@@ -66,6 +66,22 @@ class AuctionBot(commands.Bot):
         self.add_view(VoteView())
         self.add_view(ResultView())
 
+        # Register attendance views for recent events (last 7 days)
+        from services.supabase_client import supabase
+        from views.attendance_view import EventPollView
+        from datetime import date, timedelta
+        try:
+            week_ago = str(date.today() - timedelta(days=7))
+            res = supabase.table('event_attendance').select('event_name, event_date').gte('event_date', week_ago).execute()
+            seen = set()
+            for row in (res.data or []):
+                key = (row['event_name'], row['event_date'])
+                if key not in seen:
+                    seen.add(key)
+                    self.add_view(EventPollView(row['event_name'], row['event_date']))
+        except Exception as e:
+            print(f'[Bot] Could not register attendance views: {e}')
+
         # Sync slash commands เฉพาะ guild นี้
         guild = discord.Object(id=GUILD_ID)
         self.tree.copy_global_to(guild=guild)

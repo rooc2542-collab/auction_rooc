@@ -1,125 +1,179 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { createAdminClient } from "@/lib/supabase/server"
-import { ITEM_CONFIG } from "@/lib/constants"
-import type { ItemType } from "@/lib/constants"
+import NavBar from "@/components/NavBar"
 import AdminAwardForm from "./AdminAwardForm"
-
-interface QueueEntry {
-  id: string
-  round_id: string
-  user_id: string
-  item_type: ItemType
-  status: string
-  queued_at: string
-  profiles: { display_name: string; discord_id: string } | null
-}
-
-interface AuctionRound {
-  id: string
-  round_date: string
-  item_type: ItemType
-  total_quantity: number
-  personal_limit: number
-  status: string
-}
 
 export default async function AdminPage() {
   const session = await auth()
-  if (!session) redirect("/login")
-  if (session.user.role !== "admin") redirect("/")
+  if (!session || (session.user as any)?.role !== "admin") redirect("/")
 
   const supabase = createAdminClient()
+  const today = new Date().toISOString().split("T")[0]
 
-  // ดึง rounds ล่าสุด 10 รอบ
-  const { data: rounds } = await supabase
-    .from("auction_rounds")
-    .select("id, round_date, item_type, total_quantity, personal_limit, status")
+  const { data: recentSessions } = await supabase
+    .from("event_sessions")
+    .select("*")
     .order("created_at", { ascending: false })
-    .limit(10) as { data: AuctionRound[] | null }
+    .limit(20)
 
-  // ดึง active round's waiting queues
-  const activeRound = (rounds ?? []).find(r => r.status === "voting" || r.status === "bidding")
-  let waitingQueues: QueueEntry[] = []
-  if (activeRound) {
-    const { data } = await supabase
-      .from("auction_queues")
-      .select("*, profiles:user_id(display_name, discord_id)")
-      .eq("round_id", activeRound.id)
-      .eq("status", "waiting")
-      .order("queued_at") as { data: QueueEntry[] | null }
-    waitingQueues = data ?? []
-  }
+  const { data: recentAttendance } = await supabase
+    .from("event_attendance")
+    .select("*, profiles:user_id(display_name, job_class)")
+    .eq("event_date", today)
+    .order("created_at", { ascending: false })
 
-  // ดึง all members
+  const { data: allocatedSlots } = await supabase
+    .from("allocated_slots")
+    .select("*, profiles:user_id(display_name, discord_id)")
+    .eq("session_date", today)
+    .order("page_number", { ascending: true })
+
   const { data: members } = await supabase
     .from("profiles")
     .select("id, display_name, discord_id")
-    .order("display_name")
+    .order("display_name", { ascending: true })
 
   return (
-    <main className="min-h-screen bg-gray-950 text-gray-100 p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center gap-3">
-          <a href="/" className="text-gray-500 hover:text-white transition-colors text-sm">← กลับ</a>
+    <div className="min-h-screen bg-gray-950">
+      <NavBar isAdmin />
+
+      <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+        <div>
           <h1 className="text-2xl font-bold text-white">⚙️ Admin Panel</h1>
+          <p className="text-gray-400 text-sm mt-1">จัดการระบบประมูล</p>
         </div>
 
         {/* Award Form */}
-        {activeRound && (
-          <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">
-              🎁 Award ไอเทม — {ITEM_CONFIG[activeRound.item_type]?.label}
-            </h2>
-            <AdminAwardForm
-              roundId={activeRound.id}
-              itemType={activeRound.item_type}
-              waitingQueues={waitingQueues}
-            />
+        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-800">
+            <h2 className="font-semibold text-white">🎁 Award ไอเทม</h2>
+          </div>
+          <div className="p-5">
+            <AdminAwardForm members={members || []} />
+          </div>
+        </div>
+
+        {/* Today's Allocated Slots */}
+        {allocatedSlots && allocatedSlots.length > 0 && (
+          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
+              <h2 className="font-semibold text-white">🎯 สล็อตที่จัดสรรวันนี้</h2>
+              <span className="text-xs text-gray-500">{today}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-800 text-gray-400 text-left">
+                    <th className="px-4 py-3 font-medium">สมาชิก</th>
+                    <th className="px-4 py-3 font-medium">ไอเทม</th>
+                    <th className="px-4 py-3 text-center font-medium">Page</th>
+                    <th className="px-4 py-3 text-center font-medium">Slot</th>
+                    <th className="px-4 py-3 text-center font-medium">สถานะ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {(allocatedSlots as any[]).map((slot) => (
+                    <tr key={slot.id} className="hover:bg-gray-800/50">
+                      <td className="px-4 py-3 text-white">{slot.profiles?.display_name || "-"}</td>
+                      <td className="px-4 py-3 text-gray-300 text-xs">{slot.item_type}</td>
+                      <td className="px-4 py-3 text-center font-mono text-white">{slot.page_number}/{slot.total_pages}</td>
+                      <td className="px-4 py-3 text-center font-mono text-white">{slot.slot_number}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          slot.status === "awarded" ? "bg-green-900 text-green-400" :
+                          slot.status === "skipped" ? "bg-red-900 text-red-400" :
+                          "bg-yellow-900 text-yellow-400"
+                        }`}>
+                          {slot.status === "awarded" ? "✅ ได้รับแล้ว" : slot.status === "skipped" ? "⏭️ ข้าม" : "⏳ รอ"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
-        {/* Recent Rounds */}
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
-          <div className="bg-gray-800 px-6 py-4">
-            <h2 className="text-sm font-semibold text-white">รอบล่าสุด</h2>
+        {/* Today's Attendance */}
+        {recentAttendance && recentAttendance.length > 0 && (
+          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800">
+              <h2 className="font-semibold text-white">⚔️ ผู้เข้าร่วมวันนี้</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-800 text-gray-400 text-left">
+                    <th className="px-4 py-3 font-medium">สมาชิก</th>
+                    <th className="px-4 py-3 font-medium">อีเวนต์</th>
+                    <th className="px-4 py-3 font-medium">สถานะ</th>
+                    <th className="px-4 py-3 font-medium">ไอเทมที่ต้องการ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {(recentAttendance as any[]).map((a) => (
+                    <tr key={a.id} className="hover:bg-gray-800/50">
+                      <td className="px-4 py-3 text-white">{a.profiles?.display_name || "-"}</td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">{a.event_name}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          a.status === "want_bid" ? "bg-green-900 text-green-400" :
+                          a.status === "no_bid" ? "bg-yellow-900 text-yellow-400" :
+                          "bg-red-900 text-red-400"
+                        }`}>
+                          {a.status === "want_bid" ? "🎮 Want to bid" : a.status === "no_bid" ? "📦 No bid" : "⛔ Absent"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        {(a.interested_items || []).join(", ") || "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-800 text-left">
-                <th className="px-4 py-3 text-gray-400 font-medium">วันที่</th>
-                <th className="px-4 py-3 text-gray-400 font-medium">ไอเทม</th>
-                <th className="px-4 py-3 text-gray-400 font-medium text-center">จำนวน</th>
-                <th className="px-4 py-3 text-gray-400 font-medium text-center">Limit</th>
-                <th className="px-4 py-3 text-gray-400 font-medium">สถานะ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(rounds ?? []).map((r) => (
-                <tr key={r.id} className="border-t border-gray-800 hover:bg-gray-800/30 transition-colors">
-                  <td className="px-4 py-3 text-gray-400 text-xs">{r.round_date}</td>
-                  <td className="px-4 py-3 text-white">{ITEM_CONFIG[r.item_type]?.label ?? r.item_type}</td>
-                  <td className="px-4 py-3 text-center text-white font-mono">{r.total_quantity}</td>
-                  <td className="px-4 py-3 text-center text-white font-mono">{r.personal_limit}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      r.status === "voting" ? "bg-blue-900/40 text-blue-400" :
-                      r.status === "bidding" ? "bg-green-900/40 text-green-400" :
-                      "bg-gray-700 text-gray-400"
-                    }`}>
-                      {r.status === "voting" ? "🗳️ โหวต" : r.status === "bidding" ? "🎯 จองคิว" : "✅ ปิด"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        )}
 
-        <p className="text-gray-600 text-xs text-center">
-          ใช้ Discord Bot (<code>/start_vote</code>, <code>/close_vote</code>) เพื่อจัดการรอบประมูล
-        </p>
-      </div>
-    </main>
+        {/* Recent Event Sessions */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-800">
+            <h2 className="font-semibold text-white">📦 Sessions ล่าสุด</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-800 text-gray-400 text-left">
+                  <th className="px-4 py-3 font-medium">อีเวนต์</th>
+                  <th className="px-4 py-3 font-medium">วันที่</th>
+                  <th className="px-4 py-3 font-medium">ไอเทม</th>
+                  <th className="px-4 py-3 text-center font-medium">จำนวน</th>
+                  <th className="px-4 py-3 text-center font-medium">Limit</th>
+                  <th className="px-4 py-3 font-medium">พิกัด</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {(!recentSessions || recentSessions.length === 0) ? (
+                  <tr><td colSpan={6} className="text-center text-gray-500 py-8">ยังไม่มี session</td></tr>
+                ) : (recentSessions as any[]).map((s) => (
+                  <tr key={s.id} className="hover:bg-gray-800/50">
+                    <td className="px-4 py-3 text-white">{s.event_name}</td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">{s.session_date}</td>
+                    <td className="px-4 py-3 text-gray-300 text-xs">{s.item_type}</td>
+                    <td className="px-4 py-3 text-center text-white">{s.total_quantity}</td>
+                    <td className="px-4 py-3 text-center text-gray-400">{s.personal_limit}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 font-mono">
+                      {s.start_page}:{s.start_slot} → {s.end_page}:{s.end_slot}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
   )
 }
