@@ -47,21 +47,22 @@ def build_attendance_embed(event_name: str, event_date: str, counts: dict | None
 
 class ItemSelectView(discord.ui.View):
     """View ให้เลือกไอเทมที่ต้องการ"""
-    def __init__(self, event_name: str, event_date: str, discord_id: str, user_id: str, current_items: list):
+    def __init__(self, event_name: str, event_date: str, discord_id: str, user_id: str, current_items: list, poll_message: discord.Message | None = None):
         super().__init__(timeout=120)
         self._event = event_name
         self._date = event_date
         self._discord_id = discord_id
         self._user_id = user_id
-        self.add_item(ItemMultiSelect(event_name, event_date, discord_id, user_id, current_items))
+        self.add_item(ItemMultiSelect(event_name, event_date, discord_id, user_id, current_items, poll_message))
 
 
 class ItemMultiSelect(discord.ui.Select):
-    def __init__(self, event_name: str, event_date: str, discord_id: str, user_id: str, current_items: list):
+    def __init__(self, event_name: str, event_date: str, discord_id: str, user_id: str, current_items: list, poll_message: discord.Message | None = None):
         self._event = event_name
         self._date = event_date
         self._discord_id = discord_id
         self._user_id = user_id
+        self._poll_message = poll_message
         options = [
             discord.SelectOption(label=lbl, value=key, default=(key in current_items))
             for key, lbl in ITEM_LABELS.items()
@@ -99,6 +100,21 @@ class ItemMultiSelect(discord.ui.Select):
             )
             self.disabled = True
             await interaction.response.edit_message(embed=embed, view=self.view)
+
+            # อัปเดตตัวเลขบนโพลหลักทันที
+            if self._poll_message:
+                try:
+                    res = supabase.table('event_attendance') \
+                        .select('status').eq('event_name', self._event).eq('event_date', self._date).execute()
+                    counts = {'want_bid': 0, 'no_bid': 0, 'absent': 0}
+                    for row in (res.data or []):
+                        s = row.get('status', '')
+                        if s in counts:
+                            counts[s] += 1
+                    poll_embed = build_attendance_embed(self._event, self._date, counts)
+                    await self._poll_message.edit(embed=poll_embed)
+                except Exception:
+                    pass
         except Exception as e:
             await interaction.response.send_message(f'❌ เกิดข้อผิดพลาด: {e}', ephemeral=True)
 
@@ -211,8 +227,8 @@ class EventPollView(discord.ui.View):
         self.event_date = event_date
         # custom_id encode event_name|event_date
         encoded = f'{event_name}|{event_date}'
-        self.add_item(AttendanceButton('🎮 Join / Want to bid', discord.ButtonStyle.success, 'want_bid', encoded))
-        self.add_item(AttendanceButton('🚫 Join / Do not bid', discord.ButtonStyle.secondary, 'no_bid', encoded))
+        self.add_item(AttendanceButton('🎮 Join the war / Want to bid', discord.ButtonStyle.success, 'want_bid', encoded))
+        self.add_item(AttendanceButton('🚫 Join the war / Do not want to bid', discord.ButtonStyle.secondary, 'no_bid', encoded))
         self.add_item(AttendanceButton('⛔ Unable to attend', discord.ButtonStyle.danger, 'absent', encoded))
         self.add_item(CloseEventButton(encoded))
 
@@ -249,7 +265,7 @@ class AttendanceButton(discord.ui.Button):
                 .eq('discord_id', discord_id) \
                 .maybeSingle().execute()
             current_items = (existing.data or {}).get('interested_items') or []
-            view = ItemSelectView(event_name, event_date, discord_id, user_id, current_items)
+            view = ItemSelectView(event_name, event_date, discord_id, user_id, current_items, interaction.message)
             embed = discord.Embed(
                 title='🎯 เลือกไอเทมที่ต้องการประมูล',
                 description='เลือกได้มากกว่า 1 ไอเทม สามารถเปลี่ยนใจกดใหม่ได้ตลอด',

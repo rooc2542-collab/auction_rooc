@@ -210,15 +210,31 @@ class AuctionCog(commands.Cog):
             )
             return
 
-        # ประมวลผลทุก item type
-        all_announcements: list[str] = []
+        # ประมวลผลทุก item type และรวมสล็อตของแต่ละคนเข้าด้วยกัน (ตามรูปที่ 3)
+        overall_total_pages = max((s.get('end_page', 1) for s in sessions), default=1)
         header_embed = discord.Embed(
             title=f'📋 ผลการจัดสรรสล็อต — {event_name}',
             description=f'📅 {today} | ประกาศโดย {interaction.user.display_name}',
             color=discord.Color.gold()
         )
 
-        for session in sessions:
+        # เก็บสล็อตรวมของสมาชิกแต่ละคน: {discord_id: {'name': ..., 'slots': [(page, slot)]}}
+        combined_member_slots: dict[str, dict] = {}
+
+        # ดึงรายชื่อคนที่เลือก no_bid เพื่อบวก Carry Credit
+        no_bid_res = supabase.table('event_attendance') \
+            .select('user_id') \
+            .eq('event_name', event_name) \
+            .eq('event_date', today) \
+            .eq('status', 'no_bid') \
+            .execute()
+        no_bid_users = [r['user_id'] for r in (no_bid_res.data or []) if r.get('user_id')]
+
+        from services import credit_service
+        priority_order = ['Album', 'Puppet', 'White', 'RedBlack']
+        sessions_sorted = sorted(sessions, key=lambda x: priority_order.index(x['item_type']) if x['item_type'] in priority_order else 99)
+
+        for session in sessions_sorted:
             item_type = session['item_type']
             total_qty = session['total_quantity']
             personal_limit = session['personal_limit']
@@ -226,6 +242,10 @@ class AuctionCog(commands.Cog):
             start_slot = session['start_slot']
 
             iname = ITEM_LABELS.get(item_type, item_type)
+
+            # เพิ่ม Carry Credit ให้คนที่เลือก no_bid
+            for uid in no_bid_users:
+                await credit_service.add_credit(uid, item_type, personal_limit)
 
             # ดึงรายชื่อสมาชิกที่ต้องการไอเทมนี้
             members = await allocation_service.get_event_attendees(event_name, today, item_type)
@@ -247,34 +267,17 @@ class AuctionCog(commands.Cog):
                 item_type, total_qty, personal_limit,
                 start_page, start_slot, members, credit_map
             )
+            for s in slots:
+                s['total_pages'] = max(overall_total_pages, s.get('total_pages', 1))
 
             # บันทึก DB
             await allocation_service.save_allocation(event_name, today, item_type, slots)
 
-            # สร้าง announcement text แบบรูปที่ 3
-            # Group by member -> list pages/slots
-            member_slots: dict[str, list] = {}
-            total_pages_val = slots[0]['total_pages'] if slots else start_page
             for s in slots:
                 did = s['discord_id']
-                if did not in member_slots:
-                    member_slots[did] = {'name': s['display_name'], 'uid': did, 'slots': []}
-                member_slots[did]['slots'].append((s['page'], s['slot']))
-
-            lines = []
-            for did, info in member_slots.items():
-                pages_grouped: dict[int, list] = {}
-                for pg, sl in info['slots']:
-                    pages_grouped.setdefault(pg, []).append(sl)
-                page_texts = []
-                for pg in sorted(pages_grouped):
-                    slots_str = ', '.join(str(s) for s in sorted(pages_grouped[pg]))
-                    page_texts.append(f'Page {pg}/{total_pages_val}: {slots_str}')
-                lines.append(f'<@{did}> | {event_name}: {today}\n' + '\n'.join(page_texts))
-
-            announcement = f'**{iname}** — {len(members)} คน | จำนวน {total_qty} ชิ้น | Limit {personal_limit}/คน\n'
-            announcement += '\n-----\n'.join(lines)
-            all_announcements.append(announcement)
+                if did not in combined_member_slots:
+                    combined_member_slots[did] = {'name': s['display_name'], 'uid': did, 'slots': []}
+                combined_member_slots[did]['slots'].append((s['page'], s['slot']))
 
             header_embed.add_field(
                 name=f'{iname}',
@@ -285,21 +288,31 @@ class AuctionCog(commands.Cog):
         # โพสต์ header embed
         await channel.send(embed=header_embed)
 
-        # โพสต์ announcement แยกไอเทม
-        for ann in all_announcements:
-            # Discord message limit 2000 chars
-            if len(ann) <= 1900:
-                await channel.send(ann)
+        # สร้างข้อความประกาศรวมรายคน (ตรงตามรูปที่ 3: @Member | Event: Date \n Page X/Y: 1, 2, 3, 4)
+        member_blocks: list[str] = []
+        for did, info in combined_member_slots.items():
+            pages_grouped: dict[int, list] = {}
+            for pg, sl in info['slots']:
+                if sl not in pages_grouped.setdefault(pg, []):
+                    pages_grouped[pg].append(sl)
+            page_texts = []
+            for pg in sorted(pages_grouped):
+                slots_str = ', '.join(str(s) for s in sorted(pages_grouped[pg]))
+                page_texts.append(f'Page {pg}/{overall_total_pages}: {slots_str}')
+            member_blocks.append(f'<@{did}> | {event_name}: {today}\n' + '\n'.join(page_texts))
+
+        if member_blocks:
+            full_text = '\n-----\n'.join(member_blocks)
+            if len(full_text) <= 1900:
+                await channel.send(full_text)
             else:
-                # แบ่งส่งหลายข้อความ
-                lines = ann.split('\n-----\n')
-                chunk = lines[0]
-                for line in lines[1:]:
-                    if len(chunk) + len(line) + 8 <= 1900:
-                        chunk += '\n-----\n' + line
+                chunk = member_blocks[0]
+                for block in member_blocks[1:]:
+                    if len(chunk) + len(block) + 9 <= 1900:
+                        chunk += '\n-----\n' + block
                     else:
                         await channel.send(chunk)
-                        chunk = line
+                        chunk = block
                 if chunk:
                     await channel.send(chunk)
 

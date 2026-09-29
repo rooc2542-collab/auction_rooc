@@ -24,7 +24,12 @@ if not GUILD_ID:
 # ─── Health Check HTTP Server ────────────────────────────────────────────────
 
 async def health_handler(request: web.Request) -> web.Response:
-    """Health endpoint สำหรับ Render keep-alive + UptimeRobot ping"""
+    """Health endpoint สำหรับ Render keep-alive + UptimeRobot ping + กระตุ้น Supabase ไม่ให้หลับ"""
+    try:
+        from services.supabase_client import supabase
+        supabase.table("profiles").select("id").limit(1).execute()
+    except Exception:
+        pass
     return web.Response(text="✅ Auction Bot is running!", status=200)
 
 
@@ -95,7 +100,7 @@ class AuctionBot(commands.Bot):
         await self.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.watching,
-                name="ระบบประมูล RoOC 🎲",
+                name="ระบบประมูล 🎲",
             )
         )
 

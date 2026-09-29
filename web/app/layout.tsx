@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Auction RoOC",
-  description: "ระบบประมูลไอเทม Guild RoOC",
+  title: "Auction_Rooc",
+  description: "ระบบประมูลไอเทมกิลด์",
 }
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -23,7 +23,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="th"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-gray-950 text-gray-100">{children}</body>
+      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100">{children}</body>
     </html>
   )
 }
