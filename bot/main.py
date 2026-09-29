@@ -1,5 +1,6 @@
 import asyncio
 import os
+from aiohttp import web
 
 import discord
 from discord.ext import commands
@@ -12,12 +13,35 @@ load_dotenv()
 
 TOKEN: str = os.environ.get("DISCORD_BOT_TOKEN", "")
 GUILD_ID: int = int(os.environ.get("DISCORD_GUILD_ID", "0"))
+PORT: int = int(os.environ.get("PORT", "8080"))  # Render inject PORT อัตโนมัติ
 
 if not TOKEN:
     raise ValueError("DISCORD_BOT_TOKEN ต้องตั้งค่าใน .env")
 if not GUILD_ID:
     raise ValueError("DISCORD_GUILD_ID ต้องตั้งค่าใน .env")
 
+
+# ─── Health Check HTTP Server ────────────────────────────────────────────────
+
+async def health_handler(request: web.Request) -> web.Response:
+    """Health endpoint สำหรับ Render keep-alive + UptimeRobot ping"""
+    return web.Response(text="✅ Auction Bot is running!", status=200)
+
+
+async def start_http_server() -> None:
+    """รัน HTTP server เล็กๆ ไว้รับ ping จาก UptimeRobot"""
+    app = web.Application()
+    app.router.add_get("/", health_handler)
+    app.router.add_get("/health", health_handler)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", PORT)
+    await site.start()
+    print(f"[Health] HTTP server running on port {PORT}")
+
+
+# ─── Bot ─────────────────────────────────────────────────────────────────────
 
 class AuctionBot(commands.Bot):
     """Bot หลักสำหรับระบบประมูล"""
@@ -35,23 +59,20 @@ class AuctionBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         """โหลด cogs และ register persistent views"""
-        # โหลด cogs
         await self.load_extension("cogs.auction")
         await self.load_extension("cogs.member")
 
-        # Register persistent views (สำคัญมาก: ต้องทำก่อน bot ready)
-        # เพื่อให้ปุ่มยังคง active หลัง bot restart
+        # Register persistent views เพื่อให้ปุ่มยังคง active หลัง bot restart
         self.add_view(VoteView())
         self.add_view(ResultView())
 
-        # Sync slash commands เฉพาะ guild นี้ (เร็วกว่า global sync)
+        # Sync slash commands เฉพาะ guild นี้
         guild = discord.Object(id=GUILD_ID)
         self.tree.copy_global_to(guild=guild)
         synced = await self.tree.sync(guild=guild)
         print(f"[Bot] Synced {len(synced)} slash command(s) to guild {GUILD_ID}")
 
     async def on_ready(self) -> None:
-        """เรียกเมื่อ bot พร้อมใช้งาน"""
         print(f"[Bot] Logged in as {self.user} (ID: {self.user.id})")  # type: ignore
         print(f"[Bot] Serving guild ID: {GUILD_ID}")
         print(f"[Bot] discord.py version: {discord.__version__}")
@@ -65,7 +86,6 @@ class AuctionBot(commands.Bot):
     async def on_command_error(
         self, ctx: commands.Context, error: commands.CommandError
     ) -> None:
-        """จัดการ error จาก prefix commands (สำรอง)"""
         print(f"[Bot] Command error: {error}")
 
     async def on_app_command_error(
@@ -73,7 +93,6 @@ class AuctionBot(commands.Bot):
         interaction: discord.Interaction,
         error: discord.app_commands.AppCommandError,
     ) -> None:
-        """จัดการ error จาก slash commands"""
         print(f"[Bot] App command error: {error}")
         msg = "❌ เกิดข้อผิดพลาดภายใน กรุณาลองใหม่อีกครั้ง"
         try:
@@ -86,6 +105,8 @@ class AuctionBot(commands.Bot):
 
 
 async def main() -> None:
+    # รัน HTTP server และ bot พร้อมกัน
+    await start_http_server()
     bot = AuctionBot()
     async with bot:
         await bot.start(TOKEN)
