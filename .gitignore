@@ -1,0 +1,29 @@
+# ─── Environment Variables (ห้าม push เด็ดขาด) ──────────────
+.env
+.env.local
+.env.production
+.env*.local
+
+# ─── Python Bot ───────────────────────────────────────────────
+bot/__pycache__/
+bot/**/__pycache__/
+bot/*.pyc
+bot/**/*.pyc
+bot/venv/
+bot/.venv/
+bot/.env
+
+# ─── Node / Next.js Web ───────────────────────────────────────
+web/node_modules/
+web/.next/
+web/out/
+web/.env.local
+web/.env.production
+
+# ─── OS / Editor ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
