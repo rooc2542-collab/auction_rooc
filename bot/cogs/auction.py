@@ -64,15 +64,17 @@ def get_db_events(limit: int = 25) -> list[tuple[str, str]]:
 
 def resolve_event_key(event_key: str | None) -> tuple[str, str] | None:
     """แปลงค่าจาก Autocomplete ('ชื่อ|วันที่' หรือ 'ชื่อ') หรือดึงรอบล่าสุดจาก DB"""
+    # Fast path: autocomplete ส่งมาเป็น 'ชื่อ|วันที่' แล้ว — แค่ split ไม่ต้อง query DB
+    if event_key and '|' in event_key:
+        parts = event_key.strip().split('|', 1)
+        return parts[0].strip(), parts[1].strip()
+
+    # Slow path: ไม่มีค่า หรือพิมพ์เองโดยไม่ผ่าน autocomplete
     events = get_db_events(25)
     if not event_key or not event_key.strip():
         return events[0] if events else None
 
     raw = event_key.strip()
-    if '|' in raw:
-        parts = raw.split('|', 1)
-        return parts[0].strip(), parts[1].strip()
-
     for en, ed in events:
         if en == raw:
             return en, ed
