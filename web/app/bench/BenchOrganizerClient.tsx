@@ -148,6 +148,48 @@ export default function BenchOrganizerClient({
     }
   }
 
+  // Live Sync state & handler (Fetches fresh attendance from DB)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [autoSync, setAutoSync] = useState(true)
+
+  const handleSyncLatest = async (silent = false) => {
+    if (!silent) setIsSyncing(true)
+    try {
+      const res = await fetch(
+        `/api/queues?event_name=${encodeURIComponent(eventName)}&session_date=${encodeURIComponent(eventDate)}`
+      )
+      if (!res.ok) return
+      const data = await res.json()
+      if (Array.isArray(data.attendance)) {
+        setStatusMap((prev) => {
+          const next = new Map(prev)
+          for (const a of data.attendance) {
+            if (a.user_id && (a.status === "want_bid" || a.status === "no_bid" || a.status === "absent")) {
+              next.set(a.user_id, a.status as AttendanceStatus)
+            }
+          }
+          return next
+        })
+        if (!silent) {
+          setToast({ type: "ok", text: "ซิงค์ข้อมูลผลโหวตล่าสุดจากระบบเรียบร้อยแล้ว" })
+        }
+      }
+    } catch {
+      // silent fail on background poll
+    } finally {
+      if (!silent) setIsSyncing(false)
+    }
+  }
+
+  // Periodic Auto-Sync every 5 seconds (Real-time live updates)
+  useEffect(() => {
+    if (!autoSync || !eventName) return
+    const timer = setInterval(() => {
+      handleSyncLatest(true)
+    }, 5000)
+    return () => clearInterval(timer)
+  }, [autoSync, eventName, eventDate])
+
   // Split into 3 Discord-aligned groups: want_bid, no_bid, absent
   const { wantBidList, noBidList, absentList } = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
@@ -421,8 +463,29 @@ export default function BenchOrganizerClient({
             </div>
           </div>
 
-          {/* Current Event Live Stats Badges */}
+          {/* Live Sync & Current Event Live Stats Badges */}
           <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-zinc-800">
+            {/* Live Indicator */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-xs">
+              <span className="relative flex h-2 w-2">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${autoSync ? "bg-emerald-400 opacity-75" : "bg-zinc-500 opacity-0"}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${autoSync ? "bg-emerald-500" : "bg-zinc-500"}`}></span>
+              </span>
+              <span className="text-[11px] font-medium text-zinc-300">Live 5s</span>
+            </div>
+
+            {/* Manual Sync Button */}
+            <button
+              type="button"
+              onClick={() => handleSyncLatest(false)}
+              disabled={isSyncing}
+              className="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              title="ดึงผลโหวตล่าสุดจากระบบทันที"
+            >
+              <span className={isSyncing ? "animate-spin inline-block" : ""}>🔄</span>
+              <span>{isSyncing ? "กำลังซิงค์..." : "ซิงค์สด"}</span>
+            </button>
+
             <div className="px-2.5 py-1.5 rounded-lg bg-emerald-950/60 border border-emerald-800/60 text-emerald-300 text-xs font-medium flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
               <span>ประมูล: <b>{wantBidList.length}</b></span>
