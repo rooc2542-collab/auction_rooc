@@ -19,55 +19,55 @@ export default async function HistoryPage() {
     .limit(200)
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-zinc-950">
       <NavBar isAdmin={isAdmin} />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white">📋 ประวัติการประมูล</h1>
-          <p className="text-gray-400 text-sm mt-1">รายการล่าสุด 200 รายการ</p>
+          <h1 className="text-2xl font-bold text-zinc-100">📋 ประวัติการประมูล</h1>
+          <p className="text-zinc-500 text-sm mt-1">รายการล่าสุด 200 รายการ</p>
         </div>
 
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+        <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
           {(!history || history.length === 0) ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-3">📋</div>
-              <p className="text-gray-400">ยังไม่มีประวัติการประมูล</p>
+              <p className="text-zinc-500">ยังไม่มีประวัติการประมูล</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-800 text-gray-400 text-left">
-                    <th className="px-4 py-3 font-medium">วันที่</th>
-                    <th className="px-4 py-3 font-medium">สมาชิก</th>
-                    <th className="px-4 py-3 font-medium">ไอเทม</th>
-                    <th className="px-4 py-3 text-center font-medium">จำนวน</th>
-                    <th className="px-4 py-3 font-medium">มอบโดย</th>
-                    <th className="px-4 py-3 font-medium">หมายเหตุ</th>
+                  <tr className="border-b border-zinc-800 text-zinc-500 text-left">
+                    <th className="px-5 py-3 font-medium">วันที่</th>
+                    <th className="px-5 py-3 font-medium">สมาชิก</th>
+                    <th className="px-5 py-3 font-medium">ไอเทม</th>
+                    <th className="px-5 py-3 text-center font-medium">จำนวน</th>
+                    <th className="px-5 py-3 font-medium">มอบโดย</th>
+                    <th className="px-5 py-3 font-medium">หมายเหตุ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-800">
+                <tbody className="divide-y divide-zinc-800/60">
                   {(history as any[]).map((h) => {
                     const cfg = ITEM_CONFIG[h.item_type as ItemType]
                     return (
-                      <tr key={h.id} className="hover:bg-gray-800/50 transition-colors">
-                        <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
+                      <tr key={h.id} className="hover:bg-zinc-800/30 transition-colors">
+                        <td className="px-5 py-3 text-zinc-500 text-xs whitespace-nowrap">
                           {new Date(h.awarded_at).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}
                         </td>
-                        <td className="px-4 py-3 font-medium text-white">
+                        <td className="px-5 py-3 font-medium text-zinc-100">
                           {(h.profiles as any)?.display_name || "Unknown"}
                         </td>
-                        <td className="px-4 py-3">
-                          <span className={`text-xs px-2 py-1 rounded-full ${cfg?.badge || "bg-gray-700 text-gray-300"}`}>
+                        <td className="px-5 py-3">
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
                             {cfg?.label || h.item_type}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-center text-white font-bold">{h.qty_awarded}</td>
-                        <td className="px-4 py-3 text-gray-400 text-xs">
+                        <td className="px-5 py-3 text-center text-zinc-100 font-bold">{h.qty_awarded}</td>
+                        <td className="px-5 py-3 text-zinc-400 text-xs">
                           {(h.awarded_by_profile as any)?.display_name || "-"}
                         </td>
-                        <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate">
+                        <td className="px-5 py-3 text-zinc-600 text-xs max-w-xs truncate">
                           {h.note || "-"}
                         </td>
                       </tr>

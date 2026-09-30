@@ -34,44 +34,44 @@ export default async function CreditsPage() {
   const users = Object.values(userMap).filter((u) => Object.values(u.items).some((v) => v > 0))
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-zinc-950">
       <NavBar isAdmin={isAdmin} />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white">💳 ยอดค้างสะสม (Carry Credits)</h1>
-          <p className="text-gray-400 text-sm mt-1">สะสมจากการเลือก "Join / Do not bid" — นำไปลัดคิวรอบถัดไป</p>
+          <h1 className="text-2xl font-bold text-zinc-100">💳 ยอดค้างสะสม (Carry Credits)</h1>
+          <p className="text-zinc-500 text-sm mt-1">สะสมจากการเลือก &quot;Join / Do not bid&quot; — นำไปลัดคิวรอบถัดไป</p>
         </div>
 
         {users.length === 0 ? (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-16 text-center">
+          <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-16 text-center">
             <div className="text-4xl mb-3">💳</div>
-            <p className="text-gray-400">ยังไม่มียอดค้างสะสมในระบบ</p>
+            <p className="text-zinc-500">ยังไม่มียอดค้างสะสมในระบบ</p>
           </div>
         ) : (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-800 text-gray-400 text-left">
-                    <th className="px-4 py-3 font-medium">สมาชิก</th>
+                  <tr className="border-b border-zinc-800 text-zinc-500 text-left">
+                    <th className="px-5 py-3 font-medium">สมาชิก</th>
                     {Object.entries(ITEM_CONFIG).map(([key, cfg]) => (
                       <th key={key} className="px-4 py-3 font-medium text-center">{cfg.label}</th>
                     ))}
                     <th className="px-4 py-3 font-medium text-center">รวม</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-800">
+                <tbody className="divide-y divide-zinc-800/60">
                   {users.map((u) => {
                     const total = Object.values(u.items).reduce((a, b) => a + b, 0)
                     return (
-                      <tr key={u.discord_id} className="hover:bg-gray-800/50 transition-colors">
-                        <td className="px-4 py-3">
+                      <tr key={u.discord_id} className="hover:bg-zinc-800/30 transition-colors">
+                        <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-purple-900 flex items-center justify-center text-purple-300 font-bold text-xs">
+                            <div className="w-8 h-8 rounded-full bg-zinc-700 flex items-center justify-center text-zinc-200 font-bold text-xs">
                               {u.display_name?.charAt(0)?.toUpperCase() || "?"}
                             </div>
-                            <span className="font-medium text-white">{u.display_name}</span>
+                            <span className="font-medium text-zinc-100">{u.display_name}</span>
                           </div>
                         </td>
                         {Object.keys(ITEM_CONFIG).map((key) => {
@@ -79,17 +79,17 @@ export default async function CreditsPage() {
                           return (
                             <td key={key} className="px-4 py-3 text-center">
                               {val > 0 ? (
-                                <span className={`font-bold ${ITEM_CONFIG[key as ItemType].badge.split(" ")[0] === "bg-purple-100" ? "text-purple-400" : val > 0 ? "text-amber-400" : "text-gray-600"}`}>
-                                  +{val}
-                                </span>
+                                <span className="font-bold text-amber-400">+{val}</span>
                               ) : (
-                                <span className="text-gray-700">—</span>
+                                <span className="text-zinc-700">—</span>
                               )}
                             </td>
                           )
                         })}
                         <td className="px-4 py-3 text-center">
-                          <span className="font-bold text-white bg-gray-700 px-2 py-0.5 rounded-full text-xs">+{total}</span>
+                          <span className="font-bold text-zinc-100 bg-zinc-700 border border-zinc-600 px-2.5 py-0.5 rounded-full text-xs">
+                            +{total}
+                          </span>
                         </td>
                       </tr>
                     )

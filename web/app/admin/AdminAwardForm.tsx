@@ -45,12 +45,12 @@ export default function AdminAwardForm({ members }: { members: Member[] }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap gap-3 items-end">
       <div className="flex-1 min-w-48">
-        <label className="block text-xs text-gray-400 mb-1.5">สมาชิก</label>
+        <label className="block text-xs text-zinc-500 mb-1.5">สมาชิก</label>
         <select
           value={memberId}
           onChange={(e) => setMemberId(e.target.value)}
           required
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
         >
           <option value="">เลือกสมาชิก...</option>
           {members.map((m) => (
@@ -60,11 +60,11 @@ export default function AdminAwardForm({ members }: { members: Member[] }) {
       </div>
 
       <div>
-        <label className="block text-xs text-gray-400 mb-1.5">ไอเทม</label>
+        <label className="block text-xs text-zinc-500 mb-1.5">ไอเทม</label>
         <select
           value={itemType}
           onChange={(e) => setItemType(e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
         >
           {ITEM_CHOICES.map((c) => (
             <option key={c.value} value={c.value}>{c.label}</option>
@@ -73,26 +73,30 @@ export default function AdminAwardForm({ members }: { members: Member[] }) {
       </div>
 
       <div className="flex-1 min-w-48">
-        <label className="block text-xs text-gray-400 mb-1.5">หมายเหตุ (ไม่บังคับ)</label>
+        <label className="block text-xs text-zinc-500 mb-1.5">หมายเหตุ (ไม่บังคับ)</label>
         <input
           type="text"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="หมายเหตุ..."
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
+          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
         />
       </div>
 
       <button
         type="submit"
         disabled={loading || !memberId}
-        className="px-5 py-2.5 bg-purple-700 hover:bg-purple-600 disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm font-medium rounded-lg transition-colors"
+        className="px-5 py-2.5 bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-600 text-zinc-900 text-sm font-semibold rounded-lg transition-colors cursor-pointer"
       >
         {loading ? "กำลัง..." : "🎁 Award"}
       </button>
 
       {result && (
-        <div className={`w-full text-sm px-4 py-2.5 rounded-lg ${result.type === "success" ? "bg-green-900/30 text-green-400" : "bg-red-900/30 text-red-400"}`}>
+        <div className={`w-full text-sm px-4 py-2.5 rounded-lg border ${
+          result.type === "success"
+            ? "bg-emerald-950/40 border-emerald-800/60 text-emerald-300"
+            : "bg-rose-950/40 border-rose-800/60 text-rose-300"
+        }`}>
           {result.text}
         </div>
       )}

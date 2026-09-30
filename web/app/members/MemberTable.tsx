@@ -111,20 +111,20 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Top Bar & Filters */}
-      <div className="bg-slate-900/90 backdrop-blur-md rounded-2xl border border-slate-800 p-4 flex flex-wrap items-center gap-3 shadow-lg">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-wrap items-center gap-3">
         <input
           type="text"
-          placeholder="🔍 ค้นหาชื่อตัวละคร หรือ Discord ID..."
+          placeholder="ค้นหาชื่อตัวละคร หรือ Discord ID..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 min-w-56 bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+          className="flex-1 min-w-56 bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-all"
         />
         <select
           value={filterJob}
           onChange={(e) => setFilterJob(e.target.value)}
-          className="bg-slate-800/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
         >
           <option value="">ทุกอาชีพ (15 อาชีพ)</option>
           {JOB_CLASSES.map((j) => (
@@ -134,17 +134,17 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
         <select
           value={filterRole}
           onChange={(e) => setFilterRole(e.target.value)}
-          className="bg-slate-800/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+          className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
         >
           <option value="">ทุกสิทธิ์ (Role)</option>
           <option value="admin">👑 Admin</option>
           <option value="member">🛡️ Member</option>
         </select>
-        <div className="text-sm font-medium text-slate-400 px-2">พบ {filtered.length} คน</div>
+        <div className="text-xs font-medium text-zinc-500 px-2">พบ {filtered.length} คน</div>
         {isAdmin && (
           <button
             onClick={openAdd}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-md shadow-purple-900/40 transition-all cursor-pointer"
+            className="px-4 py-2.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-all cursor-pointer"
           >
             ➕ เพิ่มสมาชิกใหม่
           </button>
@@ -152,57 +152,57 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
       </div>
 
       {/* Table */}
-      <div className="bg-slate-900/90 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+      <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/50 text-slate-400 text-left">
-                <th className="px-5 py-3.5 font-semibold">ชื่อตัวละคร</th>
-                <th className="px-5 py-3.5 font-semibold">อาชีพ</th>
-                <th className="px-5 py-3.5 font-semibold">Discord ID</th>
-                <th className="px-5 py-3.5 font-semibold">ระดับสิทธิ์</th>
-                <th className="px-5 py-3.5 font-semibold">วันที่ลงทะเบียน</th>
-                {isAdmin && <th className="px-5 py-3.5 font-semibold text-right">จัดการ</th>}
+              <tr className="border-b border-zinc-800 text-zinc-500 text-left">
+                <th className="px-5 py-3.5 font-medium">ชื่อตัวละคร</th>
+                <th className="px-5 py-3.5 font-medium">อาชีพ</th>
+                <th className="px-5 py-3.5 font-medium">Discord ID</th>
+                <th className="px-5 py-3.5 font-medium">ระดับสิทธิ์</th>
+                <th className="px-5 py-3.5 font-medium">วันที่ลงทะเบียน</th>
+                {isAdmin && <th className="px-5 py-3.5 font-medium text-right">จัดการ</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/70">
+            <tbody className="divide-y divide-zinc-800/60">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 6 : 5} className="text-center text-slate-500 py-14">
+                  <td colSpan={isAdmin ? 6 : 5} className="text-center text-zinc-600 py-14">
                     ไม่พบสมาชิกที่ตรงกับเงื่อนไข
                   </td>
                 </tr>
               ) : filtered.map((m) => (
-                <tr key={m.id} className="hover:bg-slate-800/40 transition-colors">
+                <tr key={m.id} className="hover:bg-zinc-800/30 transition-colors">
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-700 to-indigo-800 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm">
+                      <div className="w-8 h-8 rounded-lg bg-zinc-700 flex items-center justify-center text-zinc-100 font-bold text-xs flex-shrink-0">
                         {m.display_name?.charAt(0)?.toUpperCase() || "?"}
                       </div>
-                      <span className="font-semibold text-white">{m.display_name}</span>
+                      <span className="font-medium text-zinc-100">{m.display_name}</span>
                     </div>
                   </td>
                   <td className="px-5 py-3.5">
                     {m.job_class ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-xs font-medium">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-medium">
                         <span>{JOB_EMOJI[m.job_class] || "⚔️"}</span>
                         <span>{m.job_class}</span>
                       </span>
                     ) : (
-                      <span className="text-slate-600 text-xs">ยังไม่ระบุ</span>
+                      <span className="text-zinc-600 text-xs">ยังไม่ระบุ</span>
                     )}
                   </td>
-                  <td className="px-5 py-3.5 font-mono text-slate-500 text-xs">{m.discord_id}</td>
+                  <td className="px-5 py-3.5 font-mono text-zinc-600 text-xs">{m.discord_id}</td>
                   <td className="px-5 py-3.5">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
                       m.role === "admin"
-                        ? "bg-purple-950/80 text-purple-300 border border-purple-700/50"
-                        : "bg-slate-800 text-slate-400"
+                        ? "bg-zinc-700 text-zinc-200 border-zinc-600"
+                        : "bg-zinc-800/50 text-zinc-500 border-zinc-800"
                     }`}>
-                      {m.role === "admin" ? "👑 Admin" : "🛡️ Member"}
+                      {m.role === "admin" ? "👑 Admin" : "Member"}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 text-slate-500 text-xs">
+                  <td className="px-5 py-3.5 text-zinc-600 text-xs">
                     {new Date(m.created_at).toLocaleDateString("th-TH")}
                   </td>
                   {isAdmin && (
@@ -210,7 +210,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
                       <div className="inline-flex items-center gap-1.5">
                         <button
                           onClick={() => openEdit(m)}
-                          className="text-xs font-medium text-indigo-400 hover:text-white bg-indigo-950/40 hover:bg-indigo-600 border border-indigo-800/50 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+                          className="text-xs font-medium text-zinc-400 hover:text-zinc-100 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
                         >
                           ✏️ แก้ไข
                         </button>
@@ -232,15 +232,15 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
 
       {/* Add / Edit Modal */}
       {(editMember || isAddModalOpen) && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 rounded-2xl border border-slate-700 w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
-              <h3 className="font-bold text-white text-base">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 rounded-xl border border-zinc-700 w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+              <h3 className="font-semibold text-zinc-100 text-sm">
                 {isAddModalOpen ? "➕ เพิ่มสมาชิกใหม่ในกิลด์" : `✏️ แก้ไขข้อมูล: ${editMember?.display_name}`}
               </h3>
               <button
                 onClick={() => { setEditMember(null); setIsAddModalOpen(false) }}
-                className="text-slate-400 hover:text-white text-xl leading-none cursor-pointer"
+                className="text-zinc-500 hover:text-zinc-200 text-xl leading-none cursor-pointer"
               >
                 ×
               </button>
@@ -248,31 +248,31 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
             <div className="p-6 space-y-4">
               {isAddModalOpen && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">Discord ID *</label>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">Discord ID *</label>
                   <input
                     placeholder="เช่น 123456789012345678"
                     value={editForm.discord_id}
                     onChange={(e) => setEditForm(f => ({ ...f, discord_id: e.target.value }))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-purple-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 font-mono focus:outline-none focus:border-zinc-500"
                   />
                 </div>
               )}
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1.5">ชื่อตัวละคร *</label>
+                <label className="block text-xs font-medium text-zinc-500 mb-1.5">ชื่อตัวละคร *</label>
                 <input
                   placeholder="ชื่อในเกม / ชื่อแสดงผล"
                   value={editForm.display_name}
                   onChange={(e) => setEditForm(f => ({ ...f, display_name: e.target.value }))}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">อาชีพ</label>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">อาชีพ</label>
                   <select
                     value={editForm.job_class}
                     onChange={(e) => setEditForm(f => ({ ...f, job_class: e.target.value }))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
                   >
                     <option value="">-- กรุณาเลือก --</option>
                     {JOB_CLASSES.map((j) => (
@@ -282,11 +282,11 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
                 </div>
                 {isAdmin && (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 mb-1.5">ระดับสิทธิ์ (Role)</label>
+                    <label className="block text-xs font-medium text-zinc-500 mb-1.5">ระดับสิทธิ์ (Role)</label>
                     <select
                       value={editForm.role}
                       onChange={(e) => setEditForm(f => ({ ...f, role: e.target.value }))}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
                     >
                       <option value="member">Member</option>
                       <option value="admin">Admin</option>
@@ -295,7 +295,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
                 )}
               </div>
               {message && (
-                <div className={`text-sm px-3.5 py-2.5 rounded-xl ${message.type === "success" ? "bg-emerald-950/60 border border-emerald-800 text-emerald-300" : "bg-rose-950/60 border border-rose-800 text-rose-300"}`}>
+                <div className={`text-sm px-3.5 py-2.5 rounded-lg border ${message.type === "success" ? "bg-emerald-950/40 border-emerald-800/60 text-emerald-300" : "bg-rose-950/40 border-rose-800/60 text-rose-300"}`}>
                   {message.text}
                 </div>
               )}
@@ -303,16 +303,16 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
             <div className="px-6 pb-6 flex gap-3 justify-end">
               <button
                 onClick={() => { setEditMember(null); setIsAddModalOpen(false) }}
-                className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
+                className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors cursor-pointer border border-zinc-700"
               >
                 ยกเลิก
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-xl shadow-md transition-all disabled:opacity-50 cursor-pointer"
+                className="px-5 py-2 text-sm font-semibold text-zinc-900 bg-zinc-100 hover:bg-white rounded-lg transition-all disabled:opacity-50 cursor-pointer"
               >
-                {saving ? "กำลังบันทึก..." : "💾 บันทึกการแก้ไข"}
+                {saving ? "กำลังบันทึก..." : "💾 บันทึก"}
               </button>
             </div>
           </div>

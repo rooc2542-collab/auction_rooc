@@ -5,38 +5,30 @@ import { JOB_EMOJI } from "@/app/members/MemberTable"
 
 type ItemKey = "Album" | "Puppet" | "White" | "RedBlack"
 
-const ITEMS_META: Record<ItemKey, { label: string; icon: string; desc: string; gradient: string; border: string; badge: string }> = {
+const ITEMS_META: Record<ItemKey, { label: string; icon: string; desc: string; badge: string }> = {
   Album: {
     label: "สมุดการ์ด",
     icon: "📖",
     desc: "สมุดเลือกการ์ดส้ม / การ์ดบอสปลอม",
-    gradient: "from-purple-900/40 to-indigo-950/60",
-    border: "border-purple-700/50",
-    badge: "bg-purple-950/80 text-purple-300 border border-purple-700/50",
+    badge: "bg-violet-950 text-violet-300 border border-violet-800/60",
   },
   Puppet: {
     label: "เศษการ์ดบอส",
     icon: "🎭",
     desc: "เศษการ์ดบอสปลอมสำหรับสะสม",
-    gradient: "from-amber-900/40 to-orange-950/60",
-    border: "border-amber-700/50",
-    badge: "bg-amber-950/80 text-amber-300 border border-amber-700/50",
+    badge: "bg-amber-950 text-amber-300 border border-amber-800/60",
   },
   White: {
     label: "ขนนกขาว",
     icon: "🪶",
     desc: "ขนนกขาวเกรดอัปเกรดสเตตัส",
-    gradient: "from-slate-800/60 to-slate-900/80",
-    border: "border-slate-600/50",
-    badge: "bg-slate-800 text-slate-200 border border-slate-600",
+    badge: "bg-zinc-800 text-zinc-200 border border-zinc-600",
   },
   RedBlack: {
     label: "ขนนกดำแดง",
     icon: "🔴",
     desc: "ขนนกแดง/ดำสเตตัสขั้นสูง",
-    gradient: "from-rose-900/40 to-red-950/60",
-    border: "border-rose-700/50",
-    badge: "bg-rose-950/80 text-rose-300 border border-rose-700/50",
+    badge: "bg-rose-950 text-rose-300 border border-rose-800/60",
   },
 }
 
@@ -88,6 +80,7 @@ export default function QueueManagerClient({
   const [selectedSlotIds, setSelectedSlotIds] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   // Proxy add member state
   const [proxyUserId, setProxyUserId] = useState("")
@@ -124,6 +117,7 @@ export default function QueueManagerClient({
     setEventDate(ed)
     setItemForms(buildInitialForm(en, ed))
     setCurrentPage(1)
+    setConfirmDelete(false)
   }
 
   const handleCoordChange = (key: ItemKey, field: keyof ItemFormEntry, val: string) => {
@@ -212,7 +206,7 @@ export default function QueueManagerClient({
   const totalBoardPages = pagesList.length || 1
   const activePageObj = pagesList[Math.min(currentPage - 1, pagesList.length - 1)] || null
 
-  // สร้างข้อความ Kafra Format (ตรงตามรูปที่ 3)
+  // สร้างข้อความ Kafra Format
   const kafraAnnouncementText = useMemo(() => {
     const allEventSlots = initialSlots.filter(
       (s) => s.event_name === eventName && s.session_date === eventDate
@@ -290,7 +284,6 @@ export default function QueueManagerClient({
   }
 
   const handleRunAllocation = async () => {
-    // Save sessions first, then run allocation
     setBusy(true)
     setToast(null)
     try {
@@ -323,6 +316,14 @@ export default function QueueManagerClient({
     } finally {
       setBusy(false)
     }
+  }
+
+  const handleDeleteEvent = async () => {
+    await callApi(
+      { action: "delete_event", event_name: eventName, session_date: eventDate },
+      `🗑️ ลบรอบ "${eventName}" (${eventDate}) เรียบร้อยแล้ว`
+    )
+    setConfirmDelete(false)
   }
 
   const handleProxyAdd = async () => {
@@ -397,27 +398,27 @@ export default function QueueManagerClient({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header & Event Selector */}
-      <div className="bg-slate-900/90 backdrop-blur-md rounded-2xl border border-slate-800 p-6 shadow-xl">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 shadow-lg">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-extrabold text-white flex items-center gap-2.5">
+            <h1 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
               <span>🎯</span>
               <span>จัดคิวและกระดานสล็อต (4 ช่อง/หน้า)</span>
             </h1>
-            <p className="text-slate-400 text-sm mt-1">
-              ตั้งค่าพิกัดหน้า/ช่อง จัดลำดับคิวผู้เข้าร่วม และคำนวณสล็อตประมูลให้ตรงกับในเกม
+            <p className="text-zinc-500 text-sm mt-1">
+              ตั้งค่าพิกัดหน้า/ช่อง จัดลำดับคิวผู้เข้าร่วม และคำนวณสล็อตประมูล
             </p>
           </div>
 
           {/* Event & Date Controls */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             {existingEvents.length > 0 && (
               <select
                 value={`${eventName}|${eventDate}`}
                 onChange={(e) => handleSelectEventPreset(e.target.value)}
-                className="bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-purple-300 font-semibold focus:outline-none focus:border-purple-500"
+                className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
               >
                 {existingEvents.map((ev) => {
                   const [en, ed] = ev.split("|")
@@ -434,13 +435,13 @@ export default function QueueManagerClient({
               value={eventName}
               onChange={(e) => setEventName(e.target.value)}
               placeholder="ชื่ออีเวนต์ เช่น Emperium Overrun"
-              className="bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
             />
             <input
               type="date"
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
-              className="bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
             />
           </div>
         </div>
@@ -448,10 +449,10 @@ export default function QueueManagerClient({
         {/* Toast Notification */}
         {toast && (
           <div
-            className={`mt-4 px-4 py-3 rounded-xl text-sm font-semibold border ${
+            className={`mt-4 px-4 py-3 rounded-lg text-sm font-medium border ${
               toast.type === "ok"
-                ? "bg-emerald-950/60 border-emerald-700/60 text-emerald-300"
-                : "bg-rose-950/60 border-rose-700/60 text-rose-300"
+                ? "bg-emerald-950/40 border-emerald-800/60 text-emerald-300"
+                : "bg-rose-950/40 border-rose-800/60 text-rose-300"
             }`}
           >
             {toast.text}
@@ -459,20 +460,20 @@ export default function QueueManagerClient({
         )}
 
         {/* Sub-navigation Tabs */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mt-6 pt-5 border-t border-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-5 border-t border-zinc-800">
           <div className="flex flex-wrap gap-2">
             {[
-              { id: "board", label: `🎯 กระดานสล็อต 4 ช่อง (${currentSlots.length})` },
-              { id: "queue", label: `👥 จัดการคิวผู้เข้าร่วม (${currentAttendance.length})` },
-              { id: "config", label: "⚙️ ตั้งค่าพิกัดไอเทม & ลิมิต" },
+              { id: "board", label: `กระดานสล็อต 4 ช่อง (${currentSlots.length})` },
+              { id: "queue", label: `จัดการคิวผู้เข้าร่วม (${currentAttendance.length})` },
+              { id: "config", label: "ตั้งค่าพิกัดไอเทม & ลิมิต" },
             ].map((t) => (
               <button
                 key={t.id}
                 onClick={() => setActiveTab(t.id as any)}
-                className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                   activeTab === t.id
-                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-900/40"
-                    : "bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-800"
+                    ? "bg-zinc-100 text-zinc-900"
+                    : "bg-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700 border border-zinc-700"
                 }`}
               >
                 {t.label}
@@ -480,28 +481,61 @@ export default function QueueManagerClient({
             ))}
           </div>
 
-          {isAdmin && (
-            <button
-              onClick={handleRunAllocation}
-              disabled={busy}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-extrabold text-sm shadow-lg shadow-orange-900/40 transition-all disabled:opacity-50 cursor-pointer"
-            >
-              {busy ? "⏳ กำลังคำนวณ..." : "⚡ คำนวณและจัดสรรสล็อตใหม่"}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={handleRunAllocation}
+                disabled={busy}
+                className="px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-100 font-semibold text-sm border border-zinc-600 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {busy ? "⏳ กำลังคำนวณ..." : "⚡ คำนวณและจัดสรรสล็อตใหม่"}
+              </button>
+            )}
+            {/* ปุ่มลบรอบ */}
+            {isAdmin && existingEvents.length > 0 && (
+              confirmDelete ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-rose-400 font-medium">ยืนยันลบรอบนี้?</span>
+                  <button
+                    onClick={handleDeleteEvent}
+                    disabled={busy}
+                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold cursor-pointer"
+                  >
+                    ยืนยัน
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-400 text-xs cursor-pointer border border-zinc-700"
+                  >
+                    ยกเลิก
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-rose-950 text-zinc-500 hover:text-rose-400 text-sm border border-zinc-700 hover:border-rose-800/60 transition-all cursor-pointer"
+                  title="ลบรอบนี้ทั้งหมด"
+                >
+                  🗑️ ลบรอบ
+                </button>
+              )
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ─── TAB 1: กระดานสล็อต 4 ช่อง/หน้า (4-SLOT BOARD) ─────────────────────── */}
+      {/* ─── TAB 1: กระดานสล็อต 4 ช่อง/หน้า ─────────────────────── */}
       {activeTab === "board" && (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* Item Filter + Page Controls */}
-          <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => { setFilterItem("ALL"); setCurrentPage(1) }}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  filterItem === "ALL" ? "bg-purple-600 text-white" : "bg-slate-800 text-slate-400 hover:text-white"
+                className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
+                  filterItem === "ALL"
+                    ? "bg-zinc-100 text-zinc-900 border-zinc-300"
+                    : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-200"
                 }`}
               >
                 ทั้งหมด ({initialSlots.filter((s) => s.event_name === eventName && s.session_date === eventDate).length})
@@ -514,8 +548,10 @@ export default function QueueManagerClient({
                   <button
                     key={k}
                     onClick={() => { setFilterItem(k); setCurrentPage(1) }}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      filterItem === k ? "bg-purple-600 text-white" : "bg-slate-800 text-slate-400 hover:text-white"
+                    className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
+                      filterItem === k
+                        ? "bg-zinc-100 text-zinc-900 border-zinc-300"
+                        : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-200"
                     }`}
                   >
                     {ITEMS_META[k].icon} {ITEMS_META[k].label} ({count})
@@ -527,22 +563,22 @@ export default function QueueManagerClient({
             {/* Batch Actions */}
             {isAdmin && selectedSlotIds.size > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-purple-300 font-semibold">เลือก {selectedSlotIds.size} ช่อง:</span>
+                <span className="text-xs text-zinc-400 font-medium">เลือก {selectedSlotIds.size} ช่อง:</span>
                 <button
                   onClick={() => handleSlotStatus(Array.from(selectedSlotIds), "awarded")}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer"
                 >
                   ✅ มอบของที่เลือก
                 </button>
                 <button
                   onClick={() => handleSlotStatus(Array.from(selectedSlotIds), "skipped")}
-                  className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-white text-xs font-medium cursor-pointer"
                 >
                   ⏭️ ข้ามคิว
                 </button>
                 <button
                   onClick={() => setSelectedSlotIds(new Set())}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-400 text-xs cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-lg bg-zinc-800 text-zinc-400 text-xs cursor-pointer border border-zinc-700"
                 >
                   ล้าง
                 </button>
@@ -552,20 +588,21 @@ export default function QueueManagerClient({
 
           {/* 4-Slot In-Game Page View */}
           {pagesList.length === 0 ? (
-            <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-16 text-center space-y-4">
-              <div className="text-5xl">🎲</div>
-              <div className="text-lg font-bold text-white">ยังไม่มีสล็อตที่ถูกจัดสรรสำหรับอีเวนต์นี้</div>
-              <p className="text-slate-400 text-sm max-w-md mx-auto">
-                ไปที่แท็บ <b>"⚙️ ตั้งค่าพิกัดไอเทม & ลิมิต"</b> เพื่อระบุจำนวนของและลิมิต จากนั้นกดปุ่ม <b>"⚡ คำนวณและจัดสรรสล็อตใหม่"</b>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-16 text-center space-y-3">
+              <div className="text-4xl">🎲</div>
+              <div className="text-base font-semibold text-zinc-100">ยังไม่มีสล็อตที่ถูกจัดสรรสำหรับอีเวนต์นี้</div>
+              <p className="text-zinc-500 text-sm max-w-md mx-auto">
+                ไปที่แท็บ <b className="text-zinc-300">ตั้งค่าพิกัดไอเทม &amp; ลิมิต</b> เพื่อระบุจำนวนและลิมิต จากนั้นกด{" "}
+                <b className="text-zinc-300">⚡ คำนวณและจัดสรรสล็อตใหม่</b>
               </p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-5">
               {/* Page Navigation Bar */}
-              <div className="flex items-center justify-between bg-slate-900/90 rounded-2xl border border-slate-800 px-5 py-3">
-                <div className="text-sm font-bold text-white">
-                  📖 หน้าในเกม (In-Game Page):{" "}
-                  <span className="text-purple-400 font-mono text-base">
+              <div className="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-3">
+                <div className="text-sm font-medium text-zinc-300">
+                  หน้าในเกม:{" "}
+                  <span className="font-bold text-zinc-100 font-mono">
                     Page {activePageObj?.pageNumber} / {activePageObj?.slots[0]?.total_pages || totalBoardPages}
                   </span>
                 </div>
@@ -573,19 +610,19 @@ export default function QueueManagerClient({
                   <button
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage <= 1}
-                    className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white text-xs font-bold cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-200 text-xs font-medium border border-zinc-700 cursor-pointer"
                   >
-                    ← หน้าก่อน
+                    ← ก่อน
                   </button>
-                  <span className="text-xs text-slate-400 font-mono px-2">
-                    หน้าที่ {currentPage} จาก {pagesList.length} หน้าที่มีของ
+                  <span className="text-xs text-zinc-500 font-mono px-2">
+                    หน้าที่ {currentPage} / {pagesList.length}
                   </span>
                   <button
                     onClick={() => setCurrentPage((p) => Math.min(pagesList.length, p + 1))}
                     disabled={currentPage >= pagesList.length}
-                    className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white text-xs font-bold cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-200 text-xs font-medium border border-zinc-700 cursor-pointer"
                   >
-                    หน้าถัดไป →
+                    ถัดไป →
                   </button>
                 </div>
               </div>
@@ -598,12 +635,12 @@ export default function QueueManagerClient({
                     return (
                       <div
                         key={slotNum}
-                        className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 p-5 flex flex-col items-center justify-center min-h-48 text-slate-600"
+                        className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/40 p-5 flex flex-col items-center justify-center min-h-48 text-zinc-700"
                       >
                         <div className="text-xs font-mono mb-1">
                           Page {activePageObj?.pageNumber} • ช่องที่ {slotNum}
                         </div>
-                        <div className="text-sm font-semibold">--- ช่องว่าง ---</div>
+                        <div className="text-sm font-medium">--- ช่องว่าง ---</div>
                       </div>
                     )
                   }
@@ -614,15 +651,17 @@ export default function QueueManagerClient({
                   return (
                     <div
                       key={slotData.id}
-                      className={`rounded-2xl border p-5 bg-gradient-to-br ${meta.gradient} ${
-                        isSelected ? "border-purple-400 ring-2 ring-purple-500/40" : meta.border
-                      } flex flex-col justify-between shadow-xl transition-all`}
+                      className={`rounded-xl border p-5 bg-zinc-900 flex flex-col justify-between shadow-lg transition-all ${
+                        isSelected
+                          ? "border-zinc-400 ring-2 ring-zinc-400/30"
+                          : "border-zinc-700/80 hover:border-zinc-600"
+                      }`}
                     >
                       <div>
                         {/* Top badge row */}
-                        <div className="flex items-center justify-between gap-2 mb-3">
-                          <span className="px-2.5 py-1 rounded-lg bg-black/40 text-white font-mono text-xs font-bold">
-                            Page {slotData.page_number}/{slotData.total_pages} • ช่อง {slotData.slot_number}
+                        <div className="flex items-center justify-between gap-2 mb-4">
+                          <span className="px-2.5 py-1 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 font-mono text-xs font-medium">
+                            Page {slotData.page_number}/{slotData.total_pages} · ช่อง {slotData.slot_number}
                           </span>
                           {isAdmin && (
                             <input
@@ -634,45 +673,43 @@ export default function QueueManagerClient({
                                 else next.delete(slotData.id)
                                 setSelectedSlotIds(next)
                               }}
-                              className="w-4 h-4 accent-purple-600 rounded cursor-pointer"
+                              className="w-4 h-4 accent-zinc-400 rounded cursor-pointer"
                             />
                           )}
                         </div>
 
                         {/* Item Badge */}
                         <div className="flex items-center gap-2 mb-4">
-                          <span className="text-2xl">{meta.icon}</span>
+                          <span className="text-xl">{meta.icon}</span>
                           <div>
-                            <div className="text-xs font-bold text-white">{meta.label}</div>
-                            <div className="text-[11px] text-slate-400">ONLY BID ตามช่องที่กำหนด</div>
+                            <div className="text-xs font-semibold text-zinc-100">{meta.label}</div>
+                            <div className="text-[11px] text-zinc-600">ONLY BID ตามช่องที่กำหนด</div>
                           </div>
                         </div>
 
                         {/* Assigned Member */}
-                        <div className="bg-black/30 rounded-xl p-3 border border-white/10 mb-4">
-                          <div className="text-[11px] text-slate-400">ผู้ได้รับสิทธิ์ประมูล:</div>
-                          <div className="text-base font-extrabold text-white truncate mt-0.5">
+                        <div className="bg-zinc-800/60 border border-zinc-700/50 rounded-lg p-3 mb-4">
+                          <div className="text-[11px] text-zinc-600 mb-0.5">ผู้ได้รับสิทธิ์ประมูล:</div>
+                          <div className="text-sm font-bold text-zinc-100 truncate">
                             {slotData.profiles?.display_name || "ไม่ทราบชื่อ"}
                           </div>
-                          <div className="text-xs text-slate-400 flex items-center gap-2 mt-1">
-                            <span>
-                              {slotData.profiles?.job_class
-                                ? `${JOB_EMOJI[slotData.profiles.job_class] || "⚔️"} ${slotData.profiles.job_class}`
-                                : "ไม่ระบุอาชีพ"}
-                            </span>
+                          <div className="text-xs text-zinc-500 mt-0.5">
+                            {slotData.profiles?.job_class
+                              ? `${JOB_EMOJI[slotData.profiles.job_class] || "⚔️"} ${slotData.profiles.job_class}`
+                              : "ไม่ระบุอาชีพ"}
                           </div>
                         </div>
                       </div>
 
                       {/* Status & Quick Actions */}
-                      <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                      <div className="flex items-center justify-between pt-3 border-t border-zinc-800">
                         <span
-                          className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                          className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
                             slotData.status === "awarded"
-                              ? "bg-emerald-950/90 text-emerald-300 border border-emerald-700/50"
+                              ? "bg-emerald-950 text-emerald-400 border-emerald-800/60"
                               : slotData.status === "skipped"
-                              ? "bg-rose-950/90 text-rose-300 border border-rose-700/50"
-                              : "bg-amber-950/90 text-amber-300 border border-amber-700/50"
+                              ? "bg-rose-950 text-rose-400 border-rose-800/60"
+                              : "bg-zinc-800 text-zinc-400 border-zinc-700"
                           }`}
                         >
                           {slotData.status === "awarded"
@@ -688,7 +725,7 @@ export default function QueueManagerClient({
                               <button
                                 onClick={() => handleSlotStatus([slotData.id], "awarded")}
                                 disabled={busy}
-                                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer"
+                                className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer"
                                 title="บันทึกว่าได้รับของแล้ว"
                               >
                                 🎁 ได้ของ
@@ -698,7 +735,7 @@ export default function QueueManagerClient({
                               <button
                                 onClick={() => handleSlotStatus([slotData.id], "allocated")}
                                 disabled={busy}
-                                className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs cursor-pointer"
+                                className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs cursor-pointer border border-zinc-700"
                                 title="รีเซ็ตสถานะ"
                               >
                                 ↩️
@@ -712,25 +749,25 @@ export default function QueueManagerClient({
                 })}
               </div>
 
-              {/* Kafra Discord Announcement Box (Matches Image 3) */}
+              {/* Kafra Discord Announcement Box */}
               {kafraAnnouncementText && (
-                <div className="bg-slate-900/90 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-                  <div className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
-                    <div className="font-bold text-white text-sm flex items-center gap-2">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                  <div className="px-5 py-3.5 border-b border-zinc-800 flex items-center justify-between">
+                    <div className="font-medium text-zinc-100 text-sm flex items-center gap-2">
                       <span>📢</span>
-                      <span>ข้อความสรุปพิกัดบิดรายบุคคล (รูปแบบ Kafra สำหรับส่งใน Discord)</span>
+                      <span>ข้อความสรุปพิกัด (รูปแบบ Kafra สำหรับ Discord)</span>
                     </div>
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(kafraAnnouncementText)
-                        setToast({ type: "ok", text: "📋 คัดลอกข้อความรูปแบบ Kafra ลง Clipboard แล้ว!" })
+                        setToast({ type: "ok", text: "📋 คัดลอกข้อความลง Clipboard แล้ว!" })
                       }}
-                      className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-100 text-xs font-medium transition-all cursor-pointer border border-zinc-600"
                     >
-                      📋 คัดลอกข้อความ
+                      📋 คัดลอก
                     </button>
                   </div>
-                  <pre className="p-5 text-xs font-mono text-slate-200 bg-slate-950/70 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-80">
+                  <pre className="p-5 text-xs font-mono text-zinc-300 bg-zinc-950/60 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-80">
                     {kafraAnnouncementText}
                   </pre>
                 </div>
@@ -740,23 +777,23 @@ export default function QueueManagerClient({
         </div>
       )}
 
-      {/* ─── TAB 2: จัดการคิวผู้เข้าร่วม (QUEUE & ATTENDANCE MANAGER) ────────── */}
+      {/* ─── TAB 2: จัดการคิวผู้เข้าร่วม ────────── */}
       {activeTab === "queue" && (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* Admin Proxy Add Form */}
           {isAdmin && (
-            <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-5 shadow-xl">
-              <h3 className="font-bold text-white text-sm mb-3 flex items-center gap-2">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+              <h3 className="font-semibold text-zinc-100 text-sm mb-3 flex items-center gap-2">
                 <span>➕</span>
                 <span>ดึงสมาชิกเข้าคิว / ลงชื่อแทนสมาชิก (Proxy Queue)</span>
               </h3>
               <div className="flex flex-wrap items-end gap-3">
                 <div className="min-w-52 flex-1">
-                  <label className="block text-xs text-slate-400 mb-1">เลือกสมาชิก</label>
+                  <label className="block text-xs text-zinc-500 mb-1">เลือกสมาชิก</label>
                   <select
                     value={proxyUserId}
                     onChange={(e) => setProxyUserId(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
                   >
                     <option value="">-- เลือกสมาชิกในกิลด์ --</option>
                     {members.map((m) => (
@@ -768,11 +805,11 @@ export default function QueueManagerClient({
                 </div>
 
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">สถานะการเข้าร่วม</label>
+                  <label className="block text-xs text-zinc-500 mb-1">สถานะการเข้าร่วม</label>
                   <select
                     value={proxyStatus}
                     onChange={(e) => setProxyStatus(e.target.value as any)}
-                    className="bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500"
+                    className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
                   >
                     <option value="want_bid">🎮 Join the war / Want to bid</option>
                     <option value="no_bid">🚫 Join the war / Do not want to bid</option>
@@ -782,7 +819,7 @@ export default function QueueManagerClient({
 
                 {proxyStatus === "want_bid" && (
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">ไอเทมที่ต้องการประมูล</label>
+                    <label className="block text-xs text-zinc-500 mb-1">ไอเทมที่ต้องการประมูล</label>
                     <div className="flex gap-1.5">
                       {ITEM_KEYS.map((k) => {
                         const active = proxyItems.includes(k)
@@ -795,10 +832,10 @@ export default function QueueManagerClient({
                                 prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]
                               )
                             }
-                            className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                            className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
                               active
-                                ? "bg-purple-600/30 border-purple-500 text-white"
-                                : "bg-slate-800 border-slate-700 text-slate-500"
+                                ? "bg-zinc-700 border-zinc-500 text-zinc-100"
+                                : "bg-zinc-800 border-zinc-700 text-zinc-600 hover:text-zinc-400"
                             }`}
                           >
                             {ITEMS_META[k].icon} {ITEMS_META[k].label}
@@ -812,7 +849,7 @@ export default function QueueManagerClient({
                 <button
                   onClick={handleProxyAdd}
                   disabled={!proxyUserId || busy}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-40 text-white text-sm font-bold cursor-pointer"
+                  className="px-5 py-2.5 rounded-lg bg-zinc-100 hover:bg-white disabled:opacity-40 text-zinc-900 text-sm font-semibold cursor-pointer"
                 >
                   ➕ บันทึกเข้าคิว
                 </button>
@@ -821,32 +858,30 @@ export default function QueueManagerClient({
           )}
 
           {/* Attendance & Queue Order Table */}
-          <div className="bg-slate-900/90 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-            <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-white text-base">📋 ลำดับคิวผู้เข้าร่วม ({sortedAttendance.length} คน)</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  คนที่มียอดค้างสะสม (Credit) สูงกว่าจะได้รับสิทธิ์จัดสรรเศษสล็อตก่อนอัตโนมัติ (คลิกปุ่มไอเทมเพื่อสลับความต้องการได้ทันที)
-                </p>
-              </div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-zinc-800">
+              <h3 className="font-semibold text-zinc-100 text-sm">📋 ลำดับคิวผู้เข้าร่วม ({sortedAttendance.length} คน)</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                คนที่มียอดค้างสะสม (Credit) สูงกว่าจะได้รับสิทธิ์จัดสรรเศษสล็อตก่อนอัตโนมัติ
+              </p>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800 bg-slate-900/50 text-slate-400 text-left">
-                    <th className="px-4 py-3 font-semibold text-center w-14">คิวที่</th>
-                    <th className="px-4 py-3 font-semibold">สมาชิก</th>
-                    <th className="px-4 py-3 font-semibold">สถานะ</th>
-                    <th className="px-4 py-3 font-semibold">ไอเทมที่ต้องการประมูล (คลิกเพื่อเปิด/ปิด)</th>
-                    <th className="px-4 py-3 font-semibold text-center">ปรับแต้มลัดคิว (Carry Credit)</th>
-                    {isAdmin && <th className="px-4 py-3 font-semibold text-right">จัดการ</th>}
+                  <tr className="border-b border-zinc-800 text-zinc-500 text-left">
+                    <th className="px-4 py-3 font-medium text-center w-14">คิวที่</th>
+                    <th className="px-4 py-3 font-medium">สมาชิก</th>
+                    <th className="px-4 py-3 font-medium">สถานะ</th>
+                    <th className="px-4 py-3 font-medium">ไอเทมที่ต้องการ</th>
+                    <th className="px-4 py-3 font-medium text-center">Carry Credit</th>
+                    {isAdmin && <th className="px-4 py-3 font-medium text-right">จัดการ</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/70">
+                <tbody className="divide-y divide-zinc-800/60">
                   {sortedAttendance.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center text-slate-500 py-12">
+                      <td colSpan={6} className="text-center text-zinc-600 py-12 text-sm">
                         ยังไม่มีผู้ลงชื่อในอีเวนต์นี้ (สามารถกดเพิ่มจากด้านบน หรือเปิดโพลผ่านบอท /event_poll)
                       </td>
                     </tr>
@@ -854,15 +889,15 @@ export default function QueueManagerClient({
                     sortedAttendance.map((att, idx) => {
                       const items: string[] = Array.isArray(att.interested_items) ? att.interested_items : []
                       return (
-                        <tr key={att.id} className="hover:bg-slate-800/40 transition-colors">
-                          <td className="px-4 py-3.5 text-center font-mono font-bold text-purple-400">
+                        <tr key={att.id} className="hover:bg-zinc-800/30 transition-colors">
+                          <td className="px-4 py-3.5 text-center font-mono font-bold text-zinc-500">
                             #{idx + 1}
                           </td>
                           <td className="px-4 py-3.5">
-                            <div className="font-bold text-white">
+                            <div className="font-medium text-zinc-100">
                               {att.profiles?.display_name || "ไม่ทราบชื่อ"}
                             </div>
-                            <div className="text-xs text-slate-500">
+                            <div className="text-xs text-zinc-600">
                               {att.profiles?.job_class
                                 ? `${JOB_EMOJI[att.profiles.job_class] || "⚔️"} ${att.profiles.job_class}`
                                 : "ไม่ระบุอาชีพ"}
@@ -873,14 +908,20 @@ export default function QueueManagerClient({
                               <select
                                 value={att.status}
                                 onChange={(e) => handleStatusChange(att, e.target.value)}
-                                className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white"
+                                className="bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none"
                               >
                                 <option value="want_bid">🎮 Want to bid</option>
                                 <option value="no_bid">🚫 Do not bid (Credit)</option>
                                 <option value="absent">⛔ Unable to attend</option>
                               </select>
                             ) : (
-                              <span className="text-xs font-semibold text-slate-300">{att.status}</span>
+                              <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+                                att.status === "want_bid"
+                                  ? "bg-emerald-950 text-emerald-400 border-emerald-800/60"
+                                  : att.status === "no_bid"
+                                  ? "bg-amber-950 text-amber-400 border-amber-800/60"
+                                  : "bg-rose-950 text-rose-400 border-rose-800/60"
+                              }`}>{att.status}</span>
                             )}
                           </td>
                           <td className="px-4 py-3.5">
@@ -893,10 +934,10 @@ export default function QueueManagerClient({
                                       key={k}
                                       onClick={() => handleToggleMemberItem(att, k)}
                                       disabled={!isAdmin || busy}
-                                      className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                      className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
                                         active
                                           ? ITEMS_META[k].badge
-                                          : "bg-slate-900 border-slate-800 text-slate-600 opacity-60"
+                                          : "bg-zinc-900 border-zinc-800 text-zinc-700 opacity-60"
                                       }`}
                                     >
                                       {ITEMS_META[k].icon} {ITEMS_META[k].label}
@@ -905,17 +946,17 @@ export default function QueueManagerClient({
                                 })}
                               </div>
                             ) : (
-                              <span className="text-xs text-slate-600">— ไม่ประมูลในรอบนี้ —</span>
+                              <span className="text-xs text-zinc-700">— ไม่ประมูลในรอบนี้ —</span>
                             )}
                           </td>
                           <td className="px-4 py-3.5">
-                            <div className="flex items-center justify-center gap-2 flex-wrap">
+                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               {ITEM_KEYS.map((k) => {
                                 const cVal = creditMap[`${att.user_id}|${k}`] || 0
                                 return (
                                   <div
                                     key={k}
-                                    className="inline-flex items-center gap-1 bg-slate-800/90 border border-slate-700 rounded-lg px-2 py-1 text-xs"
+                                    className="inline-flex items-center gap-1 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-xs"
                                     title={`Carry Credit: ${ITEMS_META[k].label}`}
                                   >
                                     <span>{ITEMS_META[k].icon}</span>
@@ -924,13 +965,13 @@ export default function QueueManagerClient({
                                       <div className="flex items-center gap-0.5 ml-1">
                                         <button
                                           onClick={() => handleAdjustCredit(att.user_id, k, -1)}
-                                          className="w-4 h-4 rounded bg-slate-700 hover:bg-rose-600 text-white flex items-center justify-center text-[10px] cursor-pointer"
+                                          className="w-4 h-4 rounded bg-zinc-700 hover:bg-rose-700 text-zinc-200 flex items-center justify-center text-[10px] cursor-pointer"
                                         >
                                           -
                                         </button>
                                         <button
                                           onClick={() => handleAdjustCredit(att.user_id, k, 1)}
-                                          className="w-4 h-4 rounded bg-slate-700 hover:bg-emerald-600 text-white flex items-center justify-center text-[10px] cursor-pointer"
+                                          className="w-4 h-4 rounded bg-zinc-700 hover:bg-emerald-700 text-zinc-200 flex items-center justify-center text-[10px] cursor-pointer"
                                         >
                                           +
                                         </button>
@@ -947,7 +988,7 @@ export default function QueueManagerClient({
                                 onClick={() =>
                                   callApi({ action: "delete_attendance", id: att.id }, "🗑️ ลบคิวเรียบร้อยแล้ว")
                                 }
-                                className="text-xs font-semibold text-rose-400 hover:text-white bg-rose-950/40 hover:bg-rose-600 border border-rose-800/50 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+                                className="text-xs font-medium text-rose-400 hover:text-white bg-rose-950/40 hover:bg-rose-700 border border-rose-800/50 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
                               >
                                 🗑️ ลบ
                               </button>
@@ -964,42 +1005,43 @@ export default function QueueManagerClient({
         </div>
       )}
 
-      {/* ─── TAB 3: ตั้งค่าพิกัดไอเทม & ลิมิต (4 ITEMS CONFIGURATOR) ──────────── */}
+      {/* ─── TAB 3: ตั้งค่าพิกัดไอเทม & ลิมิต ──────────── */}
       {activeTab === "config" && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {ITEM_KEYS.map((key) => {
               const meta = ITEMS_META[key]
               const form = itemForms[key]
               return (
                 <div
                   key={key}
-                  className={`rounded-2xl border ${meta.border} bg-gradient-to-br ${meta.gradient} p-6 shadow-xl space-y-4`}
+                  className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <span className="text-3xl">{meta.icon}</span>
+                      <span className="text-2xl">{meta.icon}</span>
                       <div>
-                        <h3 className="text-lg font-extrabold text-white">{meta.label}</h3>
-                        <p className="text-xs text-slate-400">{meta.desc}</p>
+                        <h3 className="text-base font-bold text-zinc-100">{meta.label}</h3>
+                        <p className="text-xs text-zinc-600">{meta.desc}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[11px] text-slate-400">จำนวนรวม</div>
-                      <div className="text-2xl font-black font-mono text-white">
-                        {form.total_quantity || 0} <span className="text-xs font-normal text-slate-400">ชิ้น</span>
+                      <div className="text-[11px] text-zinc-600">จำนวนรวม</div>
+                      <div className="text-2xl font-black font-mono text-zinc-100">
+                        {form.total_quantity || 0}{" "}
+                        <span className="text-xs font-normal text-zinc-600">ชิ้น</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Option 1: Start/End Page & Slot */}
-                  <div className="bg-black/30 rounded-xl p-4 border border-white/10 space-y-3">
-                    <div className="text-xs font-bold text-purple-300">
-                      📍 วิธีที่ 1: ระบุพิกัดหน้าและช่องในเกม (1 หน้ามี 4 ช่อง)
+                  {/* Coord Input */}
+                  <div className="bg-zinc-800/50 border border-zinc-700/60 rounded-xl p-4 space-y-3">
+                    <div className="text-xs font-semibold text-zinc-400">
+                      📍 ระบุพิกัดหน้าและช่องในเกม (1 หน้ามี 4 ช่อง)
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">เริ่มต้น (หน้า / ช่อง 1-4)</label>
+                        <label className="block text-[11px] text-zinc-500 mb-1">เริ่มต้น (หน้า / ช่อง 1-4)</label>
                         <div className="flex items-center gap-1.5">
                           <input
                             type="number"
@@ -1008,9 +1050,9 @@ export default function QueueManagerClient({
                             value={form.start_page}
                             onChange={(e) => handleCoordChange(key, "start_page", e.target.value)}
                             placeholder="หน้า"
-                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-white"
+                            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
                           />
-                          <span className="text-slate-500">:</span>
+                          <span className="text-zinc-600">:</span>
                           <input
                             type="number"
                             min={1}
@@ -1019,13 +1061,12 @@ export default function QueueManagerClient({
                             value={form.start_slot}
                             onChange={(e) => handleCoordChange(key, "start_slot", e.target.value)}
                             placeholder="ช่อง"
-                            className="w-20 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-white"
+                            className="w-20 bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
                           />
                         </div>
                       </div>
-
                       <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">สิ้นสุด (หน้า / ช่อง 1-4)</label>
+                        <label className="block text-[11px] text-zinc-500 mb-1">สิ้นสุด (หน้า / ช่อง 1-4)</label>
                         <div className="flex items-center gap-1.5">
                           <input
                             type="number"
@@ -1034,9 +1075,9 @@ export default function QueueManagerClient({
                             value={form.end_page}
                             onChange={(e) => handleCoordChange(key, "end_page", e.target.value)}
                             placeholder="หน้า"
-                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-white"
+                            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
                           />
-                          <span className="text-slate-500">:</span>
+                          <span className="text-zinc-600">:</span>
                           <input
                             type="number"
                             min={1}
@@ -1045,18 +1086,18 @@ export default function QueueManagerClient({
                             value={form.end_slot}
                             onChange={(e) => handleCoordChange(key, "end_slot", e.target.value)}
                             placeholder="ช่อง"
-                            className="w-20 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-white"
+                            className="w-20 bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
                           />
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Option 2: Direct Quantity & Limit */}
+                  {/* Quantity & Limit */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-black/30 rounded-xl p-3.5 border border-white/10">
-                      <label className="block text-xs font-bold text-amber-300 mb-1">
-                        🔢 วิธีที่ 2: จำนวนชิ้นรวมโดยตรง
+                    <div className="bg-zinc-800/50 border border-zinc-700/60 rounded-xl p-3.5">
+                      <label className="block text-xs font-semibold text-zinc-400 mb-1">
+                        🔢 จำนวนชิ้นรวมโดยตรง
                       </label>
                       <input
                         type="number"
@@ -1064,13 +1105,12 @@ export default function QueueManagerClient({
                         disabled={!isAdmin}
                         value={form.total_quantity}
                         onChange={(e) => handleCoordChange(key, "total_quantity", e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-center font-mono text-lg font-extrabold text-white"
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-center font-mono text-lg font-bold text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
                       />
                     </div>
-
-                    <div className="bg-black/30 rounded-xl p-3.5 border border-white/10">
-                      <label className="block text-xs font-bold text-emerald-300 mb-1">
-                        👤 ลิมิตประมูลต่อคน (Limit)
+                    <div className="bg-zinc-800/50 border border-zinc-700/60 rounded-xl p-3.5">
+                      <label className="block text-xs font-semibold text-zinc-400 mb-1">
+                        👤 ลิมิตต่อคน (Limit)
                       </label>
                       <input
                         type="number"
@@ -1078,7 +1118,7 @@ export default function QueueManagerClient({
                         disabled={!isAdmin}
                         value={form.personal_limit}
                         onChange={(e) => handleCoordChange(key, "personal_limit", e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-center font-mono text-lg font-extrabold text-emerald-400"
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-center font-mono text-lg font-bold text-emerald-400 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
                       />
                     </div>
                   </div>
@@ -1092,14 +1132,14 @@ export default function QueueManagerClient({
               <button
                 onClick={handleSaveSessions}
                 disabled={busy}
-                className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm border border-slate-700 transition-all cursor-pointer"
+                className="px-6 py-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-semibold text-sm border border-zinc-700 transition-all cursor-pointer"
               >
                 💾 บันทึกเฉพาะค่าไอเทม
               </button>
               <button
                 onClick={handleRunAllocation}
                 disabled={busy}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-sm shadow-xl shadow-purple-900/40 transition-all cursor-pointer"
+                className="px-6 py-3 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 font-bold text-sm transition-all cursor-pointer"
               >
                 ⚡ บันทึกและคำนวณจัดสรรสล็อตทันที
               </button>

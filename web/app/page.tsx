@@ -70,77 +70,73 @@ export default async function HomePage() {
   const events = Object.values(eventMap).slice(0, 4)
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-zinc-950">
       <NavBar isAdmin={isAdmin} />
 
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-        {/* Hero Banner */}
-        <div className="rounded-3xl bg-gradient-to-r from-purple-900/50 via-indigo-900/40 to-slate-900 border border-purple-700/30 p-6 md:p-8 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-950/80 border border-purple-700/50 text-purple-300 text-xs font-bold mb-3">
-              <span>⚡</span>
-              <span>Auction_Rooc • ระบบจัดสรรคิวและสล็อตประมูล</span>
-            </div>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-              ระบบประมูล
-            </h1>
-            <p className="text-slate-300 text-sm mt-1.5">
-              วัน{new Date().toLocaleDateString("th-TH", { dateStyle: "full" })} • แบ่งสล็อตหน้าละ 4 ช่องตามเกมจริง
+            <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">ระบบประมูล</h1>
+            <p className="text-zinc-500 text-sm mt-0.5">
+              {new Date().toLocaleDateString("th-TH", { dateStyle: "full" })}
             </p>
           </div>
-
-          <div className="flex flex-wrap gap-3">
+          <div className="flex gap-2">
             <Link
               href="/queues"
-              className="px-5 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-purple-900/40 transition-all"
+              className="px-4 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-900 font-semibold text-sm transition-all"
             >
-              🎯 จัดคิว & กระดานสล็อต 4 ช่อง →
+              จัดคิว &amp; สล็อต →
             </Link>
             <Link
               href="/members"
-              className="px-5 py-3 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-white font-bold text-sm border border-slate-700 transition-all"
+              className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-semibold text-sm border border-zinc-700 transition-all"
             >
-              👥 จัดการสมาชิก ({totalMembers ?? 0})
+              สมาชิก ({totalMembers ?? 0})
             </Link>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: "สมาชิกในกิลด์", value: totalMembers ?? 0, icon: "👥", color: "from-blue-600/30 to-blue-900/40 border-blue-700/40", href: "/members" },
-            { label: "ลงชื่อเข้าร่วมวันนี้", value: todayAttendees ?? 0, icon: "⚔️", color: "from-emerald-600/30 to-emerald-900/40 border-emerald-700/40", href: "/queues" },
-            { label: "สล็อตที่จัดสรรแล้ว", value: totalAllocated ?? 0, icon: "🎯", color: "from-purple-600/30 to-purple-900/40 border-purple-700/40", href: "/queues" },
-            { label: "อีเวนต์ที่เปิดรับ", value: events.length, icon: "📅", color: "from-amber-600/30 to-amber-900/40 border-amber-700/40", href: "/queues" },
+            { label: "สมาชิกในกิลด์", value: totalMembers ?? 0, icon: "👥", href: "/members" },
+            { label: "ลงชื่อวันนี้", value: todayAttendees ?? 0, icon: "⚔️", href: "/queues" },
+            { label: "สล็อตจัดสรรแล้ว", value: totalAllocated ?? 0, icon: "🎯", href: "/queues" },
+            { label: "อีเวนต์ที่เปิดรับ", value: events.length, icon: "📅", href: "/queues" },
           ].map((stat) => (
             <Link
               key={stat.label}
               href={stat.href}
-              className={`bg-gradient-to-br ${stat.color} border rounded-2xl p-5 shadow-xl hover:scale-[1.02] transition-all`}
+              className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 hover:bg-zinc-800/60 transition-all"
             >
-              <div className="text-3xl mb-2">{stat.icon}</div>
-              <div className="text-3xl font-extrabold text-white font-mono">{stat.value}</div>
-              <div className="text-xs font-semibold text-slate-300 mt-1">{stat.label}</div>
+              <div className="text-2xl mb-2">{stat.icon}</div>
+              <div className="text-3xl font-bold text-zinc-100 font-mono">{stat.value}</div>
+              <div className="text-xs text-zinc-500 mt-1 font-medium">{stat.label}</div>
             </Link>
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* Event Attendance Poll Summary */}
-          <div className="bg-slate-900/90 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-              <h2 className="font-bold text-white flex items-center gap-2">
+          <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+            <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+              <h2 className="font-semibold text-zinc-100 text-sm flex items-center gap-2">
                 <span>⚔️</span>
-                <span>สถิติผู้เข้าร่วมกิจกรรม (Attendance Count)</span>
+                <span>สถิติผู้เข้าร่วมกิจกรรม</span>
               </h2>
-              <Link href="/queues" className="text-xs font-bold text-purple-400 hover:text-purple-300">
+              <Link href="/queues" className="text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
                 จัดการคิว →
               </Link>
             </div>
             <div className="p-5 space-y-4">
               {events.length === 0 ? (
-                <div className="text-center text-slate-500 py-10 text-sm">
-                  ยังไม่มีโพลนับคนเข้าร่วม (ใช้คำสั่ง <code className="text-purple-400">/event_poll</code> ใน Discord หรือเพิ่มในหน้าจัดคิว)
+                <div className="text-center text-zinc-600 py-10 text-sm">
+                  ยังไม่มีโพลนับคนเข้าร่วม{" "}
+                  <span className="text-zinc-500">
+                    (ใช้คำสั่ง <code className="text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">/event_poll</code> ใน Discord)
+                  </span>
                 </div>
               ) : (
                 events.map((ev) => {
@@ -148,30 +144,30 @@ export default async function HomePage() {
                   return (
                     <div
                       key={`${ev.event_name}|${ev.event_date}`}
-                      className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 space-y-3"
+                      className="bg-zinc-800/50 border border-zinc-700/60 rounded-xl p-4 space-y-3"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-white">{ev.event_name}</span>
-                        <span className="text-xs font-mono text-slate-400">{ev.event_date}</span>
+                        <span className="font-semibold text-zinc-100 text-sm">{ev.event_name}</span>
+                        <span className="text-xs font-mono text-zinc-500">{ev.event_date}</span>
                       </div>
-                      <div className="space-y-2.5">
+                      <div className="space-y-2">
                         {[
-                          { key: "want_bid", label: "🎮 Join the war / Want to bid", val: ev.want_bid, color: "bg-emerald-500" },
-                          { key: "no_bid", label: "🚫 Join the war / Do not want to bid", val: ev.no_bid, color: "bg-amber-500" },
-                          { key: "absent", label: "⛔ Unable to attend", val: ev.absent, color: "bg-rose-500" },
+                          { key: "want_bid", label: "Join the war / Want to bid", val: ev.want_bid, bar: "bg-emerald-500" },
+                          { key: "no_bid", label: "Join the war / Do not want to bid", val: ev.no_bid, bar: "bg-amber-500" },
+                          { key: "absent", label: "Unable to attend", val: ev.absent, bar: "bg-rose-500" },
                         ].map((opt) => {
                           const pct = total ? Math.round((opt.val * 100) / total) : 0
                           return (
                             <div key={opt.key}>
                               <div className="flex justify-between text-xs mb-1">
-                                <span className="text-slate-300 font-medium">{opt.label}</span>
-                                <span className="text-white font-bold">
+                                <span className="text-zinc-400">{opt.label}</span>
+                                <span className="text-zinc-200 font-semibold">
                                   {pct}% ({opt.val} คน)
                                 </span>
                               </div>
-                              <div className="h-2.5 bg-slate-900 rounded-full overflow-hidden">
+                              <div className="h-2 bg-zinc-900 rounded-full overflow-hidden">
                                 <div
-                                  className={`h-full ${opt.color} rounded-full transition-all`}
+                                  className={`h-full ${opt.bar} rounded-full transition-all`}
                                   style={{ width: `${pct}%` }}
                                 />
                               </div>
@@ -179,7 +175,7 @@ export default async function HomePage() {
                           )
                         })}
                       </div>
-                      <div className="text-xs text-slate-400 pt-1">รวมทั้งหมด {total} คน</div>
+                      <div className="text-xs text-zinc-600">รวมทั้งหมด {total} คน</div>
                     </div>
                   )
                 })
@@ -188,20 +184,24 @@ export default async function HomePage() {
           </div>
 
           {/* Configured Items Summary */}
-          <div className="bg-slate-900/90 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-              <h2 className="font-bold text-white flex items-center gap-2">
+          <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+            <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+              <h2 className="font-semibold text-zinc-100 text-sm flex items-center gap-2">
                 <span>📦</span>
                 <span>รายการไอเทมและพิกัดหน้า/ช่อง</span>
               </h2>
-              <Link href="/queues" className="text-xs font-bold text-purple-400 hover:text-purple-300">
+              <Link href="/queues" className="text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
                 ตั้งค่าไอเทม →
               </Link>
             </div>
             <div className="p-5 space-y-3">
               {!eventSessions || eventSessions.length === 0 ? (
-                <div className="text-center text-slate-500 py-10 text-sm">
-                  ยังไม่มีข้อมูลไอเทม (ตั้งค่าได้ที่หน้า <Link href="/queues" className="text-purple-400 underline">จัดคิว & สล็อต</Link>)
+                <div className="text-center text-zinc-600 py-10 text-sm">
+                  ยังไม่มีข้อมูลไอเทม (ตั้งค่าได้ที่หน้า{" "}
+                  <Link href="/queues" className="text-zinc-400 underline">
+                    จัดคิว &amp; สล็อต
+                  </Link>
+                  )
                 </div>
               ) : (
                 eventSessions.slice(0, 4).map((s: any) => {
@@ -217,23 +217,23 @@ export default async function HomePage() {
                   return (
                     <div
                       key={s.id}
-                      className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 flex items-center gap-4"
+                      className="bg-zinc-800/50 border border-zinc-700/60 rounded-xl p-4 flex items-center gap-4"
                     >
-                      <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-2xl flex-shrink-0">
+                      <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-xl flex-shrink-0">
                         {icon}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-white text-sm">{cfg?.label || s.item_type}</span>
-                          <span className="text-[11px] text-slate-400 font-mono">({s.event_name})</span>
+                          <span className="font-semibold text-zinc-100 text-sm">{cfg?.label || s.item_type}</span>
+                          <span className="text-[11px] text-zinc-500 font-mono">({s.event_name})</span>
                         </div>
-                        <div className="text-xs text-slate-300 mt-1 font-mono">
+                        <div className="text-xs text-zinc-400 mt-0.5 font-mono">
                           Page {s.start_page} ช่อง {s.start_slot} → Page {s.end_page} ช่อง {s.end_slot}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-base font-extrabold text-white font-mono">{s.total_quantity} ชิ้น</div>
-                        <div className="text-xs text-emerald-400 font-semibold">Limit {s.personal_limit}/คน</div>
+                        <div className="text-base font-bold text-zinc-100 font-mono">{s.total_quantity} ชิ้น</div>
+                        <div className="text-xs text-emerald-400">Limit {s.personal_limit}/คน</div>
                       </div>
                     </div>
                   )
@@ -245,41 +245,41 @@ export default async function HomePage() {
 
         {/* Allocated Slots Preview */}
         {allocatedSlots && allocatedSlots.length > 0 && (
-          <div className="bg-slate-900/90 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-              <h2 className="font-bold text-white">🎯 พิกัดสล็อตที่จัดสรรล่าสุด</h2>
-              <Link href="/queues" className="text-xs font-bold text-purple-400 hover:text-purple-300">
+          <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+            <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+              <h2 className="font-semibold text-zinc-100 text-sm">🎯 พิกัดสล็อตที่จัดสรรล่าสุด</h2>
+              <Link href="/queues" className="text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
                 เปิดกระดาน 4 ช่องเต็ม →
               </Link>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-800 bg-slate-900/50 text-slate-400 text-left">
-                    <th className="px-5 py-3 font-semibold">สมาชิก</th>
-                    <th className="px-5 py-3 font-semibold">ไอเทม</th>
-                    <th className="px-5 py-3 text-center font-semibold">พิกัดหน้า (Page)</th>
-                    <th className="px-5 py-3 text-center font-semibold">ช่องที่ (Slot 1-4)</th>
-                    <th className="px-5 py-3 text-center font-semibold">สถานะ</th>
+                  <tr className="border-b border-zinc-800 bg-zinc-900/50 text-zinc-500 text-left">
+                    <th className="px-5 py-3 font-medium">สมาชิก</th>
+                    <th className="px-5 py-3 font-medium">ไอเทม</th>
+                    <th className="px-5 py-3 text-center font-medium">Page</th>
+                    <th className="px-5 py-3 text-center font-medium">ช่องที่</th>
+                    <th className="px-5 py-3 text-center font-medium">สถานะ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/70">
+                <tbody className="divide-y divide-zinc-800/60">
                   {(allocatedSlots as any[]).slice(0, 12).map((slot) => {
                     const cfg = ITEM_CONFIG[slot.item_type as ItemType]
                     return (
-                      <tr key={slot.id} className="hover:bg-slate-800/40 transition-colors">
-                        <td className="px-5 py-3 font-semibold text-white">
+                      <tr key={slot.id} className="hover:bg-zinc-800/30 transition-colors">
+                        <td className="px-5 py-3 font-semibold text-zinc-100">
                           {slot.profiles?.display_name || "Unknown"}
                         </td>
                         <td className="px-5 py-3">
-                          <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full ${cfg?.badge || "bg-slate-800 text-slate-300"}`}>
+                          <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
                             {cfg?.label || slot.item_type}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-center text-purple-300 font-mono font-bold">
+                        <td className="px-5 py-3 text-center text-zinc-300 font-mono font-semibold">
                           Page {slot.page_number}/{slot.total_pages}
                         </td>
-                        <td className="px-5 py-3 text-center text-white font-mono font-bold">
+                        <td className="px-5 py-3 text-center text-zinc-100 font-mono font-semibold">
                           ช่องที่ {slot.slot_number}
                         </td>
                         <td className="px-5 py-3 text-center">
@@ -289,7 +289,7 @@ export default async function HomePage() {
                                 ? "bg-emerald-950 text-emerald-400 border border-emerald-800/60"
                                 : slot.status === "skipped"
                                 ? "bg-rose-950 text-rose-400 border border-rose-800/60"
-                                : "bg-amber-950 text-amber-400 border border-amber-800/60"
+                                : "bg-zinc-800 text-zinc-400 border border-zinc-700"
                             }`}
                           >
                             {slot.status === "awarded"
@@ -309,28 +309,28 @@ export default async function HomePage() {
         )}
 
         {/* Recent Members */}
-        <div className="bg-slate-900/90 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-          <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-            <h2 className="font-bold text-white">👥 สมาชิกล่าสุด</h2>
-            <Link href="/members" className="text-xs font-bold text-purple-400 hover:text-purple-300">
+        <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
+          <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+            <h2 className="font-semibold text-zinc-100 text-sm">👥 สมาชิกล่าสุด</h2>
+            <Link href="/members" className="text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
               จัดการสมาชิกทั้งหมด →
             </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-y md:divide-y-0 md: gap-px bg-slate-800">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-y divide-zinc-800 md:divide-y-0 md:divide-x">
             {(recentMembers || []).map((m: any) => (
-              <div key={m.id} className="bg-slate-900 p-4 flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-700 to-indigo-800 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+              <div key={m.id} className="p-4 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-zinc-700 flex items-center justify-center text-zinc-100 font-bold text-sm flex-shrink-0">
                   {m.display_name?.charAt(0)?.toUpperCase() || "?"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-white text-sm truncate">{m.display_name}</div>
-                  <div className="text-xs text-slate-400 truncate">
-                    {m.job_class || "ไม่ระบุอาชีพ"}
-                  </div>
+                  <div className="font-semibold text-zinc-100 text-sm truncate">{m.display_name}</div>
+                  <div className="text-xs text-zinc-500 truncate">{m.job_class || "ไม่ระบุอาชีพ"}</div>
                 </div>
                 <span
-                  className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                    m.role === "admin" ? "bg-purple-950 text-purple-300 border border-purple-700/50" : "bg-slate-800 text-slate-400"
+                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    m.role === "admin"
+                      ? "bg-zinc-700 text-zinc-200 border border-zinc-600"
+                      : "bg-zinc-800 text-zinc-500"
                   }`}
                 >
                   {m.role === "admin" ? "Admin" : "Member"}

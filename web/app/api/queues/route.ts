@@ -275,6 +275,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true })
     }
 
+    // 7. ลบรอบกิจกรรมทั้งหมด (ลบทั้ง allocated_slots, event_attendance, event_sessions)
+    if (action === "delete_event") {
+      const { event_name, session_date } = body
+      if (!event_name || !session_date) {
+        return NextResponse.json({ error: "กรุณาระบุรอบที่ต้องการลบ" }, { status: 400 })
+      }
+
+      await supabase.from("allocated_slots").delete().eq("event_name", event_name).eq("session_date", session_date)
+      await supabase.from("event_attendance").delete().eq("event_name", event_name).eq("event_date", session_date)
+      await supabase.from("event_sessions").delete().eq("event_name", event_name).eq("session_date", session_date)
+
+      return NextResponse.json({ success: true })
+    }
+
     return NextResponse.json({ error: "Unknown action" }, { status: 400 })
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Internal server error" }, { status: 500 })

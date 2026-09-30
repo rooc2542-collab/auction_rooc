@@ -5,42 +5,43 @@ import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 
 const NAV_ITEMS = [
-  { href: "/", label: "📊 ภาพรวม" },
-  { href: "/queues", label: "🎯 จัดคิว & สล็อต" },
-  { href: "/members", label: "👥 จัดการสมาชิก" },
-  { href: "/credits", label: "💳 ยอดสะสม" },
-  { href: "/history", label: "📋 ประวัติ" },
-  { href: "/admin", label: "⚙️ แอดมิน" },
+  { href: "/", label: "ภาพรวม" },
+  { href: "/queues", label: "จัดคิวและสล็อต" },
+  { href: "/members", label: "สมาชิก" },
+  { href: "/credits", label: "เครดิตสะสม" },
+  { href: "/history", label: "ประวัติ" },
+  { href: "/admin", label: "แอดมิน" },
 ]
 
 export default function NavBar({ isAdmin }: { isAdmin?: boolean }) {
   const pathname = usePathname()
 
   return (
-    <nav className="bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80 sticky top-0 z-50 shadow-lg">
-      <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 font-extrabold text-xl text-white hover:text-purple-400 transition-colors">
-          <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-lg shadow-md shadow-purple-900/40">
-            ⚔️
+    <header className="bg-zinc-950/85 backdrop-blur-md border-b border-zinc-800/80 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14 gap-4">
+        {/* Brand */}
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 font-semibold text-sm text-zinc-100 hover:text-white transition-colors shrink-0"
+        >
+          <span className="w-6 h-6 rounded-md bg-zinc-100 text-zinc-950 flex items-center justify-center text-xs font-bold tracking-tighter">
+            R
           </span>
-          <span className="tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-            ระบบประมูล
-          </span>
+          <span className="tracking-tight whitespace-nowrap">ระบบประมูล</span>
         </Link>
 
-        {/* Nav Links */}
-        <div className="flex items-center gap-1.5 overflow-x-auto py-1">
-          {NAV_ITEMS.filter(item => isAdmin || item.href !== "/admin").map(item => {
+        {/* Navigation Links */}
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1">
+          {NAV_ITEMS.filter((item) => isAdmin || item.href !== "/admin").map((item) => {
             const active = pathname === item.href
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${
+                className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
                   active
-                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-900/40"
-                    : "text-slate-400 hover:text-white hover:bg-slate-800/70"
+                    ? "bg-zinc-800/90 text-zinc-100 border border-zinc-700/70"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
                 }`}
               >
                 {item.label}
@@ -48,14 +49,16 @@ export default function NavBar({ isAdmin }: { isAdmin?: boolean }) {
             )
           })}
 
+          <div className="h-4 w-px bg-zinc-800 mx-1 shrink-0" />
+
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="ml-2 px-3.5 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 border border-transparent hover:border-rose-800/40 transition-all whitespace-nowrap"
+            className="px-2.5 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-rose-400 hover:bg-zinc-900 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
-            🚪 ออกจากระบบ
+            ออกจากระบบ
           </button>
         </div>
       </div>
-    </nav>
+    </header>
   )
 }
