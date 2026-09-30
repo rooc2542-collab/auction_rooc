@@ -1,8 +1,21 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
+/* ── Theme Variables ──────────────────────────────────── */
 :root {
+  --background: #f8fafc;
+  --foreground: #09090b;
+  --card: #ffffff;
+  --card-border: #e4e4e7;
+  --muted: #71717a;
+}
+
+.dark {
   --background: #09090b;
   --foreground: #fafafa;
+  --card: #18181b;
+  --card-border: #27272a;
+  --muted: #a1a1aa;
 }
 
 @theme inline {
@@ -15,9 +28,95 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #52525b #18181b;
+/* ── Light mode overrides (zinc-* classes) ─────────────── */
+html:not(.dark) .bg-zinc-950 { background-color: #f4f4f5 !important; }
+html:not(.dark) .bg-zinc-950\/85 { background-color: rgba(255, 255, 255, 0.9) !important; }
+html:not(.dark) .bg-zinc-950\/90 { background-color: rgba(255, 255, 255, 0.95) !important; }
+html:not(.dark) .bg-zinc-950\/60 { background-color: #f8fafc !important; }
+html:not(.dark) .bg-zinc-900 { background-color: #ffffff !important; }
+html:not(.dark) .bg-zinc-900\/40 { background-color: #ffffff !important; }
+html:not(.dark) .bg-zinc-900\/50 { background-color: #f8fafc !important; }
+html:not(.dark) .bg-zinc-900\/60 { background-color: #ffffff !important; }
+html:not(.dark) .bg-zinc-800 { background-color: #f4f4f5 !important; }
+html:not(.dark) .bg-zinc-800\/50 { background-color: #f8fafc !important; }
+html:not(.dark) .bg-zinc-800\/60 { background-color: #f4f4f5 !important; }
+html:not(.dark) .bg-zinc-800\/30 { background-color: #f4f4f5 !important; }
+html:not(.dark) .bg-zinc-700 { background-color: #e4e4e7 !important; }
+
+/* Primary inverted buttons/tabs in Light Mode (.bg-zinc-100 -> dark button) */
+html:not(.dark) .bg-zinc-100 { background-color: #18181b !important; }
+html:not(.dark) .hover\:bg-white:hover { background-color: #27272a !important; }
+html:not(.dark) .text-zinc-900 { color: #fafafa !important; }
+
+/* Borders */
+html:not(.dark) .border-zinc-800 { border-color: #e4e4e7 !important; }
+html:not(.dark) .border-zinc-800\/80 { border-color: #e4e4e7 !important; }
+html:not(.dark) .border-zinc-800\/60 { border-color: #e4e4e7 !important; }
+html:not(.dark) .border-zinc-700 { border-color: #d4d4d8 !important; }
+html:not(.dark) .border-zinc-700\/50 { border-color: #e4e4e7 !important; }
+html:not(.dark) .border-zinc-700\/60 { border-color: #e4e4e7 !important; }
+html:not(.dark) .border-zinc-700\/80 { border-color: #d4d4d8 !important; }
+html:not(.dark) .border-zinc-600 { border-color: #a1a1aa !important; }
+html:not(.dark) .divide-zinc-800\/60 > * + * { border-color: #e4e4e7 !important; }
+html:not(.dark) .divide-zinc-800 > * + * { border-color: #e4e4e7 !important; }
+
+/* Text contrast in Light Mode */
+html:not(.dark) .text-zinc-100 { color: #09090b !important; }
+html:not(.dark) .text-zinc-200 { color: #18181b !important; }
+html:not(.dark) .text-zinc-300 { color: #27272a !important; }
+html:not(.dark) .text-zinc-400 { color: #52525b !important; }
+html:not(.dark) .text-zinc-500 { color: #71717a !important; }
+html:not(.dark) .text-zinc-600 { color: #71717a !important; }
+html:not(.dark) .text-zinc-700 { color: #a1a1aa !important; }
+
+/* Inputs & Selects in Light Mode */
+html:not(.dark) input,
+html:not(.dark) select,
+html:not(.dark) textarea {
+  background-color: #ffffff !important;
+  border-color: #d4d4d8 !important;
+  color: #09090b !important;
 }
+html:not(.dark) input::placeholder { color: #a1a1aa !important; }
+html:not(.dark) select option { background-color: #ffffff; color: #09090b; }
+
+/* Hover states in Light Mode */
+html:not(.dark) .hover\:bg-zinc-800\/30:hover { background-color: #f4f4f5 !important; }
+html:not(.dark) .hover\:bg-zinc-800\/60:hover { background-color: #f4f4f5 !important; }
+html:not(.dark) .hover\:bg-zinc-700:hover { background-color: #e4e4e7 !important; }
+html:not(.dark) .hover\:bg-zinc-600:hover { background-color: #d4d4d8 !important; }
+html:not(.dark) .hover\:border-zinc-600:hover { border-color: #a1a1aa !important; }
+html:not(.dark) .hover\:border-zinc-700:hover { border-color: #a1a1aa !important; }
+html:not(.dark) .hover\:text-zinc-100:hover { color: #09090b !important; }
+html:not(.dark) .hover\:text-zinc-200:hover { color: #18181b !important; }
+
+/* Status & Item Badges in Light Mode */
+html:not(.dark) .bg-emerald-950 { background-color: #ecfdf5 !important; }
+html:not(.dark) .bg-emerald-950\/40 { background-color: #ecfdf5 !important; }
+html:not(.dark) .text-emerald-400,
+html:not(.dark) .text-emerald-300 { color: #047857 !important; }
+html:not(.dark) .border-emerald-800\/60 { border-color: #a7f3d0 !important; }
+
+html:not(.dark) .bg-rose-950 { background-color: #fff1f2 !important; }
+html:not(.dark) .bg-rose-950\/40 { background-color: #fff1f2 !important; }
+html:not(.dark) .text-rose-400,
+html:not(.dark) .text-rose-300 { color: #be123c !important; }
+html:not(.dark) .border-rose-800\/50,
+html:not(.dark) .border-rose-800\/60 { border-color: #fecdd3 !important; }
+
+html:not(.dark) .bg-amber-950 { background-color: #fffbeb !important; }
+html:not(.dark) .text-amber-400,
+html:not(.dark) .text-amber-300 { color: #b45309 !important; }
+html:not(.dark) .border-amber-800\/60 { border-color: #fde68a !important; }
+
+html:not(.dark) .bg-violet-950 { background-color: #f5f3ff !important; }
+html:not(.dark) .text-violet-300 { color: #6d28d9 !important; }
+html:not(.dark) .border-violet-800\/60 { border-color: #ddd6fe !important; }
+
+/* Scrollbar */
+* { scrollbar-width: thin; }
+.dark * { scrollbar-color: #52525b #18181b; }
+html:not(.dark) * { scrollbar-color: #a1a1aa #e4e4e7; }

@@ -3,6 +3,7 @@
 import { signIn } from "next-auth/react"
 import { useState, FormEvent } from "react"
 import { useRouter } from "next/navigation"
+import { ThemeToggle } from "@/components/ThemeToggle"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -30,7 +31,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 relative">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -84,7 +89,7 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-zinc-700 mt-6">Auction_Rooc • ระบบประมูลไอเทมกิลด์</p>
+        <p className="text-center text-xs text-zinc-600 mt-6">Auction_Rooc • ระบบประมูลไอเทมกิลด์</p>
       </div>
     </div>
   )
