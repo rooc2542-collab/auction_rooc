@@ -499,29 +499,29 @@ export default function ResourcePoolClient({
           </div>
 
           {/* Right Panel: POOL PREVIEW (8 cols) */}
-          <div className="lg:col-span-8 bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-sm space-y-5">
+          <div className="lg:col-span-8 bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-5">
             {/* Preview Header */}
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-zinc-800">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 sm:pb-4 border-b border-zinc-800">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block mb-0.5">
                   POOL PREVIEW
                 </span>
-                <h2 className="text-lg font-bold text-zinc-100">{poolName}</h2>
+                <h2 className="text-base sm:text-lg font-bold text-zinc-100">{poolName}</h2>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
                 <button
                   onClick={() => {
                     setSnapshotLabel(poolName)
                     setShowSaveModal(true)
                   }}
-                  className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition-all cursor-pointer shadow-sm"
+                  className="px-3.5 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition-all cursor-pointer shadow-sm text-center"
                 >
                   Save Snapshot
                 </button>
                 <button
                   onClick={handleCapturePNG}
-                  className="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold transition-all cursor-pointer shadow-sm"
+                  className="px-3.5 py-2 rounded-lg bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold transition-all cursor-pointer shadow-sm text-center"
                 >
                   Capture PNG
                 </button>
@@ -639,17 +639,17 @@ export default function ResourcePoolClient({
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => handleSelectSnapshot(snap)}
-                    className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition-all cursor-pointer shadow-sm"
+                    className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition-all cursor-pointer shadow-sm text-center"
                   >
                     Select
                   </button>
                   <button
                     onClick={() => handleSendToDiscord(snap)}
                     disabled={busy}
-                    className="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                    className="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-600 text-white text-xs font-bold transition-all cursor-pointer shadow-sm disabled:opacity-50 text-center"
                   >
                     Send to Discord
                   </button>

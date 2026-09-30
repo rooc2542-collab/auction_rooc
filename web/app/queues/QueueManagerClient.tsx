@@ -440,12 +440,12 @@ export default function QueueManagerClient({
           </div>
 
           {/* Event & Date Controls */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 w-full lg:w-auto">
             {existingEvents.length > 0 && (
               <select
                 value={`${eventName}|${eventDate}`}
                 onChange={(e) => handleSelectEventPreset(e.target.value)}
-                className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
+                className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 w-full sm:w-auto"
               >
                 {existingEvents.map((ev) => {
                   const [en, ed] = ev.split("|")
@@ -462,13 +462,13 @@ export default function QueueManagerClient({
               value={eventName}
               onChange={(e) => setEventName(e.target.value)}
               placeholder="ชื่ออีเวนต์ เช่น Emperium Overrun"
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
+              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 flex-1 min-w-44"
             />
             <input
               type="date"
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
+              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 w-full sm:w-auto"
             />
           </div>
         </div>
@@ -487,17 +487,17 @@ export default function QueueManagerClient({
         )}
 
         {/* Sub-navigation Tabs */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-5 border-t border-zinc-800">
-          <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mt-5 pt-5 border-t border-zinc-800">
+          <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 w-full lg:w-auto">
             {[
-              { id: "board", label: `กระดานสล็อต 4 ช่อง (${currentSlots.length})` },
-              { id: "queue", label: `จัดการคิวผู้เข้าร่วม (${currentAttendance.length})` },
-              { id: "config", label: "ตั้งค่าพิกัดไอเทม & ลิมิต" },
+              { id: "board", label: `กระดานสล็อต (${currentSlots.length})` },
+              { id: "queue", label: `จัดการคิว (${currentAttendance.length})` },
+              { id: "config", label: "ตั้งค่าพิกัด & ลิมิต" },
             ].map((t) => (
               <button
                 key={t.id}
                 onClick={() => setActiveTab(t.id as any)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all cursor-pointer text-center ${
                   activeTab === t.id
                     ? "bg-zinc-100 text-zinc-900"
                     : "bg-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700 border border-zinc-700"
@@ -508,12 +508,12 @@ export default function QueueManagerClient({
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2 w-full lg:w-auto">
             {isAdmin && (
               <button
                 onClick={handleTogglePollStatus}
                 disabled={busy}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all disabled:opacity-50 cursor-pointer ${
+                className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold border transition-all disabled:opacity-50 cursor-pointer text-center ${
                   isPollClosed
                     ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700"
                     : "bg-amber-950 hover:bg-amber-900/60 text-amber-300 border-amber-800/60"
@@ -526,9 +526,9 @@ export default function QueueManagerClient({
               <button
                 onClick={handleRunAllocation}
                 disabled={busy}
-                className="px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-100 font-semibold text-sm border border-zinc-600 transition-all disabled:opacity-50 cursor-pointer"
+                className="px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-100 font-semibold text-xs sm:text-sm border border-zinc-600 transition-all disabled:opacity-50 cursor-pointer text-center"
               >
-                {busy ? "กำลังคำนวณ..." : "คำนวณและจัดสรรสล็อตใหม่"}
+                {busy ? "กำลังคำนวณ..." : "คำนวณสล็อตใหม่"}
               </button>
             )}
             {isAdmin && existingEvents.length > 0 && (

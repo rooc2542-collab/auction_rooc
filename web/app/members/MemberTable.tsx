@@ -12,6 +12,13 @@ export const JOB_EMOJI: Record<string, string> = {}
 
 type ItemKey = "Album" | "Puppet" | "White" | "RedBlack"
 
+const ITEM_DISPLAY_NAMES: Record<ItemKey, string> = {
+  Album: "Card Fragment",
+  Puppet: "Illusion Card",
+  White: "Light-Dark",
+  RedBlack: "Time-Space",
+}
+
 interface Member {
   id: string
   display_name: string
@@ -37,6 +44,7 @@ export default function MemberTable({
   isAdmin,
 }: MemberTableProps) {
   const [viewMode, setViewMode] = useState<"items" | "profile">("items")
+  const [mobileDisplay, setMobileDisplay] = useState<"cards" | "table">("cards")
   const [search, setSearch] = useState("")
   const [filterJob, setFilterJob] = useState("")
   const [filterRole, setFilterRole] = useState("")
@@ -63,10 +71,8 @@ export default function MemberTable({
 
   // Aggregate stats per member per item type dynamically from DB
   const memberItemStats = useMemo(() => {
-    // Map: userId -> item_key -> { alloc, skip }
     const map = new Map<string, Record<ItemKey, { alloc: number; skip: number }>>()
 
-    // Default structure for every member
     for (const m of members) {
       map.set(m.id, {
         Album: { alloc: 0, skip: 0 },
@@ -96,14 +102,15 @@ export default function MemberTable({
       }
     }
 
-    // Also count no_bid attendance as skipped
+    // Count no_bid / absent attendance as skipped
     for (const a of attendance) {
       if (!a.user_id || !map.has(a.user_id)) continue
       if (a.status === "no_bid" || a.status === "absent") {
         const userStat = map.get(a.user_id)!
-        const items = Array.isArray(a.interested_items) && a.interested_items.length > 0
-          ? (a.interested_items as ItemKey[])
-          : (["Album", "Puppet", "White", "RedBlack"] as ItemKey[])
+        const items =
+          Array.isArray(a.interested_items) && a.interested_items.length > 0
+            ? (a.interested_items as ItemKey[])
+            : (["Album", "Puppet", "White", "RedBlack"] as ItemKey[])
         for (const it of items) {
           if (userStat[it]) {
             userStat[it].skip += 1
@@ -199,21 +206,21 @@ export default function MemberTable({
     <div className="space-y-4">
       {/* Top Header Controls (Image 6 UI) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* View Mode Toggle */}
-        <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+        {/* View Mode Toggle: Grid on mobile */}
+        <div className="grid grid-cols-2 sm:flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
           <button
             onClick={() => setViewMode("items")}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${
               viewMode === "items"
                 ? "bg-zinc-100 text-zinc-900 shadow-sm"
                 : "text-zinc-400 hover:text-zinc-200"
             }`}
           >
-            ตารางไอเทม (Allocation &amp; Skipped)
+            ตารางไอเทม (Alloc &amp; Skip)
           </button>
           <button
             onClick={() => setViewMode("profile")}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3 sm:px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${
               viewMode === "profile"
                 ? "bg-zinc-100 text-zinc-900 shadow-sm"
                 : "text-zinc-400 hover:text-zinc-200"
@@ -223,25 +230,27 @@ export default function MemberTable({
           </button>
         </div>
 
-        {/* Sync Indicator & Button */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-zinc-500 font-mono">
-            Last synced: {lastSyncedTime}
+        {/* Sync Indicator & Actions */}
+        <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
+          <span className="text-[11px] sm:text-xs text-zinc-500 font-mono">
+            Synced: {lastSyncedTime}
           </span>
-          <button
-            onClick={handleSync}
-            className="px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition-all cursor-pointer shadow-sm"
-          >
-            Sync / Refresh
-          </button>
-          {isAdmin && (
+          <div className="flex items-center gap-1.5">
             <button
-              onClick={openAdd}
-              className="px-3.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-bold transition-all cursor-pointer shadow-sm"
+              onClick={handleSync}
+              className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition-all cursor-pointer shadow-sm"
             >
-              เพิ่มสมาชิกใหม่
+              Sync
             </button>
-          )}
+            {isAdmin && (
+              <button
+                onClick={openAdd}
+                className="px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-bold transition-all cursor-pointer shadow-sm whitespace-nowrap"
+              >
+                + เพิ่มสมาชิก
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -258,21 +267,22 @@ export default function MemberTable({
         </div>
       )}
 
-      {/* Search Bar */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-wrap items-center gap-3 shadow-sm">
+      {/* Search Bar & Mobile Layout Toggle */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 shadow-sm">
         <input
           type="text"
-          placeholder="Search by name or Discord ID"
+          placeholder="ค้นหาชื่อตัวละคร หรือ Discord ID..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 min-w-56 bg-zinc-800/80 border border-zinc-700 rounded-lg px-4 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-all"
+          className="flex-1 min-w-44 bg-zinc-800/80 border border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-all"
         />
+
         {viewMode === "profile" && (
-          <>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <select
               value={filterJob}
               onChange={(e) => setFilterJob(e.target.value)}
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:outline-none"
+              className="flex-1 sm:flex-initial bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 py-2 text-xs text-zinc-100 focus:outline-none"
             >
               <option value="">ทุกอาชีพ (15 อาชีพ)</option>
               {JOB_CLASSES.map((j) => (
@@ -282,115 +292,210 @@ export default function MemberTable({
             <select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:outline-none"
+              className="flex-1 sm:flex-initial bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 py-2 text-xs text-zinc-100 focus:outline-none"
             >
               <option value="">ทุกสิทธิ์ (Role)</option>
               <option value="admin">Admin</option>
               <option value="member">Member</option>
             </select>
-          </>
+          </div>
         )}
-        <div className="text-xs font-medium text-zinc-500 px-2 font-mono">
+
+        {/* Mobile Display Switcher for Items View (Card vs Table) */}
+        {viewMode === "items" && (
+          <div className="sm:hidden flex items-center gap-1 bg-zinc-800 p-0.5 rounded-lg border border-zinc-700">
+            <button
+              onClick={() => setMobileDisplay("cards")}
+              className={`px-2.5 py-1 rounded text-[11px] font-bold ${
+                mobileDisplay === "cards" ? "bg-zinc-900 text-white" : "text-zinc-400"
+              }`}
+            >
+              การ์ด
+            </button>
+            <button
+              onClick={() => setMobileDisplay("table")}
+              className={`px-2.5 py-1 rounded text-[11px] font-bold ${
+                mobileDisplay === "table" ? "bg-zinc-900 text-white" : "text-zinc-400"
+              }`}
+            >
+              ตาราง
+            </button>
+          </div>
+        )}
+
+        <div className="text-xs font-medium text-zinc-500 font-mono">
           พบ {filtered.length} คน
         </div>
       </div>
 
-      {/* ─── VIEW 1: Allocation & Skipped Items Table (Image 6 UI) ─── */}
+      {/* ─── VIEW 1: Allocation & Skipped Items (Image 6 UI) ─── */}
       {viewMode === "items" && (
-        <div className="bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-950/40 text-zinc-400 font-bold uppercase tracking-wider text-[11px]">
-                  <th className="px-4 py-3.5 w-14">#</th>
-                  <th className="px-4 py-3.5">Name</th>
-                  <th className="px-4 py-3.5">Discord ID</th>
-                  <th className="px-4 py-3.5 text-center">
-                    Card Fragments ({columnTotals.Album})
-                  </th>
-                  <th className="px-4 py-3.5 text-center">
-                    Illusion Cards ({columnTotals.Puppet})
-                  </th>
-                  <th className="px-4 py-3.5 text-center">
-                    Light-Dark Feathers ({columnTotals.White})
-                  </th>
-                  <th className="px-4 py-3.5 text-center">
-                    Time-Space Feathers ({columnTotals.RedBlack})
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/60">
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center text-zinc-600 py-12 text-xs">
-                      ไม่พบสมาชิกที่ตรงกับการค้นหา
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((m, idx) => {
-                    const stats = memberItemStats.get(m.id) || {
-                      Album: { alloc: 0, skip: 0 },
-                      Puppet: { alloc: 0, skip: 0 },
-                      White: { alloc: 0, skip: 0 },
-                      RedBlack: { alloc: 0, skip: 0 },
-                    }
+        <div>
+          {/* Mobile Cards View (Visible on small screens if selected) */}
+          <div className={`sm:hidden space-y-2.5 ${mobileDisplay === "cards" ? "block" : "hidden"}`}>
+            {filtered.length === 0 ? (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl py-10 text-center text-zinc-600 text-xs">
+                ไม่พบสมาชิกที่ตรงกับการค้นหา
+              </div>
+            ) : (
+              filtered.map((m, idx) => {
+                const stats = memberItemStats.get(m.id) || {
+                  Album: { alloc: 0, skip: 0 },
+                  Puppet: { alloc: 0, skip: 0 },
+                  White: { alloc: 0, skip: 0 },
+                  RedBlack: { alloc: 0, skip: 0 },
+                }
 
-                    return (
-                      <tr key={m.id} className="hover:bg-zinc-800/30 transition-colors">
-                        <td className="px-4 py-3.5 font-mono text-zinc-500 font-bold">
-                          {idx + 1}
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <div className="font-semibold text-zinc-100">{m.display_name}</div>
-                          {m.job_class && (
-                            <div className="text-[10px] text-zinc-500">{m.job_class}</div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3.5 font-mono text-zinc-400">
-                          {m.discord_id || "-"}
-                        </td>
-                        {/* Card Fragments */}
-                        <td className="px-4 py-3.5 text-center">
+                return (
+                  <div
+                    key={m.id}
+                    className="bg-zinc-900 border border-zinc-800 rounded-xl p-3.5 space-y-2.5 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-zinc-500 font-bold text-xs">#{idx + 1}</span>
+                        <span className="font-bold text-sm text-zinc-100">{m.display_name}</span>
+                        {m.job_class && (
+                          <span className="text-[10px] text-zinc-500">({m.job_class})</span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-mono text-zinc-400">
+                        {m.discord_id ? m.discord_id.slice(-6) : "-"}
+                      </span>
+                    </div>
+
+                    {/* 4 Items Grid */}
+                    <div className="grid grid-cols-4 gap-1.5 pt-1 border-t border-zinc-800/80 text-center">
+                      {(["Album", "Puppet", "White", "RedBlack"] as ItemKey[]).map((it) => (
+                        <div key={it} className="bg-zinc-800/60 rounded-lg p-2 border border-zinc-700/40">
+                          <div className="text-[9px] text-zinc-400 truncate mb-0.5">
+                            {ITEM_DISPLAY_NAMES[it]}
+                          </div>
                           <div className="font-bold text-zinc-100 text-sm font-mono">
-                            {stats.Album.alloc}
+                            {stats[it].alloc}
                           </div>
-                          <div className="text-[10px] text-amber-500/90 font-medium">
-                            Skipped: {stats.Album.skip}
+                          <div className="text-[9px] text-amber-500 font-medium">
+                            Skip: {stats[it].skip}
                           </div>
-                        </td>
-                        {/* Illusion Cards */}
-                        <td className="px-4 py-3.5 text-center">
-                          <div className="font-bold text-zinc-100 text-sm font-mono">
-                            {stats.Puppet.alloc}
-                          </div>
-                          <div className="text-[10px] text-amber-500/90 font-medium">
-                            Skipped: {stats.Puppet.skip}
-                          </div>
-                        </td>
-                        {/* Light-Dark Feathers */}
-                        <td className="px-4 py-3.5 text-center">
-                          <div className="font-bold text-zinc-100 text-sm font-mono">
-                            {stats.White.alloc}
-                          </div>
-                          <div className="text-[10px] text-amber-500/90 font-medium">
-                            Skipped: {stats.White.skip}
-                          </div>
-                        </td>
-                        {/* Time-Space Feathers */}
-                        <td className="px-4 py-3.5 text-center">
-                          <div className="font-bold text-zinc-100 text-sm font-mono">
-                            {stats.RedBlack.alloc}
-                          </div>
-                          <div className="text-[10px] text-amber-500/90 font-medium">
-                            Skipped: {stats.RedBlack.skip}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+
+          {/* Desktop & Mobile Table View */}
+          <div
+            className={`bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden shadow-sm ${
+              mobileDisplay === "cards" ? "hidden sm:block" : "block"
+            }`}
+          >
+            {/* Scroll Hint on Mobile */}
+            <div className="sm:hidden px-3.5 py-1.5 bg-zinc-800/40 text-[10px] text-zinc-400 flex items-center justify-between border-b border-zinc-800">
+              <span>เลื่อนซ้าย-ขวาเพื่อดูไอเทมทั้งหมด</span>
+              <span>👉</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs min-w-[650px]">
+                <thead>
+                  <tr className="border-b border-zinc-800 bg-zinc-950/40 text-zinc-400 font-bold uppercase tracking-wider text-[11px]">
+                    <th className="px-3.5 sm:px-4 py-3.5 w-12 sticky left-0 z-10 bg-zinc-950">#</th>
+                    <th className="px-3.5 sm:px-4 py-3.5 sticky left-12 z-10 bg-zinc-950 border-r border-zinc-800/60">
+                      Name
+                    </th>
+                    <th className="px-4 py-3.5">Discord ID</th>
+                    <th className="px-4 py-3.5 text-center">
+                      Card Fragments ({columnTotals.Album})
+                    </th>
+                    <th className="px-4 py-3.5 text-center">
+                      Illusion Cards ({columnTotals.Puppet})
+                    </th>
+                    <th className="px-4 py-3.5 text-center">
+                      Light-Dark Feathers ({columnTotals.White})
+                    </th>
+                    <th className="px-4 py-3.5 text-center">
+                      Time-Space Feathers ({columnTotals.RedBlack})
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/60">
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center text-zinc-600 py-12 text-xs">
+                        ไม่พบสมาชิกที่ตรงกับการค้นหา
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((m, idx) => {
+                      const stats = memberItemStats.get(m.id) || {
+                        Album: { alloc: 0, skip: 0 },
+                        Puppet: { alloc: 0, skip: 0 },
+                        White: { alloc: 0, skip: 0 },
+                        RedBlack: { alloc: 0, skip: 0 },
+                      }
+
+                      return (
+                        <tr key={m.id} className="hover:bg-zinc-800/30 transition-colors">
+                          <td className="px-3.5 sm:px-4 py-3.5 font-mono text-zinc-500 font-bold sticky left-0 z-10 bg-zinc-900">
+                            {idx + 1}
+                          </td>
+                          <td className="px-3.5 sm:px-4 py-3.5 sticky left-12 z-10 bg-zinc-900 border-r border-zinc-800/60">
+                            <div className="font-semibold text-zinc-100 whitespace-nowrap">
+                              {m.display_name}
+                            </div>
+                            {m.job_class && (
+                              <div className="text-[10px] text-zinc-500">{m.job_class}</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5 font-mono text-zinc-400">
+                            {m.discord_id || "-"}
+                          </td>
+                          {/* Card Fragments */}
+                          <td className="px-4 py-3.5 text-center">
+                            <div className="font-bold text-zinc-100 text-sm font-mono">
+                              {stats.Album.alloc}
+                            </div>
+                            <div className="text-[10px] text-amber-500/90 font-medium">
+                              Skipped: {stats.Album.skip}
+                            </div>
+                          </td>
+                          {/* Illusion Cards */}
+                          <td className="px-4 py-3.5 text-center">
+                            <div className="font-bold text-zinc-100 text-sm font-mono">
+                              {stats.Puppet.alloc}
+                            </div>
+                            <div className="text-[10px] text-amber-500/90 font-medium">
+                              Skipped: {stats.Puppet.skip}
+                            </div>
+                          </td>
+                          {/* Light-Dark Feathers */}
+                          <td className="px-4 py-3.5 text-center">
+                            <div className="font-bold text-zinc-100 text-sm font-mono">
+                              {stats.White.alloc}
+                            </div>
+                            <div className="text-[10px] text-amber-500/90 font-medium">
+                              Skipped: {stats.White.skip}
+                            </div>
+                          </td>
+                          {/* Time-Space Feathers */}
+                          <td className="px-4 py-3.5 text-center">
+                            <div className="font-bold text-zinc-100 text-sm font-mono">
+                              {stats.RedBlack.alloc}
+                            </div>
+                            <div className="text-[10px] text-amber-500/90 font-medium">
+                              Skipped: {stats.RedBlack.skip}
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -399,7 +504,7 @@ export default function MemberTable({
       {viewMode === "profile" && (
         <div className="bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[550px]">
               <thead>
                 <tr className="border-b border-zinc-800 bg-zinc-950/40 text-zinc-400 font-bold uppercase tracking-wider text-[11px]">
                   <th className="px-4 py-3.5">ชื่อตัวละคร</th>
@@ -413,7 +518,7 @@ export default function MemberTable({
               <tbody className="divide-y divide-zinc-800/60">
                 {filtered.map((m) => (
                   <tr key={m.id} className="hover:bg-zinc-800/30 transition-colors">
-                    <td className="px-4 py-3.5 font-semibold text-zinc-100">
+                    <td className="px-4 py-3.5 font-semibold text-zinc-100 whitespace-nowrap">
                       {m.display_name}
                     </td>
                     <td className="px-4 py-3.5 font-mono text-zinc-400">
@@ -435,7 +540,7 @@ export default function MemberTable({
                       {m.created_at ? new Date(m.created_at).toLocaleDateString("th-TH") : "-"}
                     </td>
                     {isAdmin && (
-                      <td className="px-4 py-3.5 text-right space-x-2">
+                      <td className="px-4 py-3.5 text-right space-x-2 whitespace-nowrap">
                         <button
                           onClick={() => openEdit(m)}
                           className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[11px] font-medium border border-zinc-700 cursor-pointer"
@@ -461,7 +566,7 @@ export default function MemberTable({
       {/* Add / Edit Profile Modal */}
       {(isAddModalOpen || editMember) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4">
             <h3 className="text-base font-bold text-zinc-100">
               {isAddModalOpen ? "เพิ่มสมาชิกใหม่" : `แก้ไขข้อมูล: ${editMember?.display_name}`}
             </h3>
