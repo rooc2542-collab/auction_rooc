@@ -166,7 +166,7 @@ class MemberCog(commands.Cog):
             embed.add_field(name=lbl, value=f'**{val}** credits', inline=True)
         if not credits_data or all(c['credit'] == 0 for c in credits_data):
             embed.description = 'ยังไม่มี carry credit'
-        embed.set_footer(text="Credit สะสมจากการเลือก 'Join the war / Do not want to bid'")
+        embed.set_footer(text="Credit สะสมจากการเลือก 'เข้าร่วม / ไม่ต้องการประมูล'")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name='mystatus', description='ดูโปรไฟล์และสถิติของตัวเอง')

@@ -57,17 +57,17 @@ def build_attendance_embed(
     nb = counts.get('no_bid', 0)
     ab = counts.get('absent', 0)
     embed.add_field(
-        name='Join the war / Want to bid',
+        name='เข้าร่วม / ต้องการประมูล',
         value=f'{wb} คน ({wb*100//total if total else 0}%)',
         inline=False
     )
     embed.add_field(
-        name='Join the war / Do not want to bid',
+        name='เข้าร่วม / ไม่ต้องการประมูล',
         value=f'{nb} คน ({nb*100//total if total else 0}%)',
         inline=False
     )
     embed.add_field(
-        name='Unable to attend',
+        name='ไม่ประสงค์เข้าร่วม',
         value=f'{ab} คน ({ab*100//total if total else 0}%)',
         inline=False
     )
@@ -240,8 +240,8 @@ async def handle_attendance_action(interaction: discord.Interaction, status: str
             )
 
             label_map = {
-                'no_bid': 'Join the war / Do not want to bid (สะสมแต้มลัดคิวรอบหน้า)',
-                'absent': 'Unable to attend'
+                'no_bid': 'เข้าร่วม / ไม่ต้องการประมูล (สะสมแต้มลัดคิวรอบหน้า)',
+                'absent': 'ไม่ประสงค์เข้าร่วม'
             }
             await interaction.followup.send(
                 f'บันทึกแล้ว: **{label_map.get(status, status)}**',
@@ -322,7 +322,7 @@ class EventPollView(discord.ui.View):
                 child.disabled = disabled
 
     @discord.ui.button(
-        label='Join the war / Want to bid',
+        label='เข้าร่วม / ต้องการประมูล',
         style=discord.ButtonStyle.success,
         custom_id='poll_btn_want_bid',
         row=0
@@ -331,7 +331,7 @@ class EventPollView(discord.ui.View):
         await handle_attendance_action(interaction, 'want_bid')
 
     @discord.ui.button(
-        label='Join the war / Do not want to bid',
+        label='เข้าร่วม / ไม่ต้องการประมูล',
         style=discord.ButtonStyle.secondary,
         custom_id='poll_btn_no_bid',
         row=0
@@ -340,7 +340,7 @@ class EventPollView(discord.ui.View):
         await handle_attendance_action(interaction, 'no_bid')
 
     @discord.ui.button(
-        label='Unable to attend',
+        label='ไม่ประสงค์เข้าร่วม',
         style=discord.ButtonStyle.danger,
         custom_id='poll_btn_absent',
         row=0

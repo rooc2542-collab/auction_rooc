@@ -71,46 +71,61 @@ export async function POST(req: NextRequest) {
           const poll = msgData.poll
 
           if (poll && Array.isArray(poll.answers)) {
-            // หาคำตอบที่เป็น "Join the war / Want to bid"
-            const wantBidAnswer =
-              poll.answers.find((a: any) =>
-                a.poll_media?.text?.toLowerCase().includes("want to bid") ||
-                a.poll_media?.text?.toLowerCase().includes("join")
-              ) || poll.answers[0]
+            const wantBidAnswer = poll.answers.find((a: any) => {
+              const txt = (a.poll_media?.text || "").toLowerCase()
+              return txt.includes("want to bid") || txt.includes("ต้องการประมูล") || txt.includes("join")
+            }) || poll.answers[0]
 
-            let voterIds: string[] = []
-            if (wantBidAnswer) {
-              const votersRes = await fetch(
-                `https://discord.com/api/v10/channels/${targetChannelId}/polls/${cleanMessageId}/answers/${wantBidAnswer.answer_id}?limit=100`,
-                { headers: { Authorization: `Bot ${botToken}` } }
-              )
-              if (votersRes.ok) {
-                const votersData = await votersRes.json()
-                const users = votersData.users || []
-                voterIds = users.map((u: any) => String(u.id))
+            const noBidAnswer = poll.answers.find((a: any) => {
+              const txt = (a.poll_media?.text || "").toLowerCase()
+              return txt.includes("do not want") || txt.includes("ไม่ต้องการประมูล")
+            })
+
+            const absentAnswer = poll.answers.find((a: any) => {
+              const txt = (a.poll_media?.text || "").toLowerCase()
+              return txt.includes("unable") || txt.includes("ไม่ประสงค์") || txt.includes("ไม่เข้าร่วม")
+            })
+
+            const fetchVoterIds = async (ans: any): Promise<string[]> => {
+              if (!ans?.answer_id) return []
+              try {
+                const votersRes = await fetch(
+                  `https://discord.com/api/v10/channels/${targetChannelId}/polls/${cleanMessageId}/answers/${ans.answer_id}?limit=100`,
+                  { headers: { Authorization: `Bot ${botToken}` } }
+                )
+                if (votersRes.ok) {
+                  const votersData = await votersRes.json()
+                  return (votersData.users || []).map((u: any) => String(u.id))
+                }
+              } catch (e: any) {
+                console.warn("[Discord API] fetchVoterIds error:", e.message)
               }
+              return []
             }
 
-            // นำ Voter Discord IDs ที่ได้มา query จับคู่กับ Database profiles
-            const assignedMembers: any[] = []
-            const unassignedMembers: any[] = []
+            const [wantBidVoterIds, noBidVoterIds, absentVoterIds] = await Promise.all([
+              fetchVoterIds(wantBidAnswer),
+              fetchVoterIds(noBidAnswer),
+              fetchVoterIds(absentAnswer),
+            ])
 
-            for (const p of profilesList) {
-              if (voterIds.includes(String(p.discord_id))) {
-                assignedMembers.push(p)
-              } else {
-                unassignedMembers.push(p)
-              }
-            }
+            const wantBidMembers = profilesList.filter((p) => wantBidVoterIds.includes(String(p.discord_id)))
+            const noBidMembers = profilesList.filter((p) => noBidVoterIds.includes(String(p.discord_id)))
+            const absentMembers = profilesList.filter((p) => absentVoterIds.includes(String(p.discord_id)))
 
             return NextResponse.json({
               success: true,
               source: "discord_live",
               poll_title: poll.question?.text || "Discord Poll",
-              assigned_count: assignedMembers.length,
-              unassigned_count: unassignedMembers.length,
-              assigned_members: assignedMembers,
-              unassigned_members: unassignedMembers,
+              want_bid_count: wantBidMembers.length,
+              no_bid_count: noBidMembers.length,
+              absent_count: absentMembers.length,
+              want_bid_members: wantBidMembers,
+              no_bid_members: noBidMembers,
+              absent_members: absentMembers,
+              // Backwards compatibility
+              assigned_members: wantBidMembers,
+              unassigned_members: noBidMembers.concat(absentMembers),
             })
           }
         }
@@ -127,18 +142,30 @@ export async function POST(req: NextRequest) {
       const wantBidDiscordIds = dbAttendance
         .filter((a: any) => a.status === "want_bid")
         .map((a: any) => String(a.discord_id))
+      const noBidDiscordIds = dbAttendance
+        .filter((a: any) => a.status === "no_bid")
+        .map((a: any) => String(a.discord_id))
+      const absentDiscordIds = dbAttendance
+        .filter((a: any) => a.status === "absent")
+        .map((a: any) => String(a.discord_id))
 
-      const assignedMembers = profilesList.filter((p) => wantBidDiscordIds.includes(String(p.discord_id)))
-      const unassignedMembers = profilesList.filter((p) => !wantBidDiscordIds.includes(String(p.discord_id)))
+      const wantBidMembers = profilesList.filter((p) => wantBidDiscordIds.includes(String(p.discord_id)))
+      const noBidMembers = profilesList.filter((p) => noBidDiscordIds.includes(String(p.discord_id)))
+      const absentMembers = profilesList.filter((p) => absentDiscordIds.includes(String(p.discord_id)))
 
       return NextResponse.json({
         success: true,
         source: "database",
         poll_title: `Poll ID: ${cleanMessageId}`,
-        assigned_count: assignedMembers.length,
-        unassigned_count: unassignedMembers.length,
-        assigned_members: assignedMembers,
-        unassigned_members: unassignedMembers,
+        want_bid_count: wantBidMembers.length,
+        no_bid_count: noBidMembers.length,
+        absent_count: absentMembers.length,
+        want_bid_members: wantBidMembers,
+        no_bid_members: noBidMembers,
+        absent_members: absentMembers,
+        // Backwards compatibility
+        assigned_members: wantBidMembers,
+        unassigned_members: noBidMembers.concat(absentMembers),
       })
     }
 
