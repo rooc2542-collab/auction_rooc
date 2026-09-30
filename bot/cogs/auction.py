@@ -1,5 +1,6 @@
 from __future__ import annotations
 import re
+import asyncio
 from datetime import date
 import discord
 from discord import app_commands
@@ -32,7 +33,7 @@ async def check_admin_defer(interaction: discord.Interaction) -> bool:
 
 
 def get_db_events(limit: int = 25) -> list[tuple[str, str]]:
-    """ดึงรายชื่อ (event_name, event_date) ทั้งหมดจากฐานข้อมูล เรียงจากล่าสุด"""
+    """ดึงรายชื่อ (event_name, event_date) ทั้งหมดจากฐานข้อมูล เรียงจากล่าสุด (sync)"""
     seen: set[tuple[str, str]] = set()
     result: list[tuple[str, str]] = []
     try:
@@ -62,6 +63,11 @@ def get_db_events(limit: int = 25) -> list[tuple[str, str]]:
     return result[:limit]
 
 
+async def get_db_events_async(limit: int = 25) -> list[tuple[str, str]]:
+    """Async wrapper — รัน get_db_events ใน thread pool ไม่ block event loop"""
+    return await asyncio.to_thread(get_db_events, limit)
+
+
 def resolve_event_key(event_key: str | None) -> tuple[str, str] | None:
     """แปลงค่าจาก Autocomplete ('ชื่อ|วันที่' หรือ 'ชื่อ') หรือดึงรอบล่าสุดจาก DB"""
     # Fast path: autocomplete ส่งมาเป็น 'ชื่อ|วันที่' แล้ว — แค่ split ไม่ต้อง query DB
@@ -86,8 +92,11 @@ async def event_autocomplete(
     interaction: discord.Interaction,
     current: str,
 ) -> list[app_commands.Choice[str]]:
-    """Autocomplete ดึงชื่อรอบกิจกรรมจากฐานข้อมูลโดยตรง"""
-    events = get_db_events(25)
+    """Autocomplete ดึงชื่อรอบกิจกรรมจากฐานข้อมูลโดยตรง (ไม่ block event loop)"""
+    try:
+        events = await get_db_events_async(25)
+    except Exception:
+        events = []
     choices: list[app_commands.Choice[str]] = []
     q = current.lower().strip()
     for en, ed in events:
@@ -325,18 +334,26 @@ class AuctionCog(commands.Cog):
         interaction: discord.Interaction,
         event: str | None = None,
     ) -> None:
-        # ต้อง send_modal ทันที ห้าม query DB ก่อน เพราะ Discord timeout 3 วินาที
-        resolved = resolve_event_key(event)
-        if not resolved:
+        # ❗ ห้าม query DB เลยก่อน send_modal เพราะ Discord timeout 3 วินาที
+        # autocomplete ส่งค่ามาเป็น 'ชื่อ|วันที่' เสมอ — แค่ split ทันที
+        if event and '|' in event:
+            parts = event.strip().split('|', 1)
+            event_name = parts[0].strip()
+            session_date = parts[1].strip()
+        elif event and event.strip():
+            # พิมพ์เองโดยไม่ผ่าน autocomplete
+            event_name = event.strip()
+            session_date = str(date.today())
+        else:
+            # ไม่ได้เลือกรอบ
             await interaction.response.send_message(
-                '❌ ยังไม่มีรอบกิจกรรมในระบบ กรุณาเปิดโพลด้วย `/event_poll` ก่อนครับ',
+                '❌ กรุณาพิมพ์ชื่อรอบกิจกรรมแล้วเลือกจาก dropdown ที่ขึ้นมาครับ',
                 ephemeral=True
             )
             return
 
-        event_name, session_date = resolved
-        # ส่ง modal ทันที ไม่รอ DB (on_submit จะ check admin + load existing)
         modal = SetAllItemsModal(event_name, session_date, {})
+
         await interaction.response.send_modal(modal)
 
     # ─── /delete_event (ลบรอบกิจกรรมที่ผิดพลาด) ─────────────────────────────
