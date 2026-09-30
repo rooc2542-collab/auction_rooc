@@ -53,13 +53,6 @@ interface Props {
   initialSnapshots: any[]
 }
 
-// Default 16 assigned members matching images 3 and 4
-const DEFAULT_ASSIGNED_NAMES = [
-  "BabyNorth", "BellBaBy", "CHONGDIWA", "Dursley", "Eoreh", "Hakuru",
-  "Henuri", "Kelvin", "LimeJuic3", "LuckyRou", "Oมาดิ", "oniGiri",
-  "WAWAWA", "ZAMAE", "Mao", "BabyBoo"
-]
-
 export default function ResourcePoolClient({
   isAdmin,
   initialSessions,
@@ -76,7 +69,7 @@ export default function ResourcePoolClient({
   const [whiteQty, setWhiteQty] = useState<string>("174")
   const [redBlackQty, setRedBlackQty] = useState<string>("210")
 
-  // Assigned members for allocation
+  // Assigned members for allocation from database/localStorage
   const [assignedMemberNames, setAssignedMemberNames] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -89,10 +82,10 @@ export default function ResourcePoolClient({
         }
       } catch {}
     }
-    return DEFAULT_ASSIGNED_NAMES
+    return initialMembers.map((m) => m.display_name)
   })
 
-  // Read assigned members from localStorage on mount
+  // Read assigned members from localStorage or initialMembers on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
@@ -101,11 +94,15 @@ export default function ResourcePoolClient({
           const parsed = JSON.parse(cached)
           if (Array.isArray(parsed) && parsed.length > 0) {
             setAssignedMemberNames(parsed.map((m: any) => m.display_name))
+            return
           }
         }
       } catch {}
     }
-  }, [])
+    if (initialMembers.length > 0) {
+      setAssignedMemberNames(initialMembers.map((m) => m.display_name))
+    }
+  }, [initialMembers])
 
   // Generated slots state
   const [slotsList, setSlotsList] = useState<SlotEntry[]>([])
@@ -122,7 +119,8 @@ export default function ResourcePoolClient({
     qRedBlack: number,
     members: string[]
   ): SlotEntry[] => {
-    const mems = members.length > 0 ? members : DEFAULT_ASSIGNED_NAMES
+    const mems = members.length > 0 ? members : initialMembers.map((m) => m.display_name)
+    if (mems.length === 0) return []
     const result: SlotEntry[] = []
 
     const distribute = (key: ItemKey, qty: number) => {

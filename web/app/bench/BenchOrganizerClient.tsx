@@ -25,13 +25,6 @@ interface Props {
   initialAttendance: Attendance[]
 }
 
-// Preset reference list from screenshot (16 assigned members in Image 3)
-const DEFAULT_ASSIGNED_NAMES = [
-  "BabyNorth", "BellBaBy", "CHONGDIWA", "Dursley", "Eoreh", "Hakuru",
-  "Henuri", "Kelvin", "LimeJuic3", "LuckyRou", "Oมาดิ", "oniGiri",
-  "WAWAWA", "ZAMAE", "Mao", "BabyBoo"
-]
-
 export default function BenchOrganizerClient({
   isAdmin,
   initialMembers,
@@ -39,35 +32,32 @@ export default function BenchOrganizerClient({
 }: Props) {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
-  const [discordMessageId, setDiscordMessageId] = useState("155364197546550865")
-  const [eventName, setEventName] = useState("Emperium Overrun: September 27, 2026")
+  const [discordMessageId, setDiscordMessageId] = useState("")
+  const [eventName, setEventName] = useState("Emperium Overrun")
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null)
 
-  // Map each member to an integer sequence ID like in client's spreadsheet/image 3
+  // Map each member to an integer sequence ID based on DB sorting
   const memberIdMap = useMemo(() => {
     const map = new Map<string, number>()
-    // predefined spreadsheet IDs if available
-    const PRESET_IDS: Record<string, number> = {
-      "1923HB": 1, "ชอบกินอเมริกาโน่": 2, "acenax": 3, "ALET": 6, "BabyCode": 9,
-      "BabyNorth": 10, "Becx": 11, "BellBaBy": 12, "CHONGDIWA": 13, "Deve": 14,
-      "「Doppio」": 15, "Dursley": 17, "Eoreh": 18, "Hakuru": 23, "Henuri": 25,
-      "「IPx」": 28, "Kailash": 29, "Kaldereta": 30, "Kelvin": 31, "「Lego」": 32,
-      "LimeJuic3": 33, "LuckyRou": 35, "「MED」": 36, "MrSmile": 38, "Mtabz": 39,
-      "Nafta": 41, "Nixis": 44, "Oมาดิ": 45, "oniGiri": 46, "Seira": 54,
-      "WAWAWA": 58, "ZAMAE": 61, "Zaps": 62, "Zenryuza": 63, "Mao": 67,
-      "Sushi": 71, "TOMTAM": 72, "BabyBoo": 74
-    }
     initialMembers.forEach((m, idx) => {
-      const match = PRESET_IDS[m.display_name]
-      map.set(m.id, match !== undefined ? match : idx + 1)
+      map.set(m.id, idx + 1)
     })
     return map
   }, [initialMembers])
 
-  // Initialize assigned IDs
+  // Initialize assigned IDs from database event_attendance or localStorage
   const [assignedIds, setAssignedIds] = useState<Set<string>>(() => {
-    // Check localStorage first
+    // 1. Check database attendance first
+    const fromDb = new Set<string>()
+    for (const a of initialAttendance) {
+      if (a.status === "want_bid" && a.user_id) {
+        fromDb.add(a.user_id)
+      }
+    }
+    if (fromDb.size > 0) return fromDb
+
+    // 2. Check localStorage
     if (typeof window !== "undefined") {
       try {
         const cached = localStorage.getItem("rooc_assigned_bench_ids")
@@ -80,14 +70,7 @@ export default function BenchOrganizerClient({
       } catch {}
     }
 
-    // Default to the 16 assigned members from image 3
-    const set = new Set<string>()
-    initialMembers.forEach(m => {
-      if (DEFAULT_ASSIGNED_NAMES.some(name => m.display_name.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(m.display_name.toLowerCase()))) {
-        set.add(m.id)
-      }
-    })
-    return set
+    return new Set<string>()
   })
 
   // Persist to localStorage whenever assignedIds changes
@@ -95,8 +78,7 @@ export default function BenchOrganizerClient({
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("rooc_assigned_bench_ids", JSON.stringify(Array.from(assignedIds)))
-        // also store assigned member names for resource pool
-        const assignedMembers = initialMembers.filter(m => assignedIds.has(m.id))
+        const assignedMembers = initialMembers.filter((m) => assignedIds.has(m.id))
         localStorage.setItem("rooc_assigned_bench_members", JSON.stringify(assignedMembers))
       } catch {}
     }
@@ -127,7 +109,7 @@ export default function BenchOrganizerClient({
       }
     }
 
-    // Sort by member ID
+    // Sort by member sequence ID
     assigned.sort((a, b) => (memberIdMap.get(a.id) || 0) - (memberIdMap.get(b.id) || 0))
     unassigned.sort((a, b) => (memberIdMap.get(a.id) || 0) - (memberIdMap.get(b.id) || 0))
 
@@ -136,7 +118,7 @@ export default function BenchOrganizerClient({
 
   // Move member between benches
   const handleToggleMember = (id: string) => {
-    setAssignedIds(prev => {
+    setAssignedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) {
         next.delete(id)
@@ -175,13 +157,13 @@ export default function BenchOrganizerClient({
         setEventName(data.poll_title)
       }
 
-      if (Array.isArray(data.assigned_members) && data.assigned_members.length > 0) {
+      if (Array.isArray(data.assigned_members)) {
         const newAssigned = new Set<string>()
         data.assigned_members.forEach((m: any) => newAssigned.add(m.id))
         setAssignedIds(newAssigned)
         setToast({
           type: "ok",
-          text: `นำเข้าโพลสำเร็จ: นำเข้าคนโหวต Want to bid จำนวน ${newAssigned.size} คน เข้าสู่ Assigned Bench`,
+          text: `นำเข้าโพลสำเร็จ: พบสมาชิกที่โหวต Want to bid จำนวน ${newAssigned.size} คน ย้ายเข้าสู่ Assigned Bench แล้ว`,
         })
       } else {
         setToast({ type: "ok", text: "นำเข้าโพลสำเร็จ" })
@@ -195,20 +177,25 @@ export default function BenchOrganizerClient({
 
   // Capture PNG or Copy Summary
   const handleCapturePNG = () => {
-    // Generate clean text summary and copy to clipboard
     const text = [
       `=== Bench Organizer Summary: ${eventName} ===`,
       `[ Assigned Bench (${assignedIds.size} คน) ]`,
-      initialMembers.filter(m => assignedIds.has(m.id)).map(m => `• ${m.display_name} (Id: ${memberIdMap.get(m.id)})`).join("\n"),
+      initialMembers
+        .filter((m) => assignedIds.has(m.id))
+        .map((m) => `• ${m.display_name} (Id: ${memberIdMap.get(m.id)})`)
+        .join("\n"),
       ``,
       `[ Unassigned Bench (${initialMembers.length - assignedIds.size} คน) ]`,
-      initialMembers.filter(m => !assignedIds.has(m.id)).map(m => `• ${m.display_name} (Id: ${memberIdMap.get(m.id)})`).join("\n"),
+      initialMembers
+        .filter((m) => !assignedIds.has(m.id))
+        .map((m) => `• ${m.display_name} (Id: ${memberIdMap.get(m.id)})`)
+        .join("\n"),
     ].join("\n")
 
     navigator.clipboard.writeText(text)
     setToast({
       type: "ok",
-      text: "คัดลอกสรุป Bench ลง Clipboard เรียบร้อยแล้ว (สามารถกดนำไปวางใน Discord หรือบันทึกได้)",
+      text: "คัดลอกสรุป Bench ลง Clipboard เรียบร้อยแล้ว (สามารถนำไปวางใน Discord ได้ทันที)",
     })
   }
 
@@ -250,7 +237,7 @@ export default function BenchOrganizerClient({
         <div>
           <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">Bench Organizer</h1>
           <p className="text-xs text-zinc-500 mt-1">
-            จัดคนเข้าร่วมกิลด์วอร์ (Assigned Bench) และคนที่สำรอง (Unassigned Bench) จาก Discord Poll
+            จัดคนเข้าร่วมกิลด์วอร์ (Assigned Bench) และคนสำรอง (Unassigned Bench) ดึงข้อมูลจากฐานข้อมูลและ Discord Poll
           </p>
         </div>
 
@@ -314,7 +301,7 @@ export default function BenchOrganizerClient({
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="155364197546550865"
+              placeholder="ระบุ Message ID ของโพลจาก Discord"
               value={discordMessageId}
               onChange={(e) => setDiscordMessageId(e.target.value)}
               className="flex-1 bg-zinc-800/80 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 font-mono transition-all"
@@ -330,7 +317,7 @@ export default function BenchOrganizerClient({
         </div>
       </div>
 
-      {/* Two Column Bench Lists (Image 3 UI) */}
+      {/* Two Column Bench Lists */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* UNASSIGNED BENCH Column */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-sm space-y-4">
@@ -364,7 +351,6 @@ export default function BenchOrganizerClient({
                       <span className="font-semibold text-xs text-zinc-100 truncate group-hover:text-white">
                         {m.display_name}
                       </span>
-                      {/* Discord Logo Icon */}
                       <svg className="w-3.5 h-3.5 text-indigo-400 shrink-0" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
                       </svg>
@@ -414,7 +400,6 @@ export default function BenchOrganizerClient({
                       <span className="font-semibold text-xs text-zinc-100 truncate group-hover:text-white">
                         {m.display_name}
                       </span>
-                      {/* Discord Logo Icon */}
                       <svg className="w-3.5 h-3.5 text-indigo-400 shrink-0" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
                       </svg>

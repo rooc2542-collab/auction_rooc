@@ -10,6 +10,8 @@ export const JOB_CLASSES = [
 
 export const JOB_EMOJI: Record<string, string> = {}
 
+type ItemKey = "Album" | "Puppet" | "White" | "RedBlack"
+
 interface Member {
   id: string
   display_name: string
@@ -21,49 +23,19 @@ interface Member {
 
 interface MemberTableProps {
   members: Member[]
+  slots?: Array<{ user_id: string; item_type: string; status: string }>
+  credits?: Array<{ user_id: string; item_type: string; credit: number }>
+  attendance?: Array<{ user_id: string; status: string; interested_items?: string[] }>
   isAdmin: boolean
 }
 
-// Preset stats from client's spreadsheet and reference screenshot (Image 6 & Image 1)
-const SPREADSHEET_STATS: Record<
-  string,
-  {
-    id: number
-    album: { alloc: number; skip: number }
-    puppet: { alloc: number; skip: number }
-    white: { alloc: number; skip: number }
-    redBlack: { alloc: number; skip: number }
-  }
-> = {
-  "1923HB": { id: 1, album: { alloc: 11, skip: 1 }, puppet: { alloc: 4, skip: 0 }, white: { alloc: 53, skip: 8 }, redBlack: { alloc: 69, skip: 10 } },
-  "ชอบกินอเมริกาโน่": { id: 2, album: { alloc: 9, skip: 2 }, puppet: { alloc: 4, skip: 0 }, white: { alloc: 43, skip: 5 }, redBlack: { alloc: 57, skip: 6 } },
-  "acenax": { id: 3, album: { alloc: 12, skip: 0 }, puppet: { alloc: 4, skip: 0 }, white: { alloc: 55, skip: 0 }, redBlack: { alloc: 69, skip: 0 } },
-  "ALET": { id: 6, album: { alloc: 11, skip: 1 }, puppet: { alloc: 3, skip: 1 }, white: { alloc: 51, skip: 5 }, redBlack: { alloc: 67, skip: 5 } },
-  "BabyCode": { id: 9, album: { alloc: 10, skip: 2 }, puppet: { alloc: 4, skip: 0 }, white: { alloc: 45, skip: 16 }, redBlack: { alloc: 59, skip: 19 } },
-  "BabyNorth": { id: 10, album: { alloc: 13, skip: 0 }, puppet: { alloc: 4, skip: 0 }, white: { alloc: 61, skip: 0 }, redBlack: { alloc: 77, skip: 0 } },
-  "Becx": { id: 11, album: { alloc: 12, skip: 1 }, puppet: { alloc: 3, skip: 0 }, white: { alloc: 56, skip: 8 }, redBlack: { alloc: 72, skip: 10 } },
-  "BellBaBy": { id: 12, album: { alloc: 13, skip: 0 }, puppet: { alloc: 4, skip: 0 }, white: { alloc: 63, skip: 0 }, redBlack: { alloc: 81, skip: 0 } },
-  "CHONGDIWA": { id: 13, album: { alloc: 13, skip: 0 }, puppet: { alloc: 2, skip: 0 }, white: { alloc: 63, skip: 0 }, redBlack: { alloc: 81, skip: 0 } },
-  "Deve": { id: 14, album: { alloc: 8, skip: 9 }, puppet: { alloc: 3, skip: 2 }, white: { alloc: 38, skip: 33 }, redBlack: { alloc: 50, skip: 39 } },
-  "「Doppio」": { id: 15, album: { alloc: 10, skip: 0 }, puppet: { alloc: 4, skip: 0 }, white: { alloc: 51, skip: 0 }, redBlack: { alloc: 66, skip: 0 } },
-  "Dursley": { id: 17, album: { alloc: 13, skip: 0 }, puppet: { alloc: 3, skip: 0 }, white: { alloc: 63, skip: 0 }, redBlack: { alloc: 80, skip: 0 } },
-  "Eoreh": { id: 18, album: { alloc: 13, skip: 0 }, puppet: { alloc: 3, skip: 0 }, white: { alloc: 63, skip: 0 }, redBlack: { alloc: 81, skip: 0 } },
-  "Hakuru": { id: 23, album: { alloc: 10, skip: 2 }, puppet: { alloc: 2, skip: 2 }, white: { alloc: 58, skip: 5 }, redBlack: { alloc: 76, skip: 5 } },
-  "Henuri": { id: 25, album: { alloc: 5, skip: 7 }, puppet: { alloc: 0, skip: 5 }, white: { alloc: 26, skip: 37 }, redBlack: { alloc: 32, skip: 49 } },
-  "「IPx」": { id: 28, album: { alloc: 12, skip: 0 }, puppet: { alloc: 3, skip: 0 }, white: { alloc: 56, skip: 0 }, redBlack: { alloc: 72, skip: 0 } },
-  "Kailash": { id: 29, album: { alloc: 10, skip: 3 }, puppet: { alloc: 3, skip: 0 }, white: { alloc: 52, skip: 13 }, redBlack: { alloc: 68, skip: 16 } },
-  "Kaldereta": { id: 30, album: { alloc: 0, skip: 16 }, puppet: { alloc: 0, skip: 8 }, white: { alloc: 0, skip: 72 }, redBlack: { alloc: 2, skip: 84 } },
-  "Kelvin": { id: 31, album: { alloc: 12, skip: 0 }, puppet: { alloc: 3, skip: 0 }, white: { alloc: 63, skip: 0 }, redBlack: { alloc: 81, skip: 0 } },
-  "「Lego」": { id: 32, album: { alloc: 9, skip: 0 }, puppet: { alloc: 3, skip: 0 }, white: { alloc: 42, skip: 0 }, redBlack: { alloc: 50, skip: 0 } },
-  "LimeJuic3": { id: 33, album: { alloc: 4, skip: 8 }, puppet: { alloc: 0, skip: 6 }, white: { alloc: 23, skip: 40 }, redBlack: { alloc: 29, skip: 52 } },
-  "LuckyRou": { id: 35, album: { alloc: 4, skip: 8 }, puppet: { alloc: 0, skip: 0 }, white: { alloc: 23, skip: 40 }, redBlack: { alloc: 29, skip: 52 } },
-  "「MED」": { id: 36, album: { alloc: 11, skip: 0 }, puppet: { alloc: 3, skip: 0 }, white: { alloc: 56, skip: 0 }, redBlack: { alloc: 72, skip: 0 } },
-  "MrSmile": { id: 38, album: { alloc: 4, skip: 1 }, puppet: { alloc: 0, skip: 0 }, white: { alloc: 18, skip: 8 }, redBlack: { alloc: 20, skip: 10 } },
-  "Mtabz": { id: 39, album: { alloc: 0, skip: 15 }, puppet: { alloc: 0, skip: 4 }, white: { alloc: 12, skip: 56 }, redBlack: { alloc: 18, skip: 69 } },
-  "Nafta": { id: 41, album: { alloc: 8, skip: 6 }, puppet: { alloc: 2, skip: 0 }, white: { alloc: 38, skip: 23 }, redBlack: { alloc: 50, skip: 29 } },
-}
-
-export default function MemberTable({ members, isAdmin }: MemberTableProps) {
+export default function MemberTable({
+  members,
+  slots = [],
+  credits = [],
+  attendance = [],
+  isAdmin,
+}: MemberTableProps) {
   const [viewMode, setViewMode] = useState<"items" | "profile">("items")
   const [search, setSearch] = useState("")
   const [filterJob, setFilterJob] = useState("")
@@ -75,6 +47,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [lastSyncedTime, setLastSyncedTime] = useState<string>("18:36:00")
 
+  // Filter members by search query and dropdowns
   const filtered = useMemo(() => {
     return members.filter((m) => {
       const q = search.toLowerCase()
@@ -88,11 +61,75 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
     })
   }, [members, search, filterJob, filterRole])
 
+  // Aggregate stats per member per item type dynamically from DB
+  const memberItemStats = useMemo(() => {
+    // Map: userId -> item_key -> { alloc, skip }
+    const map = new Map<string, Record<ItemKey, { alloc: number; skip: number }>>()
+
+    // Default structure for every member
+    for (const m of members) {
+      map.set(m.id, {
+        Album: { alloc: 0, skip: 0 },
+        Puppet: { alloc: 0, skip: 0 },
+        White: { alloc: 0, skip: 0 },
+        RedBlack: { alloc: 0, skip: 0 },
+      })
+    }
+
+    // 1. Calculate Allocated count from allocated_slots
+    for (const s of slots) {
+      if (!s.user_id || !map.has(s.user_id)) continue
+      const userStat = map.get(s.user_id)!
+      const it = s.item_type as ItemKey
+      if (userStat[it]) {
+        userStat[it].alloc += 1
+      }
+    }
+
+    // 2. Calculate Skipped count from carry_credits / attendance
+    for (const c of credits) {
+      if (!c.user_id || !map.has(c.user_id)) continue
+      const userStat = map.get(c.user_id)!
+      const it = c.item_type as ItemKey
+      if (userStat[it]) {
+        userStat[it].skip += c.credit || 0
+      }
+    }
+
+    // Also count no_bid attendance as skipped
+    for (const a of attendance) {
+      if (!a.user_id || !map.has(a.user_id)) continue
+      if (a.status === "no_bid" || a.status === "absent") {
+        const userStat = map.get(a.user_id)!
+        const items = Array.isArray(a.interested_items) && a.interested_items.length > 0
+          ? (a.interested_items as ItemKey[])
+          : (["Album", "Puppet", "White", "RedBlack"] as ItemKey[])
+        for (const it of items) {
+          if (userStat[it]) {
+            userStat[it].skip += 1
+          }
+        }
+      }
+    }
+
+    return map
+  }, [members, slots, credits, attendance])
+
+  // Total allocated per item type for column headers
+  const columnTotals = useMemo(() => {
+    const totals: Record<ItemKey, number> = { Album: 0, Puppet: 0, White: 0, RedBlack: 0 }
+    for (const s of slots) {
+      const it = s.item_type as ItemKey
+      if (totals[it] !== undefined) totals[it] += 1
+    }
+    return totals
+  }, [slots])
+
   function handleSync() {
     const now = new Date()
     const timeStr = now.toTimeString().split(" ")[0]
     setLastSyncedTime(timeStr)
-    setMessage({ type: "success", text: `ซิงค์ข้อมูลเรียบร้อย ณ เวลา ${timeStr}` })
+    setMessage({ type: "success", text: `ซิงค์ข้อมูลกับฐานข้อมูลเรียบร้อย ณ เวลา ${timeStr}` })
     setTimeout(() => setMessage(null), 3000)
   }
 
@@ -172,7 +209,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
                 : "text-zinc-400 hover:text-zinc-200"
             }`}
           >
-            ตารางไอเทม (Allocation & Skipped)
+            ตารางไอเทม (Allocation &amp; Skipped)
           </button>
           <button
             onClick={() => setViewMode("profile")}
@@ -268,10 +305,18 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
                   <th className="px-4 py-3.5 w-14">#</th>
                   <th className="px-4 py-3.5">Name</th>
                   <th className="px-4 py-3.5">Discord ID</th>
-                  <th className="px-4 py-3.5 text-center">Card Fragments (19)</th>
-                  <th className="px-4 py-3.5 text-center">Illusion Cards (10)</th>
-                  <th className="px-4 py-3.5 text-center">Light-Dark Feathers (76)</th>
-                  <th className="px-4 py-3.5 text-center">Time-Space Feathers (95)</th>
+                  <th className="px-4 py-3.5 text-center">
+                    Card Fragments ({columnTotals.Album})
+                  </th>
+                  <th className="px-4 py-3.5 text-center">
+                    Illusion Cards ({columnTotals.Puppet})
+                  </th>
+                  <th className="px-4 py-3.5 text-center">
+                    Light-Dark Feathers ({columnTotals.White})
+                  </th>
+                  <th className="px-4 py-3.5 text-center">
+                    Time-Space Feathers ({columnTotals.RedBlack})
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
@@ -283,17 +328,17 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
                   </tr>
                 ) : (
                   filtered.map((m, idx) => {
-                    const stats = SPREADSHEET_STATS[m.display_name]
-                    const idNum = stats?.id ?? idx + 1
-                    const albumData = stats?.album ?? { alloc: 10, skip: 0 }
-                    const puppetData = stats?.puppet ?? { alloc: 3, skip: 0 }
-                    const whiteData = stats?.white ?? { alloc: 50, skip: 0 }
-                    const redBlackData = stats?.redBlack ?? { alloc: 65, skip: 0 }
+                    const stats = memberItemStats.get(m.id) || {
+                      Album: { alloc: 0, skip: 0 },
+                      Puppet: { alloc: 0, skip: 0 },
+                      White: { alloc: 0, skip: 0 },
+                      RedBlack: { alloc: 0, skip: 0 },
+                    }
 
                     return (
                       <tr key={m.id} className="hover:bg-zinc-800/30 transition-colors">
                         <td className="px-4 py-3.5 font-mono text-zinc-500 font-bold">
-                          {idNum}
+                          {idx + 1}
                         </td>
                         <td className="px-4 py-3.5">
                           <div className="font-semibold text-zinc-100">{m.display_name}</div>
@@ -307,37 +352,37 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
                         {/* Card Fragments */}
                         <td className="px-4 py-3.5 text-center">
                           <div className="font-bold text-zinc-100 text-sm font-mono">
-                            {albumData.alloc}
+                            {stats.Album.alloc}
                           </div>
                           <div className="text-[10px] text-amber-500/90 font-medium">
-                            Skipped: {albumData.skip}
+                            Skipped: {stats.Album.skip}
                           </div>
                         </td>
                         {/* Illusion Cards */}
                         <td className="px-4 py-3.5 text-center">
                           <div className="font-bold text-zinc-100 text-sm font-mono">
-                            {puppetData.alloc}
+                            {stats.Puppet.alloc}
                           </div>
                           <div className="text-[10px] text-amber-500/90 font-medium">
-                            Skipped: {puppetData.skip}
+                            Skipped: {stats.Puppet.skip}
                           </div>
                         </td>
                         {/* Light-Dark Feathers */}
                         <td className="px-4 py-3.5 text-center">
                           <div className="font-bold text-zinc-100 text-sm font-mono">
-                            {whiteData.alloc}
+                            {stats.White.alloc}
                           </div>
                           <div className="text-[10px] text-amber-500/90 font-medium">
-                            Skipped: {whiteData.skip}
+                            Skipped: {stats.White.skip}
                           </div>
                         </td>
                         {/* Time-Space Feathers */}
                         <td className="px-4 py-3.5 text-center">
                           <div className="font-bold text-zinc-100 text-sm font-mono">
-                            {redBlackData.alloc}
+                            {stats.RedBlack.alloc}
                           </div>
                           <div className="text-[10px] text-amber-500/90 font-medium">
-                            Skipped: {redBlackData.skip}
+                            Skipped: {stats.RedBlack.skip}
                           </div>
                         </td>
                       </tr>
