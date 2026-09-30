@@ -112,46 +112,126 @@ export default function QueueManagerClient({
     return result
   }
 
-  const [itemForms, setItemForms] = useState<Record<ItemKey, ItemFormEntry>>(() =>
-    buildInitialForm(defaultPair[0], defaultPair[1])
-  )
+  const [autoLinkCoords, setAutoLinkCoords] = useState(true)
+
+  const computeNextSlot = (page: number, slot: number): { page: number; slot: number } => {
+    const p = Math.max(1, page || 1)
+    const s = Math.min(4, Math.max(1, slot || 1))
+    if (s < 4) return { page: p, slot: s + 1 }
+    return { page: p + 1, slot: 1 }
+  }
+
+  const computeEndSlot = (
+    startPage: number,
+    startSlot: number,
+    totalQty: number
+  ): { page: number; slot: number } => {
+    const sp = Math.max(1, startPage || 1)
+    const ss = Math.min(4, Math.max(1, startSlot || 1))
+    const tot = Math.max(0, totalQty || 0)
+    if (tot <= 0) return { page: sp, slot: ss }
+    const offset = ss - 1 + tot - 1
+    return {
+      page: sp + Math.floor(offset / 4),
+      slot: (offset % 4) + 1,
+    }
+  }
+
+  const computeQty = (
+    startPage: number,
+    startSlot: number,
+    endPage: number,
+    endSlot: number
+  ): number => {
+    if (endPage < startPage || (endPage === startPage && endSlot < startSlot)) return 0
+    return (endPage - startPage) * 4 + (endSlot - startSlot) + 1
+  }
+
+  const recalculateContinuousChain = (
+    forms: Record<ItemKey, ItemFormEntry>
+  ): Record<ItemKey, ItemFormEntry> => {
+    const nextForms = { ...forms }
+    let curStartPage = Math.max(1, parseInt(nextForms.Album?.start_page) || 1)
+    let curStartSlot = Math.min(4, Math.max(1, parseInt(nextForms.Album?.start_slot) || 1))
+
+    for (const k of ITEM_KEYS) {
+      const cur = { ...nextForms[k] }
+      const tot = Math.max(0, parseInt(cur.total_quantity) || 0)
+
+      cur.start_page = String(curStartPage)
+      cur.start_slot = String(curStartSlot)
+
+      if (tot > 0) {
+        const end = computeEndSlot(curStartPage, curStartSlot, tot)
+        cur.end_page = String(end.page)
+        cur.end_slot = String(end.slot)
+
+        const next = computeNextSlot(end.page, end.slot)
+        curStartPage = next.page
+        curStartSlot = next.slot
+      } else {
+        cur.end_page = String(curStartPage)
+        cur.end_slot = String(curStartSlot)
+      }
+
+      nextForms[k] = cur
+    }
+
+    return nextForms
+  }
+
+  const [itemForms, setItemForms] = useState<Record<ItemKey, ItemFormEntry>>(() => {
+    const raw = buildInitialForm(defaultPair[0], defaultPair[1])
+    return recalculateContinuousChain(raw)
+  })
 
   const handleSelectEventPreset = (val: string) => {
     if (!val) return
     const [en, ed] = val.split("|")
     setEventName(en)
     setEventDate(ed)
-    setItemForms(buildInitialForm(en, ed))
+    const initial = buildInitialForm(en, ed)
+    setItemForms(autoLinkCoords ? recalculateContinuousChain(initial) : initial)
     setCurrentPage(1)
     setConfirmDelete(false)
   }
 
   const handleCoordChange = (key: ItemKey, field: keyof ItemFormEntry, val: string) => {
     setItemForms((prev) => {
-      const updated = { ...prev[key], [field]: val }
-      if (field === "start_page" || field === "start_slot" || field === "end_page" || field === "end_slot") {
-        const sp = parseInt(updated.start_page)
-        const ss = parseInt(updated.start_slot)
-        const ep = parseInt(updated.end_page)
-        const es = parseInt(updated.end_slot)
-        if (!isNaN(sp) && !isNaN(ss) && !isNaN(ep) && !isNaN(es) && sp > 0 && ss >= 1 && ss <= 4 && ep > 0 && es >= 1 && es <= 4) {
-          if (ep > sp || (ep === sp && es >= ss)) {
-            updated.total_quantity = String((ep - sp) * 4 + (es - ss) + 1)
-          } else {
-            updated.total_quantity = "0"
-          }
-        }
-      } else if (field === "total_quantity") {
-        const tot = Math.max(0, parseInt(val) || 0)
-        const sp = Math.max(1, parseInt(updated.start_page) || 1)
-        const ss = Math.min(4, Math.max(1, parseInt(updated.start_slot) || 1))
-        if (tot > 0) {
-          const offset = ss - 1 + tot - 1
-          updated.end_page = String(sp + Math.floor(offset / 4))
-          updated.end_slot = String((offset % 4) + 1)
-        }
+      const updated = { ...prev, [key]: { ...prev[key], [field]: val } }
+
+      if (field === "personal_limit") {
+        return updated
       }
-      return { ...prev, [key]: updated }
+
+      if (field === "total_quantity") {
+        const tot = Math.max(0, parseInt(val) || 0)
+        const sp = Math.max(1, parseInt(updated[key].start_page) || 1)
+        const ss = Math.min(4, Math.max(1, parseInt(updated[key].start_slot) || 1))
+        const end = computeEndSlot(sp, ss, tot)
+        updated[key].end_page = String(end.page)
+        updated[key].end_slot = String(end.slot)
+      } else if (field === "end_page" || field === "end_slot") {
+        const sp = Math.max(1, parseInt(updated[key].start_page) || 1)
+        const ss = Math.min(4, Math.max(1, parseInt(updated[key].start_slot) || 1))
+        const ep = Math.max(1, parseInt(field === "end_page" ? val : updated[key].end_page) || 1)
+        const es = Math.min(4, Math.max(1, parseInt(field === "end_slot" ? val : updated[key].end_slot) || 1))
+        const tot = computeQty(sp, ss, ep, es)
+        updated[key].total_quantity = String(tot)
+      } else if (field === "start_page" || field === "start_slot") {
+        const sp = Math.max(1, parseInt(field === "start_page" ? val : updated[key].start_page) || 1)
+        const ss = Math.min(4, Math.max(1, parseInt(field === "start_slot" ? val : updated[key].start_slot) || 1))
+        const tot = Math.max(0, parseInt(updated[key].total_quantity) || 0)
+        const end = computeEndSlot(sp, ss, tot)
+        updated[key].end_page = String(end.page)
+        updated[key].end_slot = String(end.slot)
+      }
+
+      if (autoLinkCoords) {
+        return recalculateContinuousChain(updated)
+      }
+
+      return updated
     })
   }
 
@@ -1106,10 +1186,67 @@ export default function QueueManagerClient({
       {/* ─── TAB 3: ตั้งค่าพิกัดไอเทม & ลิมิต ──────────── */}
       {activeTab === "config" && (
         <div className="space-y-5">
+          {/* Continuous Coordinates Linking Banner */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🔗</span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-zinc-100">
+                    ลิงก์พิกัดหน้า/ช่องต่อเนื่องอัตโนมัติ (Continuous Coordinates)
+                  </h4>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                      autoLinkCoords
+                        ? "bg-emerald-950 text-emerald-300 border border-emerald-800/60"
+                        : "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                    }`}
+                  >
+                    {autoLinkCoords ? "เปิดใช้งานอยู่" : "ปิดอยู่"}
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  เมื่อปรับจำนวนชิ้นหรือพิกัด พิกัดจะรันต่อกันทันที: สมุดการ์ด → เศษการ์ดบอส → ขนนกขาว → ขนนกดำแดง
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-center">
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !autoLinkCoords
+                  setAutoLinkCoords(next)
+                  if (next) {
+                    setItemForms((prev) => recalculateContinuousChain(prev))
+                    setToast({ type: "ok", text: "เปิดระบบลิงก์พิกัดต่อเนื่องแล้ว" })
+                  }
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                  autoLinkCoords
+                    ? "bg-emerald-950 text-emerald-300 border-emerald-800/80 hover:bg-emerald-900"
+                    : "bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-zinc-200"
+                }`}
+              >
+                {autoLinkCoords ? "✓ ลิงก์ต่อเนื่อง (เปิด)" : "ปิดลิงก์ (แยกอิสระ)"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setItemForms((prev) => recalculateContinuousChain(prev))
+                  setToast({ type: "ok", text: "จัดเรียงพิกัดทั้ง 4 ไอเทมให้ต่อเนื่องกันเรียบร้อยแล้ว" })
+                }}
+                className="px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition-all cursor-pointer"
+              >
+                จัดเรียงใหม่เดี๋ยวนี้
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {ITEM_KEYS.map((key) => {
+            {ITEM_KEYS.map((key, idx) => {
               const meta = ITEMS_META[key]
               const form = itemForms[key]
+              const prevKey = idx > 0 ? ITEM_KEYS[idx - 1] : null
               return (
                 <div
                   key={key}
@@ -1117,7 +1254,14 @@ export default function QueueManagerClient({
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-base font-bold text-zinc-100">{meta.label}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-bold text-zinc-100">{meta.label}</h3>
+                        {autoLinkCoords && prevKey && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-teal-950/70 text-teal-300 border border-teal-800/50 font-medium">
+                            🔗 ต่อจาก {ITEMS_META[prevKey].label}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-zinc-600">{meta.desc}</p>
                     </div>
                     <div className="text-right">
