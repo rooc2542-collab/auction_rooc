@@ -32,18 +32,26 @@ async def check_admin_defer(interaction: discord.Interaction) -> bool:
     return True
 
 
+# In-memory cache เพื่อให้ /set_items เปิด Modal ได้ทันทีใน 0ms โดยไม่ต้องรอ DB
+_EVENTS_CACHE: list[tuple[str, str]] = []
+_SESSIONS_CACHE: dict[tuple[str, str], dict[str, dict]] = {}
+
+
 def get_db_events(limit: int = 25) -> list[tuple[str, str]]:
     """ดึงรายชื่อ (event_name, event_date) ทั้งหมดจากฐานข้อมูล เรียงจากล่าสุด (sync)"""
+    global _EVENTS_CACHE, _SESSIONS_CACHE
     seen: set[tuple[str, str]] = set()
     result: list[tuple[str, str]] = []
+    sessions_map: dict[tuple[str, str], dict[str, dict]] = {}
     try:
         s_res = supabase.table('event_sessions') \
-            .select('event_name, session_date, created_at') \
+            .select('*') \
             .order('created_at', desc=True) \
             .limit(100) \
             .execute()
         for r in (s_res.data or []):
             key = (r['event_name'], r['session_date'])
+            sessions_map.setdefault(key, {})[r['item_type']] = r
             if key not in seen:
                 seen.add(key)
                 result.append(key)
@@ -58,6 +66,9 @@ def get_db_events(limit: int = 25) -> list[tuple[str, str]]:
             if key not in seen:
                 seen.add(key)
                 result.append(key)
+
+        _EVENTS_CACHE = result[:limit]
+        _SESSIONS_CACHE = sessions_map
     except Exception as e:
         print(f'[AuctionCog] get_db_events error: {e}')
     return result[:limit]
@@ -68,15 +79,28 @@ async def get_db_events_async(limit: int = 25) -> list[tuple[str, str]]:
     return await asyncio.to_thread(get_db_events, limit)
 
 
-def resolve_event_key(event_key: str | None) -> tuple[str, str] | None:
-    """แปลงค่าจาก Autocomplete ('ชื่อ|วันที่' หรือ 'ชื่อ') หรือดึงรอบล่าสุดจาก DB"""
-    # Fast path: autocomplete ส่งมาเป็น 'ชื่อ|วันที่' แล้ว — แค่ split ไม่ต้อง query DB
-    if event_key and '|' in event_key:
-        parts = event_key.strip().split('|', 1)
+def parse_event_string(raw_str: str) -> tuple[str, str] | None:
+    """แกะชื่ออีเวนต์และวันที่จาก 'ชื่อ|YYYY-MM-DD' หรือ 'ชื่อ (YYYY-MM-DD)'"""
+    raw = raw_str.strip()
+    if not raw:
+        return None
+    if '|' in raw:
+        parts = raw.split('|', 1)
         return parts[0].strip(), parts[1].strip()
+    paren_match = re.match(r'^(.+?)\s*\((\d{4}-\d{2}-\d{2})\)$', raw)
+    if paren_match:
+        return paren_match.group(1).strip(), paren_match.group(2).strip()
+    return None
 
-    # Slow path: ไม่มีค่า หรือพิมพ์เองโดยไม่ผ่าน autocomplete
-    events = get_db_events(25)
+
+def resolve_event_key(event_key: str | None) -> tuple[str, str] | None:
+    """แปลงค่าจาก Autocomplete ('ชื่อ|วันที่' หรือ 'ชื่อ (วันที่)' หรือ 'ชื่อ') หรือดึงรอบล่าสุดจาก DB"""
+    if event_key:
+        parsed = parse_event_string(event_key)
+        if parsed:
+            return parsed
+
+    events = _EVENTS_CACHE if _EVENTS_CACHE else get_db_events(25)
     if not event_key or not event_key.strip():
         return events[0] if events else None
 
@@ -96,7 +120,7 @@ async def event_autocomplete(
     try:
         events = await get_db_events_async(25)
     except Exception:
-        events = []
+        events = _EVENTS_CACHE
     choices: list[app_commands.Choice[str]] = []
     q = current.lower().strip()
     for en, ed in events:
@@ -138,35 +162,36 @@ def parse_item_input(raw: str) -> tuple[str, int, int, int, int, int, int]:
 
 
 class SetAllItemsModal(discord.ui.Modal):
-    """Modal ตั้งค่าไอเทมทั้ง 4 ประเภทพร้อมกันในครั้งเดียว"""
+    """Modal ตั้งค่าไอเทมทั้ง 4 ประเภทพร้อมกันในครั้งเดียว (หมายเหตุ: Discord จำกัด label <= 45 ตัวอักษร)"""
 
     album_input = discord.ui.TextInput(
-        label='📖 สมุดการ์ด (Album) — จำนวน, ลิมิต หรือ พิกัด, ลิมิต',
+        label='📖 สมุดการ์ด (จำนวน, ลิมิต)',
         placeholder='เช่น 12, 2 หรือ 1:1-3:4, 2 (ใส่ 0 ถ้าไม่มี)',
         required=True,
         max_length=40,
     )
     puppet_input = discord.ui.TextInput(
-        label='🎭 เศษการ์ดบอส (Puppet) — จำนวน, ลิมิต หรือ พิกัด, ลิมิต',
+        label='🎭 เศษการ์ดบอส (จำนวน, ลิมิต)',
         placeholder='เช่น 20, 3 หรือ 4:1-8:4, 3 (ใส่ 0 ถ้าไม่มี)',
         required=True,
         max_length=40,
     )
     white_input = discord.ui.TextInput(
-        label='🪶 ขนนกขาว (White) — จำนวน, ลิมิต หรือ พิกัด, ลิมิต',
+        label='🪶 ขนนกขาว (จำนวน, ลิมิต)',
         placeholder='เช่น 16, 2 หรือ 9:1-12:4, 2 (ใส่ 0 ถ้าไม่มี)',
         required=True,
         max_length=40,
     )
     redblack_input = discord.ui.TextInput(
-        label='🔴 ขนนกดำแดง (RedBlack) — จำนวน, ลิมิต หรือ พิกัด, ลิมิต',
+        label='🔴 ขนนกดำแดง (จำนวน, ลิมิต)',
         placeholder='เช่น 8, 1 หรือ 13:1-14:4, 1 (ใส่ 0 ถ้าไม่มี)',
         required=True,
         max_length=40,
     )
 
     def __init__(self, event_name: str, session_date: str, existing_map: dict[str, dict]):
-        super().__init__(title=f'ตั้งค่าไอเทมทั้ง 4 ชนิด — {event_name[:20]}')
+        modal_title = f'ตั้งค่าไอเทม — {event_name}'[:45]
+        super().__init__(title=modal_title)
         self._event_name = event_name
         self._session_date = session_date
 
@@ -184,19 +209,11 @@ class SetAllItemsModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
 
-        # ตรวจสอบ admin ใน on_submit แทน (เพราะเราไม่ check ก่อน send_modal)
+        # ตรวจสอบ admin ใน on_submit
         profile = await auction_service.get_profile_by_discord_id(str(interaction.user.id))
         if not profile or profile.get('role') != 'admin':
             await interaction.followup.send('❌ คำสั่งนี้ใช้ได้เฉพาะ Admin เท่านั้น', ephemeral=True)
             return
-
-        # โหลดข้อมูลเดิมมา merge (ถ้ามี) — กรณีใส่ 0 จะ skip ไอเทมนั้น
-        res = supabase.table('event_sessions') \
-            .select('*') \
-            .eq('event_name', self._event_name) \
-            .eq('session_date', self._session_date) \
-            .execute()
-        existing_map = {r['item_type']: r for r in (res.data or [])}
 
         raw_map = {
             'Album': str(self.album_input),
@@ -209,7 +226,7 @@ class SetAllItemsModal(discord.ui.Modal):
             running_page = 1
             running_slot = 1
             embed = discord.Embed(
-                title=f'✅ บันทึกไอเทมทั้ง 4 ประเภทสำเร็จ',
+                title='✅ บันทึกไอเทมทั้ง 4 ประเภทสำเร็จ',
                 description=f'รอบกิจกรรม: **{self._event_name}** ({self._session_date})',
                 color=discord.Color.green()
             )
@@ -224,14 +241,12 @@ class SetAllItemsModal(discord.ui.Modal):
                         offset = (ss - 1) + total_qty - 1
                         ep = sp + (offset // 4)
                         es = (offset % 4) + 1
-                        # เลื่อนพิกัดเริ่มต้นของไอเทมถัดไปต่อทันที
                         next_offset = offset + 1
                         running_page = sp + (next_offset // 4)
                         running_slot = (next_offset % 4) + 1
                     else:
                         sp, ss, ep, es = 1, 1, 1, 1
                 else:
-                    # กรณีระบุพิกัดชัดเจน ให้เลื่อนตัวชี้ไปต่อท้ายพิกัดนั้น
                     next_slot = es + 1
                     next_page = ep
                     if next_slot > 4:
@@ -239,7 +254,7 @@ class SetAllItemsModal(discord.ui.Modal):
                         next_page += 1
                     running_page, running_slot = next_page, next_slot
 
-                supabase.table('event_sessions').upsert({
+                row_data = {
                     'event_name': self._event_name,
                     'session_date': self._session_date,
                     'item_type': item_key,
@@ -250,7 +265,13 @@ class SetAllItemsModal(discord.ui.Modal):
                     'total_quantity': total_qty,
                     'personal_limit': limit_val,
                     'status': 'active',
-                }, on_conflict='event_name,session_date,item_type').execute()
+                }
+                await asyncio.to_thread(
+                    lambda d=row_data: supabase.table('event_sessions')
+                    .upsert(d, on_conflict='event_name,session_date,item_type')
+                    .execute()
+                )
+                _SESSIONS_CACHE.setdefault((self._event_name, self._session_date), {})[item_key] = row_data
 
                 iname = ITEM_LABELS.get(item_key, item_key)
                 if total_qty > 0:
@@ -299,7 +320,7 @@ class AuctionCog(commands.Cog):
 
         # สร้างรายการตั้งต้นทั้ง 4 ไอเทมลงฐานข้อมูลทันที เพื่อให้คำสั่งอื่นและหน้าเว็บดึงชื่อรอบนี้ไปใช้ต่อได้ทันที
         for item_key in ITEM_ORDER:
-            supabase.table('event_sessions').upsert({
+            row_data = {
                 'event_name': clean_name,
                 'session_date': today,
                 'item_type': item_key,
@@ -310,7 +331,16 @@ class AuctionCog(commands.Cog):
                 'total_quantity': 0,
                 'personal_limit': 1,
                 'status': 'active',
-            }, on_conflict='event_name,session_date,item_type').execute()
+            }
+            await asyncio.to_thread(
+                lambda d=row_data: supabase.table('event_sessions')
+                .upsert(d, on_conflict='event_name,session_date,item_type')
+                .execute()
+            )
+            _SESSIONS_CACHE.setdefault((clean_name, today), {})[item_key] = row_data
+
+        if (clean_name, today) not in _EVENTS_CACHE:
+            _EVENTS_CACHE.insert(0, (clean_name, today))
 
         embed = build_attendance_embed(clean_name, today)
         view = EventPollView(clean_name, today)
@@ -334,27 +364,44 @@ class AuctionCog(commands.Cog):
         interaction: discord.Interaction,
         event: str | None = None,
     ) -> None:
-        # ❗ ห้าม query DB เลยก่อน send_modal เพราะ Discord timeout 3 วินาที
-        # autocomplete ส่งค่ามาเป็น 'ชื่อ|วันที่' เสมอ — แค่ split ทันที
-        if event and '|' in event:
-            parts = event.strip().split('|', 1)
-            event_name = parts[0].strip()
-            session_date = parts[1].strip()
-        elif event and event.strip():
-            # พิมพ์เองโดยไม่ผ่าน autocomplete
-            event_name = event.strip()
-            session_date = str(date.today())
-        else:
-            # ไม่ได้เลือกรอบ
-            await interaction.response.send_message(
-                '❌ กรุณาพิมพ์ชื่อรอบกิจกรรมแล้วเลือกจาก dropdown ที่ขึ้นมาครับ',
-                ephemeral=True
-            )
-            return
+        try:
+            event_name: str | None = None
+            session_date: str | None = None
 
-        modal = SetAllItemsModal(event_name, session_date, {})
+            if event and event.strip():
+                parsed = parse_event_string(event)
+                if parsed:
+                    event_name, session_date = parsed
+                else:
+                    raw = event.strip()
+                    for en, ed in _EVENTS_CACHE:
+                        if en == raw:
+                            event_name, session_date = en, ed
+                            break
+                    if not event_name:
+                        event_name, session_date = raw, str(date.today())
+            else:
+                if _EVENTS_CACHE:
+                    event_name, session_date = _EVENTS_CACHE[0]
+                else:
+                    events = await get_db_events_async(5)
+                    if events:
+                        event_name, session_date = events[0]
 
-        await interaction.response.send_modal(modal)
+            if not event_name or not session_date:
+                await interaction.response.send_message(
+                    '❌ ยังไม่มีรอบกิจกรรมในระบบ กรุณาเปิดโพลด้วย `/event_poll` ก่อนครับ',
+                    ephemeral=True
+                )
+                return
+
+            existing_map = _SESSIONS_CACHE.get((event_name, session_date), {})
+            modal = SetAllItemsModal(event_name, session_date, existing_map)
+            await interaction.response.send_modal(modal)
+        except Exception as e:
+            print(f'[AuctionCog] /set_items error: {e}')
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f'❌ ไม่สามารถเปิดหน้าต่างตั้งค่าได้: {e}', ephemeral=True)
 
     # ─── /delete_event (ลบรอบกิจกรรมที่ผิดพลาด) ─────────────────────────────
     @app_commands.command(name='delete_event', description='[Admin] ลบรอบกิจกรรมและข้อมูลคิว/สล็อตของรอบนั้นเพื่อคีย์ใหม่')
@@ -381,6 +428,10 @@ class AuctionCog(commands.Cog):
             supabase.table('allocated_slots').delete().eq('event_name', event_name).eq('session_date', event_date).execute()
             supabase.table('event_attendance').delete().eq('event_name', event_name).eq('event_date', event_date).execute()
             supabase.table('event_sessions').delete().eq('event_name', event_name).eq('session_date', event_date).execute()
+
+            if (event_name, event_date) in _EVENTS_CACHE:
+                _EVENTS_CACHE.remove((event_name, event_date))
+            _SESSIONS_CACHE.pop((event_name, event_date), None)
 
             await interaction.followup.send(
                 f'🗑️ ลบรอบกิจกรรม **{event_name}** ({event_date}) ออกจากฐานข้อมูลเรียบร้อยแล้วครับ',
