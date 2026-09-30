@@ -214,6 +214,7 @@ export async function POST(req: NextRequest) {
       )
 
       const rowsToInsert: any[] = []
+      const noBidAttendees = (attendees || []).filter((a: any) => a.status === "no_bid" && a.user_id)
 
       for (const sess of sortedSessions) {
         const itemType = sess.item_type
@@ -233,53 +234,130 @@ export async function POST(req: NextRequest) {
             a.interested_items.includes(itemType)
         )
 
-        if (interested.length === 0) continue
+        if (interested.length > 0) {
+          // เรียงตาม Carry Credit มากก่อน -> เวลาลงชื่อก่อน
+          const sortedMembers = [...interested].sort((a: any, b: any) => {
+            const credA = creditLookup[`${a.user_id}|${itemType}`] || 0
+            const credB = creditLookup[`${b.user_id}|${itemType}`] || 0
+            if (credB !== credA) return credB - credA
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          })
 
-        // เรียงตาม Carry Credit มากก่อน -> เวลาลงชื่อก่อน
-        const sortedMembers = [...interested].sort((a: any, b: any) => {
-          const credA = creditLookup[`${a.user_id}|${itemType}`] || 0
-          const credB = creditLookup[`${b.user_id}|${itemType}`] || 0
-          if (credB !== credA) return credB - credA
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        })
+          const n = sortedMembers.length
+          const allocMap: Record<string, number> = {}
+          const creditUsedMap: Record<string, number> = {}
+          for (const m of sortedMembers) {
+            allocMap[m.user_id] = 0
+            creditUsedMap[m.user_id] = 0
+          }
 
-        const n = sortedMembers.length
-        const baseShare = Math.min(Math.floor(totalQty / n), personalLimit)
-        const allocMap: Record<string, number> = {}
-        for (const m of sortedMembers) {
-          allocMap[m.user_id] = baseShare
-        }
+          let remaining = totalQty
 
-        let remaining = totalQty - baseShare * n
-        for (const m of sortedMembers) {
-          if (remaining <= 0) break
-          if (allocMap[m.user_id] < personalLimit) {
-            allocMap[m.user_id] += 1
-            remaining -= 1
+          // ขั้นที่ 1: แจกสิทธิ์ทบจากยอดสะสม (Carry Credit Bonus) ให้คนที่มียอดสะสมก่อน
+          const maxCredit = Math.max(
+            ...sortedMembers.map((m: any) => Math.max(0, creditLookup[`${m.user_id}|${itemType}`] || 0)),
+            0
+          )
+          for (let pass = 0; pass < maxCredit; pass++) {
+            if (remaining <= 0) break
+            for (const m of sortedMembers) {
+              if (remaining <= 0) break
+              const uid = m.user_id
+              const userCred = Math.max(0, creditLookup[`${uid}|${itemType}`] || 0)
+              if (creditUsedMap[uid] < userCred) {
+                allocMap[uid] += 1
+                creditUsedMap[uid] += 1
+                remaining -= 1
+              }
+            }
+          }
+
+          // ขั้นที่ 2: นำของที่เหลือมาแบ่งโควตาของรอบปัจจุบันให้ทุกคน (คนละไม่เกิน personalLimit)
+          if (remaining > 0) {
+            const baseShare = Math.min(Math.floor(remaining / n), personalLimit)
+            for (const m of sortedMembers) {
+              allocMap[m.user_id] += baseShare
+            }
+            remaining -= baseShare * n
+
+            for (const m of sortedMembers) {
+              if (remaining <= 0) break
+              const uid = m.user_id
+              const currentRoundShare = allocMap[uid] - creditUsedMap[uid]
+              if (currentRoundShare < personalLimit) {
+                allocMap[uid] += 1
+                remaining -= 1
+              }
+            }
+          }
+
+          // หักยอดสะสม (Carry Credit) ของสมาชิกที่ใช้สิทธิ์ทบในรอบนี้
+          for (const m of sortedMembers) {
+            const uid = m.user_id
+            const usedAmt = creditUsedMap[uid] || 0
+            if (usedAmt > 0) {
+              const curCred = creditLookup[`${uid}|${itemType}`] || 0
+              const newCred = Math.max(0, curCred - usedAmt)
+              creditLookup[`${uid}|${itemType}`] = newCred
+              await supabase
+                .from("carry_credits")
+                .update({ credit: newCred, last_updated: new Date().toISOString() })
+                .eq("user_id", uid)
+                .eq("item_type", itemType)
+            }
+          }
+
+          let curPage = startPage
+          let curSlot = startSlot
+
+          for (const m of sortedMembers) {
+            const qty = allocMap[m.user_id] || 0
+            for (let i = 0; i < qty; i++) {
+              rowsToInsert.push({
+                event_name,
+                session_date,
+                user_id: m.user_id,
+                item_type: itemType,
+                page_number: curPage,
+                slot_number: curSlot,
+                total_pages: Math.max(overallTotalPages, curPage),
+                status: "allocated",
+              })
+              curSlot += 1
+              if (curSlot > 4) {
+                curSlot = 1
+                curPage += 1
+              }
+            }
           }
         }
 
-        let curPage = startPage
-        let curSlot = startSlot
+        // เพิ่มยอดสะสม (Carry Credit) ให้คนที่เข้าร่วมกิลด์วอร์แต่เลือกไม่ประมูลวันนี้ (no_bid)
+        for (const nb of noBidAttendees) {
+          const uid = nb.user_id
+          const curCred = creditLookup[`${uid}|${itemType}`] || 0
+          const nextCred = curCred + personalLimit
+          creditLookup[`${uid}|${itemType}`] = nextCred
 
-        for (const m of sortedMembers) {
-          const qty = allocMap[m.user_id] || 0
-          for (let i = 0; i < qty; i++) {
-            rowsToInsert.push({
-              event_name,
-              session_date,
-              user_id: m.user_id,
+          const { data: existingCred } = await supabase
+            .from("carry_credits")
+            .select("id")
+            .eq("user_id", uid)
+            .eq("item_type", itemType)
+            .maybeSingle()
+
+          if (existingCred) {
+            await supabase
+              .from("carry_credits")
+              .update({ credit: nextCred, last_updated: new Date().toISOString() })
+              .eq("id", existingCred.id)
+          } else {
+            await supabase.from("carry_credits").insert({
+              user_id: uid,
               item_type: itemType,
-              page_number: curPage,
-              slot_number: curSlot,
-              total_pages: Math.max(overallTotalPages, curPage),
-              status: "allocated",
+              credit: nextCred,
+              last_updated: new Date().toISOString(),
             })
-            curSlot += 1
-            if (curSlot > 4) {
-              curSlot = 1
-              curPage += 1
-            }
           }
         }
       }

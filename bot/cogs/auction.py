@@ -766,12 +766,11 @@ class AuctionCog(commands.Cog):
 
             iname = ITEM_LABELS.get(item_type, item_type)
 
-            for uid in no_bid_users:
-                await credit_service.add_credit(uid, item_type, personal_limit)
-
             members = await allocation_service.get_event_attendees(event_name, today, item_type)
 
             if not members:
+                for uid in no_bid_users:
+                    await credit_service.add_credit(uid, item_type, personal_limit)
                 header_embed.add_field(
                     name=f'{iname}',
                     value=f'จำนวน {total_qty} ชิ้น | ไม่มีผู้เข้าร่วมขอไอเทมนี้',
@@ -790,6 +789,20 @@ class AuctionCog(commands.Cog):
                 s['total_pages'] = max(overall_total_pages, s.get('total_pages', 1))
 
             await allocation_service.save_allocation(event_name, today, item_type, slots)
+
+            # หักยอดสะสม (Carry Credit) เฉพาะจำนวนที่ใช้ทบจริงในรอบนี้
+            used_by_user: dict[str, int] = {}
+            for s in slots:
+                uid = s['user_id']
+                used_amt = s.get('credit_used_total', 0)
+                if used_amt > 0:
+                    used_by_user[uid] = used_amt
+            for uid, used_amt in used_by_user.items():
+                await credit_service.use_credit(uid, item_type, used_amt)
+
+            # เพิ่มยอดสะสม (Carry Credit) ให้สมาชิกที่เข้าร่วมวอร์แต่เลือกไม่ประมูลวันนี้ (no_bid)
+            for uid in no_bid_users:
+                await credit_service.add_credit(uid, item_type, personal_limit)
 
             for s in slots:
                 did = s['discord_id']

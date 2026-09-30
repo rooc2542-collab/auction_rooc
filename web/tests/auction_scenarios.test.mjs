@@ -115,18 +115,47 @@ function allocateSlots(itemType, totalQty, personalLimit, startPage, startSlot, 
   })
 
   const n = sortedMembers.length
-  const base = Math.min(Math.floor(totalQty / n), personalLimit)
   const alloc = {}
+  const creditUsed = {}
   for (const m of sortedMembers) {
-    alloc[m.user_id] = base
+    alloc[m.user_id] = 0
+    creditUsed[m.user_id] = 0
   }
 
-  let remaining = totalQty - base * n
-  for (const m of sortedMembers) {
+  let remaining = totalQty
+
+  // ขั้นที่ 1: แจกสิทธิ์ทบจากยอดสะสม (Carry Credit Bonus) ให้คนที่มียอดสะสมก่อน
+  const maxCredit = Math.max(...sortedMembers.map((m) => Math.max(0, creditMap[m.user_id] || 0)), 0)
+  for (let pass = 0; pass < maxCredit; pass++) {
     if (remaining <= 0) break
-    if (alloc[m.user_id] < personalLimit) {
-      alloc[m.user_id] += 1
-      remaining -= 1
+    for (const m of sortedMembers) {
+      if (remaining <= 0) break
+      const uid = m.user_id
+      const userCred = Math.max(0, creditMap[uid] || 0)
+      if (creditUsed[uid] < userCred) {
+        alloc[uid] += 1
+        creditUsed[uid] += 1
+        remaining -= 1
+      }
+    }
+  }
+
+  // ขั้นที่ 2: นำของที่เหลือมาแบ่งโควตาของรอบปัจจุบันให้ทุกคน (คนละไม่เกิน personalLimit)
+  if (remaining > 0) {
+    const base = Math.min(Math.floor(remaining / n), personalLimit)
+    for (const m of sortedMembers) {
+      alloc[m.user_id] += base
+    }
+    remaining -= base * n
+
+    for (const m of sortedMembers) {
+      if (remaining <= 0) break
+      const uid = m.user_id
+      const currentRoundShare = alloc[uid] - creditUsed[uid]
+      if (currentRoundShare < personalLimit) {
+        alloc[uid] += 1
+        remaining -= 1
+      }
     }
   }
 
@@ -135,15 +164,19 @@ function allocateSlots(itemType, totalQty, personalLimit, startPage, startSlot, 
   let curSlot = startSlot
 
   for (const m of sortedMembers) {
-    const qty = alloc[m.user_id]
+    const uid = m.user_id
+    const qty = alloc[uid]
+    const usedCred = creditUsed[uid]
     for (let i = 0; i < qty; i++) {
       result.push({
-        user_id: m.user_id,
+        user_id: uid,
         display_name: m.display_name || "",
         discord_id: m.discord_id || "",
         item_type: itemType,
         page: curPage,
         slot: curSlot,
+        from_credit: i < usedCred,
+        credit_used_total: usedCred,
       })
       curSlot += 1
       if (curSlot > 4) {
@@ -198,40 +231,51 @@ test("Scenario 2: คนขอประมูลหารลงตัวพอ�
   assert.equal(slots[7].slot, 4)
 })
 
-test("Scenario 3: ของมีเศษเหลือ ทดสอบการลัดคิวด้วย Carry Credit (เศษการ์ดบอส 6 ชิ้น, ลิมิต 2, คนขอ 4 คน)", () => {
-  const members = [
-    { user_id: "u1", display_name: "EarlyNoCredit", discord_id: "3001" },
-    { user_id: "u2", display_name: "HighCredit3", discord_id: "3002" },
-    { user_id: "u3", display_name: "MidCredit1", discord_id: "3003" },
-    { user_id: "u4", display_name: "LateNoCredit", discord_id: "3004" },
+test("Scenario 3: สมาชิกเข้าร่วมกิลด์วอร์แต่ไม่ประมูลวันนี้ (no_bid) สะสมแต้มไว้ -> ครั้งถัดไปประมูล จะได้รับจำนวนมากกว่าคนอื่น!", () => {
+  // รอบที่ 1: สมุดการ์ด 2 ชิ้น, ลิมิต 1/คน
+  // PlayerA เลือก 'no_bid' (เข้าร่วมวอร์แต่ยังไม่ประมูลวันนี้) -> ได้ Carry Credit สะสม = +1
+  // PlayerB, PlayerC เลือก 'want_bid' -> ได้คนละ 1 ชิ้น
+  const carryCreditsAfterRound1 = {
+    PlayerA: 1, // สะสมมา 1 ชิ้นจากรอบที่ 1
+    PlayerB: 0,
+    PlayerC: 0,
+  }
+
+  // รอบที่ 2 (ครั้งถัดไป): สมุดการ์ดมี 4 ชิ้น, ลิมิตต่อคนในรอบนี้ = 1 ชิ้น
+  // คราวนี้ทั้ง PlayerA, PlayerB, PlayerC กดต้องการประมูล ('want_bid') ทุกคน!
+  const round2Members = [
+    { user_id: "PlayerB", display_name: "PlayerB", discord_id: "3002" },
+    { user_id: "PlayerA", display_name: "PlayerA", discord_id: "3001" },
+    { user_id: "PlayerC", display_name: "PlayerC", discord_id: "3003" },
   ]
-  const creditMap = { u1: 0, u2: 3, u3: 1, u4: 0 }
-  const slots = allocateSlots("Puppet", 6, 2, 1, 1, members, creditMap)
 
-  assert.equal(slots.length, 6)
+  const slotsRound2 = allocateSlots("Album", 4, 1, 1, 1, round2Members, carryCreditsAfterRound1)
+
   const countByUser = {}
-  for (const s of slots) countByUser[s.user_id] = (countByUser[s.user_id] || 0) + 1
+  for (const s of slotsRound2) countByUser[s.user_id] = (countByUser[s.user_id] || 0) + 1
 
-  assert.equal(countByUser.u2, 2, "u2 (Credit 3) ต้องได้ 2 ชิ้น")
-  assert.equal(countByUser.u3, 2, "u3 (Credit 1) ต้องได้ 2 ชิ้น")
-  assert.equal(countByUser.u1, 1, "u1 (Credit 0) ต้องได้ 1 ชิ้น")
-  assert.equal(countByUser.u4, 1, "u4 (Credit 0) ต้องได้ 1 ชิ้น")
-  assert.equal(slots[0].user_id, "u2", "คนที่มี Credit สูงสุดได้คิวช่องแรก")
+  // PlayerA มียอดสะสม 1 + สิทธิ์รอบนี้ 1 = ต้องได้รับ 2 ชิ้น (มากกว่าคนอื่นที่ได้คนละ 1 ชิ้น!)
+  assert.equal(countByUser.PlayerA, 2, "PlayerA ที่เก็บยอดสะสมจากรอบก่อนต้องได้ 2 ชิ้น (มากกว่าคนอื่น)")
+  assert.equal(countByUser.PlayerB, 1, "PlayerB ต้องได้ 1 ชิ้นตามลิมิตปกติ")
+  assert.equal(countByUser.PlayerC, 1, "PlayerC ต้องได้ 1 ชิ้นตามลิมิตปกติ")
+  assert.equal(slotsRound2[0].user_id, "PlayerA", "PlayerA ต้องได้คิวสล็อตแรกสุด")
+  assert.equal(slotsRound2[0].credit_used_total, 1, "บันทึกว่าใช้ Carry Credit ไป 1 แต้ม")
 })
 
-test("Scenario 4: ของมีน้อยกว่าจำนวนคนขอ (ขนนกดำแดง 2 ชิ้น, ลิมิต 1, คนขอ 5 คน)", () => {
+test("Scenario 4: ของมีน้อยกว่าจำนวนคนขอ (ขนนกดำแดง 2 ชิ้น, ลิมิต 1, คนขอ 5 คน โดย u3 มียอดสะสม Credit = 1)", () => {
   const members = [1, 2, 3, 4, 5].map((i) => ({
     user_id: `u${i}`,
     display_name: `User${i}`,
     discord_id: `400${i}`,
   }))
-  const creditMap = { u3: 2 }
+  const creditMap = { u3: 1 }
+  // u3 มี Credit 1 ชิ้น -> ได้ชิ้นทบ 1 ชิ้น + ของที่เหลืออีก 1 ชิ้นตกเป็นของ u3 ในฐานะคิวแรกของรอบนี้ (รวม u3 ได้ 2 ชิ้น!)
   const slots = allocateSlots("RedBlack", 2, 1, 3, 3, members, creditMap)
 
   assert.equal(slots.length, 2)
   assert.deepEqual(
     slots.map((s) => s.user_id),
-    ["u3", "u1"]
+    ["u3", "u3"]
   )
   assert.deepEqual(
     slots.map((s) => [s.page, s.slot]),
@@ -278,7 +322,6 @@ test("Scenario 6: แยกช่องกรอก จำนวน และ �
   assert.equal(res2.totalQty, 8)
   assert.equal(res2.limitVal, 3)
 
-  // ตรวจไฟล์ bot/cogs/auction.py จริงว่าทุก label ใน Modal ยาว <= 45 ตัวอักษร และมีระบบเช็ค status == 'closed'
   const auctionPyPath = path.resolve(process.cwd(), "../bot/cogs/auction.py")
   const auctionPy = fs.readFileSync(auctionPyPath, "utf8")
 
@@ -292,7 +335,6 @@ test("Scenario 6: แยกช่องกรอก จำนวน และ �
     )
   }
 
-  // ตรวจสอบว่ามีเงื่อนไขบังคับปิดโหวตก่อนประกาศผล
   assert.ok(
     auctionPy.includes("all(s.get('status') == 'closed' for s in all_sessions)"),
     "ต้องมีการตรวจสอบว่าปิดโหวตแล้ว (status == 'closed') ก่อนประกาศผล"

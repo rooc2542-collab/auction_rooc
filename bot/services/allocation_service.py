@@ -8,6 +8,7 @@ ITEM_LABELS = {
     'RedBlack': 'ขนนกดำแดง',
 }
 
+
 def compute_total_from_coords(start_page: int, start_slot: int, end_page: int, end_slot: int) -> int:
     """คำนวณจำนวนชิ้นรวมจากพิกัดหน้า/ช่อง"""
     if end_page < start_page or (end_page == start_page and end_slot < start_slot):
@@ -15,59 +16,95 @@ def compute_total_from_coords(start_page: int, start_slot: int, end_page: int, e
     return ((end_page - start_page) * 4) + (end_slot - start_slot) + 1
 
 
-def allocate_slots(item_type: str, total_qty: int, personal_limit: int,
-                   start_page: int, start_slot: int,
-                   members: list[dict], credit_map: dict[str, int]) -> list[dict]:
+def allocate_slots(
+    item_type: str,
+    total_qty: int,
+    personal_limit: int,
+    start_page: int,
+    start_slot: int,
+    members: list[dict],
+    credit_map: dict[str, int],
+) -> list[dict]:
     """
-    แจกจ่ายสล็อตให้สมาชิก:
-    1. แจกเฉลี่ยเท่าๆ กันก่อน
-    2. เศษที่เหลือให้คนที่มี Credit มากกว่า หรือลำดับก่อน คนละ +1
-    3. แปลงเป็น Page/Slot ในเกม (4 slots/page)
+    แจกจ่ายสล็อตให้สมาชิก (รองรับระบบทบยอดสะสม Carry Credit):
+    1. เรียงลำดับตาม Carry Credit มากก่อน (ถ้าเท่ากันเรียงตามเวลาลงชื่อก่อน)
+    2. ขั้นที่ 1 (Carry Credit Bonus): สมาชิกที่มียอดสะสมจากการกด 'ไม่ประมูล' (no_bid) ในรอบก่อน
+       จะได้รับสล็อตทบตามยอดสะสมก่อน (ทำให้ได้รับจำนวนชิ้นมากกว่าคนอื่นในรอบนี้)
+    3. ขั้นที่ 2 (Current Round Quota): นำจำนวนของที่เหลือมาแจกเฉลี่ยให้ทุกคนในรอบปัจจุบัน
+       (ไม่เกิน personal_limit ของรอบปัจจุบันต่อคน) และหากมีเศษให้เรียงตามลำดับคิว
+    4. แปลงเป็นพิกัด Page/Slot ในเกม (4 ช่องต่อหน้า) พร้อมบันทึก credit_used ของแต่ละคน
     """
     if not members or total_qty <= 0:
         return []
 
-    # เรียงตาม credit มากก่อน, ถ้าเท่ากัน ลำดับ list (เวลา vote ก่อน)
-    sorted_members = sorted(members, key=lambda m: (-credit_map.get(m['user_id'], 0), members.index(m)))
+    sorted_members = sorted(
+        members,
+        key=lambda m: (-credit_map.get(m['user_id'], 0), members.index(m)),
+    )
     n = len(sorted_members)
 
-    # base share ไม่เกิน limit
-    base = min(total_qty // n, personal_limit)
-    alloc = {m['user_id']: base for m in sorted_members}
-    remaining = total_qty - base * n
+    alloc = {m['user_id']: 0 for m in sorted_members}
+    credit_used = {m['user_id']: 0 for m in sorted_members}
+    remaining = total_qty
 
-    # กระจายเศษ
-    for m in sorted_members:
+    # ขั้นที่ 1: แจกสิทธิ์ทบจากยอดสะสม (Carry Credit) ให้คนที่มีแต้มสะสมก่อน
+    max_credit = max((max(0, credit_map.get(m['user_id'], 0)) for m in sorted_members), default=0)
+    for _ in range(max_credit):
         if remaining <= 0:
             break
-        if alloc[m['user_id']] < personal_limit:
-            alloc[m['user_id']] += 1
-            remaining -= 1
+        for m in sorted_members:
+            if remaining <= 0:
+                break
+            uid = m['user_id']
+            user_cred = max(0, credit_map.get(uid, 0))
+            if credit_used[uid] < user_cred:
+                alloc[uid] += 1
+                credit_used[uid] += 1
+                remaining -= 1
 
-    # แปลง -> Page/Slot
+    # ขั้นที่ 2: นำของที่เหลือมาแบ่งโควตาของรอบปัจจุบันให้ทุกคน (คนละไม่เกิน personal_limit)
+    if remaining > 0:
+        base = min(remaining // n, personal_limit)
+        for m in sorted_members:
+            uid = m['user_id']
+            alloc[uid] += base
+        remaining -= base * n
+
+        # กระจายเศษของรอบปัจจุบันให้คนที่ยังได้โควตารอบนี้ไม่ถึง personal_limit
+        for m in sorted_members:
+            if remaining <= 0:
+                break
+            uid = m['user_id']
+            current_round_share = alloc[uid] - credit_used[uid]
+            if current_round_share < personal_limit:
+                alloc[uid] += 1
+                remaining -= 1
+
+    # ขั้นที่ 3: แปลงเป็น Page/Slot (หน้าละ 4 ช่อง)
     result = []
     cur_page = start_page
     cur_slot = start_slot
-    total_pages = start_page  # จะ update ทีหลัง
 
     for m in sorted_members:
-        qty = alloc[m['user_id']]
-        for _ in range(qty):
+        uid = m['user_id']
+        qty = alloc[uid]
+        used_cred = credit_used[uid]
+        for idx in range(qty):
             result.append({
-                'user_id': m['user_id'],
+                'user_id': uid,
                 'display_name': m.get('display_name', ''),
                 'discord_id': m.get('discord_id', ''),
                 'item_type': item_type,
                 'page': cur_page,
                 'slot': cur_slot,
+                'from_credit': idx < used_cred,
+                'credit_used_total': used_cred,
             })
             cur_slot += 1
             if cur_slot > 4:
                 cur_slot = 1
                 cur_page += 1
 
-    # คำนวณ total_pages = หน้าสุดท้ายที่ใช้
-    # (ใส่ข้อมูล total_pages เข้าทุก row ทีหลัง)
     last_page = cur_page if cur_slot > 1 else cur_page - 1
     for row in result:
         row['total_pages'] = max(last_page, start_page)
@@ -77,7 +114,6 @@ def allocate_slots(item_type: str, total_qty: int, personal_limit: int,
 
 async def save_allocation(event_name: str, session_date: str, item_type: str, slots: list[dict]) -> None:
     """บันทึกผลการจัดสรรสล็อตลง DB"""
-    # ลบการจัดสรรเดิมก่อน
     supabase.table('allocated_slots').delete() \
         .eq('event_name', event_name) \
         .eq('session_date', session_date) \
