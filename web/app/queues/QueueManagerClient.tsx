@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useMutation } from "@tanstack/react-query"
 
 type ItemKey = "Album" | "Puppet" | "White" | "RedBlack"
@@ -89,6 +90,7 @@ export default function QueueManagerClient({
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [showSaveHistoryModal, setShowSaveHistoryModal] = useState(false)
 
   // Proxy add member state
   const [proxyUserId, setProxyUserId] = useState("")
@@ -456,6 +458,46 @@ export default function QueueManagerClient({
     }
   }
 
+  const handleSaveRoundToHistory = async () => {
+    if (!isAdmin) return
+    setBusy(true)
+    setToast(null)
+    try {
+      const res = await fetch("/api/queues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "save_round_history",
+          event_name: eventName,
+          session_date: eventDate,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาดในการบันทึกประวัติ")
+
+      // Optimistically update all non-skipped slots to awarded
+      setSlots((prev) =>
+        prev.map((s) =>
+          s.event_name === eventName && s.session_date === eventDate && s.status !== "skipped"
+            ? { ...s, status: "awarded" }
+            : s
+        )
+      )
+
+      setShowSaveHistoryModal(false)
+      setToast({
+        type: "ok",
+        text: `บันทึกเป็นประวัติการประมูลเรียบร้อยแล้ว (${data.saved_count} รายการใหม่ จากทั้งหมด ${data.total_awarded} ช่อง)`,
+      })
+      await refreshData()
+      router.refresh()
+    } catch (e: any) {
+      setToast({ type: "err", text: e.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const handleDeleteEvent = async () => {
     await callApi(
       { action: "delete_event", event_name: eventName, session_date: eventDate },
@@ -708,6 +750,14 @@ export default function QueueManagerClient({
         >
           <span>{toast.type === "ok" ? "✓" : "⚠️"}</span>
           <span>{toast.text}</span>
+          {toast.type === "ok" && toast.text.includes("ประวัติ") && (
+            <Link
+              href="/history"
+              className="text-xs text-emerald-400 hover:text-emerald-300 underline font-semibold ml-1 cursor-pointer"
+            >
+              ดูหน้าประวัติการประมูล →
+            </Link>
+          )}
           <button
             onClick={() => setToast(null)}
             className="ml-2 text-zinc-500 hover:text-zinc-300 text-xs cursor-pointer"
@@ -762,6 +812,22 @@ export default function QueueManagerClient({
                 {busy ? "กำลังคำนวณ..." : "คำนวณสล็อตใหม่"}
               </button>
             )}
+            {isAdmin && currentSlots.length > 0 && (
+              <button
+                onClick={() => setShowSaveHistoryModal(true)}
+                disabled={busy}
+                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm border border-emerald-500 transition-all disabled:opacity-50 cursor-pointer text-center flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <span>💾 บันทึกเป็นประวัติรอบนี้</span>
+              </button>
+            )}
+            <Link
+              href="/history"
+              className="px-3.5 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 text-xs sm:text-sm border border-zinc-700 transition-all text-center flex items-center justify-center gap-1.5"
+            >
+              <span>📜 ดูประวัติ</span>
+              <span className="text-zinc-500">→</span>
+            </Link>
             {isAdmin && existingEvents.length > 0 && (
               confirmDelete ? (
                 <div className="flex items-center gap-1.5">
@@ -830,30 +896,41 @@ export default function QueueManagerClient({
               })}
             </div>
 
-            {/* Batch Actions */}
-            {isAdmin && selectedSlotIds.size > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-400 font-medium">เลือก {selectedSlotIds.size} ช่อง:</span>
+            {/* Batch Actions & History Save */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {isAdmin && selectedSlotIds.size > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-zinc-400 font-medium">เลือก {selectedSlotIds.size} ช่อง:</span>
+                  <button
+                    onClick={() => handleSlotStatus(Array.from(selectedSlotIds), "awarded")}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer"
+                  >
+                    มอบของที่เลือก
+                  </button>
+                  <button
+                    onClick={() => handleSlotStatus(Array.from(selectedSlotIds), "skipped")}
+                    className="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-white text-xs font-medium cursor-pointer"
+                  >
+                    ข้ามคิว
+                  </button>
+                  <button
+                    onClick={() => setSelectedSlotIds(new Set())}
+                    className="px-2.5 py-1.5 rounded-lg bg-zinc-800 text-zinc-400 text-xs cursor-pointer border border-zinc-700"
+                  >
+                    ล้าง
+                  </button>
+                </div>
+              )}
+              {isAdmin && currentSlots.length > 0 && (
                 <button
-                  onClick={() => handleSlotStatus(Array.from(selectedSlotIds), "awarded")}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer"
+                  onClick={() => setShowSaveHistoryModal(true)}
+                  disabled={busy}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
                 >
-                  มอบของที่เลือก
+                  <span>💾 บันทึกผลรอบนี้เป็นประวัติ</span>
                 </button>
-                <button
-                  onClick={() => handleSlotStatus(Array.from(selectedSlotIds), "skipped")}
-                  className="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-white text-xs font-medium cursor-pointer"
-                >
-                  ข้ามคิว
-                </button>
-                <button
-                  onClick={() => setSelectedSlotIds(new Set())}
-                  className="px-2.5 py-1.5 rounded-lg bg-zinc-800 text-zinc-400 text-xs cursor-pointer border border-zinc-700"
-                >
-                  ล้าง
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* 4-Slot In-Game Page View */}
@@ -1466,6 +1543,53 @@ export default function QueueManagerClient({
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal: ยืนยันบันทึกเป็นประวัติการประมูล */}
+      {showSaveHistoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-950/80 border border-emerald-700/60 flex items-center justify-center text-xl">
+                💾
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-zinc-100">บันทึกเป็นประวัติการประมูล</h3>
+                <p className="text-xs text-zinc-400">รอบ: {eventName} ({eventDate})</p>
+              </div>
+            </div>
+
+            <div className="bg-zinc-800/60 rounded-xl p-4 border border-zinc-700/60 text-xs text-zinc-300 space-y-2">
+              <p>
+                ระบบจะทำการ:
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-zinc-400">
+                <li>ปรับสถานะสล็อตทั้งหมด ({currentSlots.length} ช่อง) เป็น <b className="text-emerald-400">"ประมูลสำเร็จ"</b></li>
+                <li>บันทึกประวัติการรับไอเทมของสมาชิกทุกคนลงใน <b className="text-zinc-200">ประวัติการประมูล (Auction History)</b></li>
+                <li>รายการที่เคยบันทึกไปแล้วจะไม่ถูกบันทึกซ้ำซ้อน</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowSaveHistoryModal(false)}
+                disabled={busy}
+                className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold border border-zinc-700 cursor-pointer transition-all"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveRoundToHistory}
+                disabled={busy}
+                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-lg shadow-emerald-950/50"
+              >
+                {busy ? "กำลังบันทึก..." : "💾 ยืนยันบันทึกประวัติ"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
+import Link from "next/link"
 import { createAdminClient } from "@/lib/supabase/server"
 import { ITEM_CONFIG } from "@/lib/constants"
 import type { ItemType } from "@/lib/constants"
@@ -23,9 +24,17 @@ export default async function HistoryPage() {
       <NavBar isAdmin={isAdmin} />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-zinc-100">ประวัติการประมูล</h1>
-          <p className="text-zinc-500 text-sm mt-1">รายการล่าสุด 200 รายการ</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-100">ประวัติการประมูล</h1>
+            <p className="text-zinc-500 text-sm mt-1">รายการล่าสุด 200 รายการ</p>
+          </div>
+          <Link
+            href="/queues"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm font-medium border border-zinc-700 transition-colors w-fit"
+          >
+            ← กลับหน้าจัดคิวและสล็อต
+          </Link>
         </div>
 
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">

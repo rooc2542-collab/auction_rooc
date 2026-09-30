@@ -443,12 +443,20 @@ export async function POST(req: NextRequest) {
 
       // ถ้ากดมอบของ (awarded) ให้บันทึกประวัติลง auction_history ด้วย
       if (status === "awarded" && targetSlots && targetSlots.length > 0) {
+        const { data: adminProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("role", "admin")
+          .limit(1)
+          .maybeSingle()
+
         const historyRows = targetSlots
           .filter((s: any) => s.status !== "awarded" && s.user_id)
           .map((s: any) => ({
             user_id: s.user_id,
             item_type: s.item_type,
             qty_awarded: 1,
+            awarded_by: adminProfile?.id || null,
             note: `${s.event_name} (${s.session_date}) - Page ${s.page_number}/${s.total_pages} Slot ${s.slot_number}`,
             awarded_at: new Date().toISOString(),
           }))
@@ -458,6 +466,82 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json({ success: true })
+    }
+
+    // 6.5 บันทึกผลการจัดสรรทั้งรอบลงเป็นประวัติการประมูล (Save Round to Auction History)
+    if (action === "save_round_history") {
+      const { event_name, session_date } = body
+      if (!event_name || !session_date) {
+        return NextResponse.json({ error: "กรุณาระบุชื่ออีเวนต์และวันที่" }, { status: 400 })
+      }
+
+      // ดึงสล็อตทั้งหมดในรอบนี้ที่มี user_id
+      const { data: targetSlots, error: fetchErr } = await supabase
+        .from("allocated_slots")
+        .select("*, profiles:user_id(display_name)")
+        .eq("event_name", event_name)
+        .eq("session_date", session_date)
+        .not("user_id", "is", null)
+
+      if (fetchErr) throw fetchErr
+
+      if (!targetSlots || targetSlots.length === 0) {
+        return NextResponse.json(
+          { error: "ไม่พบข้อมูลสล็อตที่มีการจัดสรรในรอบนี้ (กรุณากดคำนวณสล็อตก่อนบันทึกประวัติ)" },
+          { status: 400 }
+        )
+      }
+
+      // ดึง admin profile เพื่อใส่ awarded_by
+      const { data: adminProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("role", "admin")
+        .limit(1)
+        .maybeSingle()
+
+      // อัปเดตสถานะของสล็อตทั้งหมดในรอบนี้ (ที่ไม่ใช่ skipped) ให้เป็น awarded
+      const eligibleSlots = targetSlots.filter((s: any) => s.status !== "skipped")
+      const eligibleIds = eligibleSlots.map((s: any) => s.id)
+
+      if (eligibleIds.length > 0) {
+        const { error: updateErr } = await supabase
+          .from("allocated_slots")
+          .update({ status: "awarded" })
+          .in("id", eligibleIds)
+
+        if (updateErr) throw updateErr
+      }
+
+      // ตรวจสอบประวัติเดิมเพื่อไม่ให้บันทึกซ้ำซ้อน
+      const { data: existingHistories } = await supabase
+        .from("auction_history")
+        .select("note")
+        .like("note", `${event_name} (${session_date})%`)
+
+      const existingNotes = new Set((existingHistories || []).map((h: any) => h.note))
+
+      const historyRows = eligibleSlots
+        .map((s: any) => ({
+          user_id: s.user_id,
+          item_type: s.item_type,
+          qty_awarded: 1,
+          awarded_by: adminProfile?.id || null,
+          note: `${s.event_name} (${s.session_date}) - Page ${s.page_number}/${s.total_pages} Slot ${s.slot_number}`,
+          awarded_at: new Date().toISOString(),
+        }))
+        .filter((row: any) => !existingNotes.has(row.note))
+
+      if (historyRows.length > 0) {
+        const { error: insErr } = await supabase.from("auction_history").insert(historyRows)
+        if (insErr) throw insErr
+      }
+
+      return NextResponse.json({
+        success: true,
+        saved_count: historyRows.length,
+        total_awarded: eligibleSlots.length,
+      })
     }
 
     // 7. ลบรอบกิจกรรมทั้งหมด (ลบทั้ง allocated_slots, event_attendance, event_sessions)
