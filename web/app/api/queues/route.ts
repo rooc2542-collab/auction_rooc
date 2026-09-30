@@ -4,6 +4,54 @@ import { NextRequest, NextResponse } from "next/server"
 
 const PRIORITY_ORDER = ["Album", "Puppet", "White", "RedBlack"] as const
 
+export async function GET(req: NextRequest) {
+  const session = await auth()
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const supabase = createAdminClient()
+  const { searchParams } = new URL(req.url)
+  const event_name = searchParams.get("event_name")
+  const session_date = searchParams.get("session_date")
+
+  let sessionsQuery = supabase.from("event_sessions").select("*").order("session_date", { ascending: false })
+  let slotsQuery = supabase
+    .from("allocated_slots")
+    .select("*, profiles:user_id(display_name, discord_id, job_class)")
+    .order("page_number", { ascending: true })
+    .order("slot_number", { ascending: true })
+  let attendanceQuery = supabase
+    .from("event_attendance")
+    .select("*, profiles:user_id(display_name, discord_id, job_class)")
+    .order("created_at", { ascending: true })
+
+  if (event_name && session_date) {
+    sessionsQuery = sessionsQuery.eq("event_name", event_name).eq("session_date", session_date)
+    slotsQuery = slotsQuery.eq("event_name", event_name).eq("session_date", session_date)
+    attendanceQuery = attendanceQuery.eq("event_name", event_name).eq("event_date", session_date)
+  }
+
+  const [
+    { data: sessions },
+    { data: slots },
+    { data: attendance },
+    { data: credits },
+  ] = await Promise.all([
+    sessionsQuery,
+    slotsQuery,
+    attendanceQuery,
+    supabase.from("carry_credits").select("*"),
+  ])
+
+  return NextResponse.json({
+    sessions: sessions || [],
+    slots: slots || [],
+    attendance: attendance || [],
+    credits: credits || [],
+  })
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session || (session.user as any)?.role !== "admin") {

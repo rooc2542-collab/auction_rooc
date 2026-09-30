@@ -198,7 +198,8 @@ export default function MemberTable({
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาด")
         setMessage({ type: "success", text: "เพิ่มสมาชิกสำเร็จ" })
-        setTimeout(() => { setIsAddModalOpen(false); window.location.reload() }, 1000)
+        router.refresh()
+        setTimeout(() => { setIsAddModalOpen(false); setMessage(null) }, 600)
       } else if (editMember) {
         const res = await fetch("/api/members/update", {
           method: "PATCH",
@@ -208,7 +209,8 @@ export default function MemberTable({
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาด")
         setMessage({ type: "success", text: "อัปเดตข้อมูลสำเร็จ" })
-        setTimeout(() => { setEditMember(null); window.location.reload() }, 1000)
+        router.refresh()
+        setTimeout(() => { setEditMember(null); setMessage(null) }, 600)
       }
     } catch (e: any) {
       setMessage({ type: "error", text: `${e.message}` })
@@ -222,7 +224,7 @@ export default function MemberTable({
     try {
       const res = await fetch(`/api/members/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("ลบไม่สำเร็จ")
-      window.location.reload()
+      router.refresh()
     } catch (e: any) {
       alert(`${e.message}`)
     }

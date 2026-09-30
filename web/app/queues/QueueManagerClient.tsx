@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 type ItemKey = "Album" | "Puppet" | "White" | "RedBlack"
 
@@ -55,14 +56,26 @@ export default function QueueManagerClient({
   initialSlots,
   initialCredits,
 }: Props) {
+  const router = useRouter()
   const todayStr = new Date().toISOString().split("T")[0]
+
+  // Local state for dynamic data (prevents full-page reloads and white flashes)
+  const [sessions, setSessions] = useState(initialSessions)
+  const [slots, setSlots] = useState(initialSlots)
+  const [attendance, setAttendance] = useState(initialAttendance)
+  const [credits, setCredits] = useState(initialCredits)
+
+  useEffect(() => { setSessions(initialSessions) }, [initialSessions])
+  useEffect(() => { setSlots(initialSlots) }, [initialSlots])
+  useEffect(() => { setAttendance(initialAttendance) }, [initialAttendance])
+  useEffect(() => { setCredits(initialCredits) }, [initialCredits])
 
   const existingEvents = useMemo(() => {
     const set = new Set<string>()
-    for (const s of initialSessions) set.add(`${s.event_name}|${s.session_date}`)
-    for (const a of initialAttendance) set.add(`${a.event_name}|${a.event_date}`)
+    for (const s of sessions) set.add(`${s.event_name}|${s.session_date}`)
+    for (const a of attendance) set.add(`${a.event_name}|${a.event_date}`)
     return Array.from(set)
-  }, [initialSessions, initialAttendance])
+  }, [sessions, attendance])
 
   const defaultPair = existingEvents[0] ? existingEvents[0].split("|") : ["Emperium Overrun", todayStr]
 
@@ -84,7 +97,7 @@ export default function QueueManagerClient({
   const buildInitialForm = (evName: string, evDate: string): Record<ItemKey, ItemFormEntry> => {
     const result = {} as Record<ItemKey, ItemFormEntry>
     for (const k of ITEM_KEYS) {
-      const found = initialSessions.find(
+      const found = sessions.find(
         (s) => s.event_name === evName && s.session_date === evDate && s.item_type === k
       )
       result[k] = {
@@ -144,24 +157,24 @@ export default function QueueManagerClient({
 
   // สถานะการปิดโหวตของรอบที่เลือก
   const isPollClosed = useMemo(() => {
-    const rows = initialSessions.filter((s) => s.event_name === eventName && s.session_date === eventDate)
+    const rows = sessions.filter((s) => s.event_name === eventName && s.session_date === eventDate)
     if (rows.length === 0) return false
     return rows.every((r) => r.status === "closed")
-  }, [initialSessions, eventName, eventDate])
+  }, [sessions, eventName, eventDate])
 
   // ข้อมูลที่กรองตาม Event ปัจจุบัน
   const currentAttendance = useMemo(
-    () => initialAttendance.filter((a) => a.event_name === eventName && a.event_date === eventDate),
-    [initialAttendance, eventName, eventDate]
+    () => attendance.filter((a) => a.event_name === eventName && a.event_date === eventDate),
+    [attendance, eventName, eventDate]
   )
 
   const creditMap = useMemo(() => {
     const map: Record<string, number> = {}
-    for (const c of initialCredits) {
+    for (const c of credits) {
       map[`${c.user_id}|${c.item_type}`] = c.credit || 0
     }
     return map
-  }, [initialCredits])
+  }, [credits])
 
   // เรียงลำดับคิว: want_bid มาก่อน -> แต้มรวม Carry Credit มากก่อน -> เวลาลงชื่อก่อน
   const sortedAttendance = useMemo(() => {
@@ -178,13 +191,13 @@ export default function QueueManagerClient({
   }, [currentAttendance, creditMap])
 
   const currentSlots = useMemo(() => {
-    return initialSlots.filter(
+    return slots.filter(
       (s) =>
         s.event_name === eventName &&
         s.session_date === eventDate &&
         (filterItem === "ALL" || s.item_type === filterItem)
     )
-  }, [initialSlots, eventName, eventDate, filterItem])
+  }, [slots, eventName, eventDate, filterItem])
 
   // จัดกลุ่มสล็อตเป็นหน้าละ 4 ช่อง (4 Slots per Page)
   const pagesList = useMemo(() => {
@@ -208,7 +221,7 @@ export default function QueueManagerClient({
 
   // สร้างข้อความ Kafra Format
   const kafraAnnouncementText = useMemo(() => {
-    const allEventSlots = initialSlots.filter(
+    const allEventSlots = slots.filter(
       (s) => s.event_name === eventName && s.session_date === eventDate
     )
     if (allEventSlots.length === 0) return ""
@@ -245,7 +258,24 @@ export default function QueueManagerClient({
     }
 
     return blocks.join("\n-----\n")
-  }, [initialSlots, eventName, eventDate])
+  }, [slots, eventName, eventDate])
+
+  async function refreshData(evName = eventName, evDate = eventDate) {
+    try {
+      const res = await fetch(
+        `/api/queues?event_name=${encodeURIComponent(evName)}&session_date=${encodeURIComponent(evDate)}`
+      )
+      if (res.ok) {
+        const data = await res.json()
+        if (data.sessions) setSessions(data.sessions)
+        if (data.slots) setSlots(data.slots)
+        if (data.attendance) setAttendance(data.attendance)
+        if (data.credits) setCredits(data.credits)
+      }
+    } catch (err) {
+      console.error("refreshData error", err)
+    }
+  }
 
   async function callApi(payload: any, successMsg: string) {
     setBusy(true)
@@ -259,7 +289,8 @@ export default function QueueManagerClient({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาด")
       setToast({ type: "ok", text: successMsg })
-      setTimeout(() => window.location.reload(), 700)
+      await refreshData()
+      router.refresh()
     } catch (e: any) {
       setToast({ type: "err", text: `${e.message}` })
     } finally {
@@ -270,6 +301,14 @@ export default function QueueManagerClient({
   const handleTogglePollStatus = async () => {
     const nextStatus = isPollClosed ? "active" : "closed"
     const msg = nextStatus === "closed" ? "ปิดโหวตเรียบร้อยแล้ว" : "เปิดโหวตอีกครั้งเรียบร้อยแล้ว"
+    // Optimistic update
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.event_name === eventName && s.session_date === eventDate
+          ? { ...s, status: nextStatus }
+          : s
+      )
+    )
     await callApi(
       { action: "set_poll_status", event_name: eventName, session_date: eventDate, status: nextStatus },
       msg
@@ -327,7 +366,8 @@ export default function QueueManagerClient({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "คำนวณไม่สำเร็จ")
       setToast({ type: "ok", text: `จัดสรรสล็อตสำเร็จทั้งหมด ${data.allocated_count} ช่อง` })
-      setTimeout(() => window.location.reload(), 800)
+      await refreshData()
+      router.refresh()
     } catch (e: any) {
       setToast({ type: "err", text: `${e.message}` })
     } finally {
@@ -358,6 +398,7 @@ export default function QueueManagerClient({
       },
       `เพิ่ม ${member.display_name} เข้าคิวเรียบร้อยแล้ว`
     )
+    setProxyUserId("")
   }
 
   const handleToggleMemberItem = async (att: any, itemKey: ItemKey) => {
@@ -366,6 +407,10 @@ export default function QueueManagerClient({
     const next = current.includes(itemKey)
       ? current.filter((x) => x !== itemKey)
       : [...current, itemKey]
+    // Optimistic update
+    setAttendance((prev) =>
+      prev.map((a) => (a.id === att.id ? { ...a, interested_items: next } : a))
+    )
     await callApi(
       {
         action: "upsert_attendance",
@@ -382,6 +427,11 @@ export default function QueueManagerClient({
 
   const handleStatusChange = async (att: any, newStatus: string) => {
     if (!isAdmin) return
+    const nextItems = newStatus === "want_bid" ? (att.interested_items?.length ? att.interested_items : ITEM_KEYS) : []
+    // Optimistic update
+    setAttendance((prev) =>
+      prev.map((a) => (a.id === att.id ? { ...a, status: newStatus, interested_items: nextItems } : a))
+    )
     await callApi(
       {
         action: "upsert_attendance",
@@ -390,7 +440,7 @@ export default function QueueManagerClient({
         user_id: att.user_id,
         discord_id: att.discord_id,
         status: newStatus,
-        interested_items: newStatus === "want_bid" ? (att.interested_items?.length ? att.interested_items : ITEM_KEYS) : [],
+        interested_items: nextItems,
       },
       "เปลี่ยนสถานะคิวสำเร็จ"
     )
@@ -400,6 +450,16 @@ export default function QueueManagerClient({
     if (!isAdmin || !userId) return
     const cur = creditMap[`${userId}|${itemType}`] || 0
     const next = Math.max(0, cur + delta)
+    // Optimistic update
+    setCredits((prev) => {
+      const idx = prev.findIndex((c) => c.user_id === userId && c.item_type === itemType)
+      if (idx >= 0) {
+        const copy = [...prev]
+        copy[idx] = { ...copy[idx], credit: next }
+        return copy
+      }
+      return [...prev, { id: "temp-" + Date.now(), user_id: userId, item_type: itemType, credit: next }]
+    })
     await callApi(
       { action: "update_credit", user_id: userId, item_type: itemType, credit: next },
       `ปรับยอดสะสม ${ITEMS_META[itemType].label} เป็น ${next} แต้ม`
@@ -408,10 +468,20 @@ export default function QueueManagerClient({
 
   const handleSlotStatus = async (slotIds: string[], status: "allocated" | "awarded" | "skipped") => {
     if (!isAdmin || slotIds.length === 0) return
+    // Optimistic update
+    setSlots((prev) =>
+      prev.map((s) => (slotIds.includes(s.id) ? { ...s, status } : s))
+    )
+    setSelectedSlotIds(new Set())
     await callApi(
       { action: "update_slot_status", slot_ids: slotIds, status },
       `อัปเดตสถานะ ${slotIds.length} สล็อตเรียบร้อยแล้ว`
     )
+  }
+
+  const handleDeleteAttendance = async (attId: string) => {
+    setAttendance((prev) => prev.filter((a) => a.id !== attId))
+    await callApi({ action: "delete_attendance", id: attId }, "ลบคิวเรียบร้อยแล้ว")
   }
 
   return (
@@ -1015,9 +1085,7 @@ export default function QueueManagerClient({
                           {isAdmin && (
                             <td className="px-4 py-3.5 text-right">
                               <button
-                                onClick={() =>
-                                  callApi({ action: "delete_attendance", id: att.id }, "ลบคิวเรียบร้อยแล้ว")
-                                }
+                                onClick={() => handleDeleteAttendance(att.id)}
                                 className="text-xs font-medium text-rose-400 hover:text-white bg-rose-950/40 hover:bg-rose-700 border border-rose-800/50 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
                               >
                                 ลบ
