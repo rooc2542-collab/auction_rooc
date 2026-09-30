@@ -1,6 +1,7 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { createAdminClient } from "@/lib/supabase/server"
+import NavBar from "@/components/NavBar"
 import ResourcePoolClient from "./ResourcePoolClient"
 
 export const dynamic = "force-dynamic"
@@ -38,12 +39,17 @@ export default async function PoolPage() {
     .limit(30)
 
   return (
-    <ResourcePoolClient
-      isAdmin={isAdmin}
-      initialSessions={sessions || []}
-      initialSlots={slots || []}
-      initialMembers={members || []}
-      initialSnapshots={snapshots || []}
-    />
+    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      <NavBar isAdmin={isAdmin} />
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <ResourcePoolClient
+          isAdmin={isAdmin}
+          initialSessions={sessions || []}
+          initialSlots={slots || []}
+          initialMembers={members || []}
+          initialSnapshots={snapshots || []}
+        />
+      </main>
+    </div>
   )
 }

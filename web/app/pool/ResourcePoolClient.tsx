@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
+import Link from "next/link"
 
 type ItemKey = "Album" | "Puppet" | "White" | "RedBlack"
 
@@ -424,6 +425,23 @@ export default function ResourcePoolClient({
 
   return (
     <div className="space-y-6">
+      {/* Quick Navigation / Back Link */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Link
+          href="/bench"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100 text-xs font-medium border border-zinc-800 transition-all cursor-pointer shadow-sm"
+        >
+          <span>←</span>
+          <span>กลับไป Bench Organizer</span>
+        </Link>
+        <Link
+          href="/queues"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs font-medium border border-zinc-800/80 transition-all cursor-pointer shadow-sm"
+        >
+          <span>จัดคิว & สล็อต</span>
+        </Link>
+      </div>
+
       {/* Header & Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
