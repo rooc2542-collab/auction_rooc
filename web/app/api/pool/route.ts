@@ -2,101 +2,6 @@ import { auth } from "@/auth"
 import { createAdminClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 
-// Preset seed snapshots matching Image 5
-const SEED_SNAPSHOTS = [
-  {
-    id: "seed-1",
-    event_name: "Emperium Overrun",
-    event_date: "2026-09-27",
-    snapshot_label: "Emperium Overrun: September 27, 2026",
-    queue_entries: 285,
-    discord_sent: true,
-    created_at: "2026-09-27T12:00:00Z",
-    created_by: "Admin",
-    pool_data: { Album: 35, Puppet: 10, White: 120, RedBlack: 120 },
-  },
-  {
-    id: "seed-2",
-    event_name: "Guild League",
-    event_date: "2026-09-24",
-    snapshot_label: "Guild League : September 24, 2026",
-    queue_entries: 213,
-    discord_sent: true,
-    created_at: "2026-09-24T12:00:00Z",
-    created_by: "Admin",
-    pool_data: { Album: 30, Puppet: 8, White: 85, RedBlack: 90 },
-  },
-  {
-    id: "seed-3",
-    event_name: "Guild League",
-    event_date: "2026-09-22",
-    snapshot_label: "Guild League : September 22, 2026",
-    queue_entries: 213,
-    discord_sent: true,
-    created_at: "2026-09-22T12:00:00Z",
-    created_by: "Admin",
-    pool_data: { Album: 30, Puppet: 8, White: 85, RedBlack: 90 },
-  },
-  {
-    id: "seed-4",
-    event_name: "Emperium Overrun",
-    event_date: "2026-09-20",
-    snapshot_label: "Emperium Overrun: September 20, 2026",
-    queue_entries: 285,
-    discord_sent: true,
-    created_at: "2026-09-20T12:00:00Z",
-    created_by: "Admin",
-    pool_data: { Album: 35, Puppet: 10, White: 120, RedBlack: 120 },
-  },
-  {
-    id: "seed-5",
-    event_name: "Guild League",
-    event_date: "2026-09-17",
-    snapshot_label: "Guild League : September 17, 2026",
-    queue_entries: 332,
-    discord_sent: true,
-    created_at: "2026-09-17T12:00:00Z",
-    created_by: "Admin",
-    pool_data: { Album: 40, Puppet: 12, White: 140, RedBlack: 140 },
-  },
-  {
-    id: "seed-6",
-    event_name: "Guild League",
-    event_date: "2026-09-15",
-    snapshot_label: "Guild League : September 15, 2026",
-    queue_entries: 332,
-    discord_sent: true,
-    created_at: "2026-09-15T12:00:00Z",
-    created_by: "Admin",
-    pool_data: { Album: 40, Puppet: 12, White: 140, RedBlack: 140 },
-  },
-  {
-    id: "seed-7",
-    event_name: "Emperium Overrun",
-    event_date: "2026-09-13",
-    snapshot_label: "Emperium Overrun: September 13, 2026",
-    queue_entries: 262,
-    discord_sent: true,
-    created_at: "2026-09-13T12:00:00Z",
-    created_by: "Admin",
-    pool_data: { Album: 32, Puppet: 10, White: 110, RedBlack: 110 },
-  },
-  {
-    id: "seed-8",
-    event_name: "Guild League",
-    event_date: "2026-09-29",
-    snapshot_label: "Guild League : September 29, 2026",
-    queue_entries: 436,
-    discord_sent: false,
-    created_at: "2026-09-29T12:00:00Z",
-    created_by: "Admin",
-    pool_data: { Album: 41, Puppet: 11, White: 174, RedBlack: 210 },
-  },
-]
-
-// In-memory snapshot cache to guarantee persistence even before Supabase table is created
-let inMemorySnapshots: any[] = [...SEED_SNAPSHOTS]
-
 export async function GET(req: NextRequest) {
   const supabase = createAdminClient()
   const { searchParams } = new URL(req.url)
@@ -104,30 +9,27 @@ export async function GET(req: NextRequest) {
 
   // GET snapshots list
   if (action === "snapshots") {
-    try {
-      const { data, error } = await supabase
-        .from("pool_snapshots")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50)
+    const { data, error } = await supabase
+      .from("pool_snapshots")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50)
 
-      if (!error && Array.isArray(data) && data.length > 0) {
-        return NextResponse.json({ snapshots: data })
-      }
-    } catch {}
-    return NextResponse.json({ snapshots: inMemorySnapshots })
+    if (error) return NextResponse.json({ snapshots: [] })
+    return NextResponse.json({ snapshots: data || [] })
   }
 
   // GET single snapshot detail
   if (action === "snapshot_detail") {
     const id = searchParams.get("id")
     if (!id) return NextResponse.json({ error: "No id" }, { status: 400 })
-    try {
-      const { data, error } = await supabase.from("pool_snapshots").select("*").eq("id", id).maybeSingle()
-      if (!error && data) return NextResponse.json({ snapshot: data })
-    } catch {}
-    const found = inMemorySnapshots.find((s) => s.id === id)
-    return NextResponse.json({ snapshot: found || null })
+    const { data, error } = await supabase
+      .from("pool_snapshots")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle()
+    if (error || !data) return NextResponse.json({ snapshot: null })
+    return NextResponse.json({ snapshot: data })
   }
 
   // Load current sessions, slots, members
@@ -146,11 +48,17 @@ export async function GET(req: NextRequest) {
     .select("id, display_name, discord_id, job_class")
     .order("display_name")
 
+  const { data: snapshots } = await supabase
+    .from("pool_snapshots")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(50)
+
   return NextResponse.json({
     sessions: sessions || [],
     slots: slots || [],
     members: members || [],
-    snapshots: inMemorySnapshots,
+    snapshots: snapshots || [],
   })
 }
 
@@ -171,8 +79,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "ข้อมูลไม่ครบถ้วน" }, { status: 400 })
     }
 
-    const newSnapshot = {
-      id: "snap-" + Date.now(),
+    const newSnapshotData = {
       event_name,
       event_date: event_date || new Date().toISOString().split("T")[0],
       snapshot_label,
@@ -182,27 +89,19 @@ export async function POST(req: NextRequest) {
       slots_data: slots_data || [],
       discord_sent: false,
       created_by: (session.user as any)?.name || "Admin",
-      created_at: new Date().toISOString(),
     }
 
-    // Try saving to Supabase
-    try {
-      await supabase.from("pool_snapshots").insert({
-        event_name: newSnapshot.event_name,
-        event_date: newSnapshot.event_date,
-        snapshot_label: newSnapshot.snapshot_label,
-        pool_data: newSnapshot.pool_data,
-        member_data: newSnapshot.member_data,
-        discord_sent: false,
-        created_by: newSnapshot.created_by,
-      })
-    } catch (e: any) {
-      console.warn("[Pool Snapshot] Supabase save note:", e.message)
+    const { data, error } = await supabase
+      .from("pool_snapshots")
+      .insert(newSnapshotData)
+      .select()
+      .single()
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Always prepend to inMemorySnapshots
-    inMemorySnapshots = [newSnapshot, ...inMemorySnapshots]
-    return NextResponse.json({ success: true, snapshot: newSnapshot })
+    return NextResponse.json({ success: true, snapshot: data })
   }
 
   // Send to Discord
@@ -228,12 +127,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Mark as sent
+    // Mark as sent in DB
     if (id) {
-      inMemorySnapshots = inMemorySnapshots.map((s) => (s.id === id ? { ...s, discord_sent: true } : s))
-      try {
-        await supabase.from("pool_snapshots").update({ discord_sent: true }).eq("id", id)
-      } catch {}
+      await supabase.from("pool_snapshots").update({ discord_sent: true }).eq("id", id)
     }
 
     return NextResponse.json({
@@ -248,20 +144,16 @@ export async function POST(req: NextRequest) {
   // Mark sent
   if (action === "mark_sent") {
     const { id } = body
-    inMemorySnapshots = inMemorySnapshots.map((s) => (s.id === id ? { ...s, discord_sent: true } : s))
-    try {
-      await supabase.from("pool_snapshots").update({ discord_sent: true }).eq("id", id)
-    } catch {}
+    const { error } = await supabase.from("pool_snapshots").update({ discord_sent: true }).eq("id", id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 
   // Delete snapshot
   if (action === "delete_snapshot") {
     const { id } = body
-    inMemorySnapshots = inMemorySnapshots.filter((s) => s.id !== id)
-    try {
-      await supabase.from("pool_snapshots").delete().eq("id", id)
-    } catch {}
+    const { error } = await supabase.from("pool_snapshots").delete().eq("id", id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   }
 

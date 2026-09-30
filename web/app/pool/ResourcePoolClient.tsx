@@ -316,18 +316,18 @@ export default function ResourcePoolClient({
   const handleSelectSnapshot = (snap: Snapshot) => {
     setPoolName(snap.snapshot_label || snap.event_name)
     if (snap.pool_data) {
-      setAlbumQty(String(snap.pool_data.Album ?? 41))
-      setPuppetQty(String(snap.pool_data.Puppet ?? 11))
-      setWhiteQty(String(snap.pool_data.White ?? 174))
-      setRedBlackQty(String(snap.pool_data.RedBlack ?? 210))
+      setAlbumQty(String(snap.pool_data.Album ?? 0))
+      setPuppetQty(String(snap.pool_data.Puppet ?? 0))
+      setWhiteQty(String(snap.pool_data.White ?? 0))
+      setRedBlackQty(String(snap.pool_data.RedBlack ?? 0))
     }
     if (Array.isArray(snap.slots_data) && snap.slots_data.length > 0) {
       setSlotsList(snap.slots_data)
     } else {
-      const qA = Number(snap.pool_data?.Album ?? 41)
-      const qP = Number(snap.pool_data?.Puppet ?? 11)
-      const qW = Number(snap.pool_data?.White ?? 174)
-      const qRB = Number(snap.pool_data?.RedBlack ?? 210)
+      const qA = Number(snap.pool_data?.Album ?? 0)
+      const qP = Number(snap.pool_data?.Puppet ?? 0)
+      const qW = Number(snap.pool_data?.White ?? 0)
+      const qRB = Number(snap.pool_data?.RedBlack ?? 0)
       setSlotsList(computeSlots(qA, qP, qW, qRB, assignedMemberNames))
     }
     setActiveTab("pool")
@@ -715,7 +715,7 @@ export default function ResourcePoolClient({
                     )}
                   </div>
                   <p className="text-xs text-zinc-500 font-mono mt-1">
-                    {snap.queue_entries || 213} queue entries
+                    {snap.queue_entries ?? 0} queue entries
                   </p>
                 </div>
 
