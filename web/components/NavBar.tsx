@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/ThemeToggle"
 const NAV_ITEMS = [
   { href: "/", label: "ภาพรวม" },
   { href: "/queues", label: "จัดคิวและสล็อต" },
+  { href: "/pool", label: "Resource Pool" },
   { href: "/members", label: "สมาชิก" },
   { href: "/credits", label: "เครดิตสะสม" },
   { href: "/history", label: "ประวัติ" },
