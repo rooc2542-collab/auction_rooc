@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useMutation } from "@tanstack/react-query"
 
 type ItemKey = "Album" | "Puppet" | "White" | "RedBlack"
 
@@ -481,69 +482,142 @@ export default function QueueManagerClient({
     setProxyUserId("")
   }
 
-  const handleToggleMemberItem = async (att: any, itemKey: ItemKey) => {
+  // TanStack Query Mutation: Toggle Member Item (Super smooth optimistic update, zero lag, no button disable freeze)
+  const toggleMemberItemMutation = useMutation({
+    mutationFn: async ({ att, nextItems }: { att: any; nextItems: string[] }) => {
+      const res = await fetch("/api/queues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "upsert_attendance",
+          event_name: eventName,
+          event_date: eventDate,
+          user_id: att.user_id,
+          discord_id: att.discord_id,
+          status: att.status,
+          interested_items: nextItems,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "เกิดข้อผิดพลาดในการบันทึก")
+      }
+      return res.json()
+    },
+    onMutate: async ({ att, nextItems }) => {
+      // Instant 0ms update in UI state
+      setAttendance((prev) =>
+        prev.map((a) => (a.id === att.id ? { ...a, interested_items: nextItems } : a))
+      )
+    },
+    onError: (err) => {
+      setToast({ type: "err", text: `เกิดข้อผิดพลาด: ${err.message}` })
+      refreshData()
+    },
+    onSuccess: () => {
+      router.refresh()
+    },
+  })
+
+  const handleToggleMemberItem = (att: any, itemKey: ItemKey) => {
     if (!isAdmin) return
     const current: string[] = Array.isArray(att.interested_items) ? att.interested_items : []
     const next = current.includes(itemKey)
       ? current.filter((x) => x !== itemKey)
       : [...current, itemKey]
-    // Optimistic update
-    setAttendance((prev) =>
-      prev.map((a) => (a.id === att.id ? { ...a, interested_items: next } : a))
-    )
-    await callApi(
-      {
-        action: "upsert_attendance",
-        event_name: eventName,
-        event_date: eventDate,
-        user_id: att.user_id,
-        discord_id: att.discord_id,
-        status: att.status,
-        interested_items: next,
-      },
-      "อัปเดตไอเทมที่ต้องการสำเร็จ"
-    )
+
+    toggleMemberItemMutation.mutate({ att, nextItems: next })
   }
 
-  const handleStatusChange = async (att: any, newStatus: string) => {
+  // TanStack Query Mutation: Status Change (want_bid / no_bid / absent)
+  const statusChangeMutation = useMutation({
+    mutationFn: async ({
+      att,
+      newStatus,
+      nextItems,
+    }: {
+      att: any
+      newStatus: string
+      nextItems: string[]
+    }) => {
+      const res = await fetch("/api/queues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "upsert_attendance",
+          event_name: eventName,
+          event_date: eventDate,
+          user_id: att.user_id,
+          discord_id: att.discord_id,
+          status: newStatus,
+          interested_items: nextItems,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "เกิดข้อผิดพลาดในการเปลี่ยนสถานะ")
+      }
+      return res.json()
+    },
+    onMutate: async ({ att, newStatus, nextItems }) => {
+      setAttendance((prev) =>
+        prev.map((a) => (a.id === att.id ? { ...a, status: newStatus, interested_items: nextItems } : a))
+      )
+    },
+    onError: (err) => {
+      setToast({ type: "err", text: `เกิดข้อผิดพลาด: ${err.message}` })
+      refreshData()
+    },
+    onSuccess: () => {
+      router.refresh()
+    },
+  })
+
+  const handleStatusChange = (att: any, newStatus: string) => {
     if (!isAdmin) return
     const nextItems = newStatus === "want_bid" ? (att.interested_items?.length ? att.interested_items : ITEM_KEYS) : []
-    // Optimistic update
-    setAttendance((prev) =>
-      prev.map((a) => (a.id === att.id ? { ...a, status: newStatus, interested_items: nextItems } : a))
-    )
-    await callApi(
-      {
-        action: "upsert_attendance",
-        event_name: eventName,
-        event_date: eventDate,
-        user_id: att.user_id,
-        discord_id: att.discord_id,
-        status: newStatus,
-        interested_items: nextItems,
-      },
-      "เปลี่ยนสถานะคิวสำเร็จ"
-    )
+    statusChangeMutation.mutate({ att, newStatus, nextItems })
   }
 
-  const handleAdjustCredit = async (userId: string, itemType: ItemKey, delta: number) => {
+  // TanStack Query Mutation: Adjust Credit (+ / -)
+  const adjustCreditMutation = useMutation({
+    mutationFn: async ({ userId, itemType, next }: { userId: string; itemType: ItemKey; next: number }) => {
+      const res = await fetch("/api/queues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_credit", user_id: userId, item_type: itemType, credit: next }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "เกิดข้อผิดพลาดในการปรับแต้ม")
+      }
+      return res.json()
+    },
+    onMutate: async ({ userId, itemType, next }) => {
+      setCredits((prev) => {
+        const idx = prev.findIndex((c) => c.user_id === userId && c.item_type === itemType)
+        if (idx >= 0) {
+          const copy = [...prev]
+          copy[idx] = { ...copy[idx], credit: next }
+          return copy
+        }
+        return [...prev, { id: "temp-" + Date.now(), user_id: userId, item_type: itemType, credit: next }]
+      })
+    },
+    onError: (err) => {
+      setToast({ type: "err", text: `เกิดข้อผิดพลาด: ${err.message}` })
+      refreshData()
+    },
+    onSuccess: () => {
+      router.refresh()
+    },
+  })
+
+  const handleAdjustCredit = (userId: string, itemType: ItemKey, delta: number) => {
     if (!isAdmin || !userId) return
     const cur = creditMap[`${userId}|${itemType}`] || 0
     const next = Math.max(0, cur + delta)
-    // Optimistic update
-    setCredits((prev) => {
-      const idx = prev.findIndex((c) => c.user_id === userId && c.item_type === itemType)
-      if (idx >= 0) {
-        const copy = [...prev]
-        copy[idx] = { ...copy[idx], credit: next }
-        return copy
-      }
-      return [...prev, { id: "temp-" + Date.now(), user_id: userId, item_type: itemType, credit: next }]
-    })
-    await callApi(
-      { action: "update_credit", user_id: userId, item_type: itemType, credit: next },
-      `ปรับยอดสะสม ${ITEMS_META[itemType].label} เป็น ${next} แต้ม`
-    )
+    adjustCreditMutation.mutate({ userId, itemType, next })
   }
 
   const handleSlotStatus = async (slotIds: string[], status: "allocated" | "awarded" | "skipped") => {
@@ -623,18 +697,25 @@ export default function QueueManagerClient({
           </div>
         </div>
 
-        {/* Toast Notification */}
-        {toast && (
-          <div
-            className={`mt-4 px-4 py-3 rounded-lg text-sm font-medium border ${
-              toast.type === "ok"
-                ? "bg-emerald-950/40 border-emerald-800/60 text-emerald-300"
-                : "bg-rose-950/40 border-rose-800/60 text-rose-300"
-            }`}
+      {/* Toast Notification - Floating to prevent Layout Shift */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl text-sm font-semibold border shadow-2xl flex items-center gap-3 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 ${
+            toast.type === "ok"
+              ? "bg-zinc-900/95 border-emerald-500/60 text-emerald-300 shadow-emerald-950/50 backdrop-blur-md"
+              : "bg-zinc-900/95 border-rose-500/60 text-rose-300 shadow-rose-950/50 backdrop-blur-md"
+          }`}
+        >
+          <span>{toast.type === "ok" ? "✓" : "⚠️"}</span>
+          <span>{toast.text}</span>
+          <button
+            onClick={() => setToast(null)}
+            className="ml-2 text-zinc-500 hover:text-zinc-300 text-xs cursor-pointer"
           >
-            {toast.text}
-          </div>
-        )}
+            ✕
+          </button>
+        </div>
+      )}
 
         {/* Sub-navigation Tabs */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mt-5 pt-5 border-t border-zinc-800">
@@ -1112,12 +1193,13 @@ export default function QueueManagerClient({
                                   return (
                                     <button
                                       key={k}
+                                      type="button"
                                       onClick={() => handleToggleMemberItem(att, k)}
-                                      disabled={!isAdmin || busy}
-                                      className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                                      disabled={!isAdmin}
+                                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all duration-150 active:scale-95 cursor-pointer ${
                                         active
-                                          ? ITEMS_META[k].badge
-                                          : "bg-zinc-900 border-zinc-800 text-zinc-700 opacity-60"
+                                          ? ITEMS_META[k].badge + " shadow-sm ring-1 ring-white/10"
+                                          : "bg-zinc-900/90 border-zinc-800 text-zinc-600 hover:text-zinc-300 hover:border-zinc-700"
                                       }`}
                                     >
                                       {ITEMS_META[k].label}
