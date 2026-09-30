@@ -8,7 +8,13 @@ from discord.ext import commands
 from services import auction_service
 from services import allocation_service
 from services.supabase_client import supabase
-from views.attendance_view import EventPollView, build_attendance_embed, ITEM_LABELS
+from views.attendance_view import (
+    EventPollView,
+    build_attendance_embed,
+    ITEM_LABELS,
+    close_poll_in_db_sync,
+    is_poll_closed_sync,
+)
 
 ITEM_ORDER = ['Album', 'Puppet', 'White', 'RedBlack']
 
@@ -19,22 +25,21 @@ ITEM_CHOICES = [
     app_commands.Choice(name='RedBlack (ขนนกดำแดง)', value='RedBlack'),
 ]
 
+# In-memory cache เพื่อให้ /set_items เปิด Modal ได้ทันทีใน 0ms โดยไม่ต้องรอ DB
+_EVENTS_CACHE: list[tuple[str, str]] = []
+_SESSIONS_CACHE: dict[tuple[str, str], dict[str, dict]] = {}
+
 
 async def check_admin_defer(interaction: discord.Interaction) -> bool:
     """ตรวจสอบสิทธิ์ Admin หลัง defer แล้ว"""
     profile = await auction_service.get_profile_by_discord_id(str(interaction.user.id))
     if not profile or profile.get('role') != 'admin':
         if interaction.response.is_done():
-            await interaction.followup.send('❌ คำสั่งนี้ใช้ได้เฉพาะ Admin เท่านั้น', ephemeral=True)
+            await interaction.followup.send('คำสั่งนี้ใช้ได้เฉพาะ Admin เท่านั้น', ephemeral=True)
         else:
-            await interaction.response.send_message('❌ คำสั่งนี้ใช้ได้เฉพาะ Admin เท่านั้น', ephemeral=True)
+            await interaction.response.send_message('คำสั่งนี้ใช้ได้เฉพาะ Admin เท่านั้น', ephemeral=True)
         return False
     return True
-
-
-# In-memory cache เพื่อให้ /set_items เปิด Modal ได้ทันทีใน 0ms โดยไม่ต้องรอ DB
-_EVENTS_CACHE: list[tuple[str, str]] = []
-_SESSIONS_CACHE: dict[tuple[str, str], dict[str, dict]] = {}
 
 
 def get_db_events(limit: int = 25) -> list[tuple[str, str]]:
@@ -131,23 +136,29 @@ async def event_autocomplete(
     return choices[:25]
 
 
-def parse_item_input(raw: str) -> tuple[str, int, int, int, int, int, int]:
+def parse_qty_and_limit(raw_qty: str, raw_limit: str) -> tuple[str, int, int, int, int, int, int]:
     """
-    แปลงข้อความกรอกไอเทม รองรับ 2 รูปแบบ:
-    1) 'จำนวน, ลิมิต' เช่น '16, 2' หรือ '16' หรือ '0'
-    2) 'หน้าเริ่ม:ช่องเริ่ม-หน้าจบ:ช่องจบ, ลิมิต' เช่น '1:1-4:4, 2'
+    แปลงช่องกรอกแยก 2 ช่อง (ช่องจำนวน/พิกัด และ ช่องลิมิตต่อคน) โดยไม่ต้องใช้ลูกน้ำ ,
+    - raw_qty: ตัวเลขจำนวนชิ้น เช่น '12' หรือพิกัด '1:1-3:4' (ใส่ '0' ถ้าไม่มี)
+    - raw_limit: ตัวเลขลิมิตต่อคน เช่น '2'
     คืนค่า: (mode, start_page, start_slot, end_page, end_slot, total_qty, limit)
     """
-    text = (raw or '').strip()
-    if not text or text == '0':
-        return ('qty', 1, 1, 1, 1, 0, 1)
+    q_text = (raw_qty or '').strip()
+    l_text = (raw_limit or '').strip()
 
-    parts = [p.strip() for p in text.split(',')]
-    main_part = parts[0]
-    limit_val = max(1, int(parts[1])) if len(parts) > 1 and parts[1].isdigit() else 1
+    # เผื่อผู้ใช้เผลอพิมพ์ลูกน้ำมาในช่องแรก ก็ยังรองรับได้ไม่พัง
+    if ',' in q_text:
+        parts = [p.strip() for p in q_text.split(',', 1)]
+        q_text = parts[0]
+        if not l_text and len(parts) > 1:
+            l_text = parts[1]
 
-    # ตรวจสอบรูปแบบพิกัด เช่น 1:1-4:4
-    coord_match = re.match(r'^(\d+)\s*:\s*([1-4])\s*-\s*(\d+)\s*:\s*([1-4])$', main_part)
+    limit_val = max(1, int(l_text)) if l_text.isdigit() and int(l_text) > 0 else 1
+
+    if not q_text or q_text == '0':
+        return ('qty', 1, 1, 1, 1, 0, limit_val)
+
+    coord_match = re.match(r'^(\d+)\s*:\s*([1-4])\s*-\s*(\d+)\s*:\s*([1-4])$', q_text)
     if coord_match:
         sp = int(coord_match.group(1))
         ss = int(coord_match.group(2))
@@ -156,141 +167,326 @@ def parse_item_input(raw: str) -> tuple[str, int, int, int, int, int, int]:
         total = allocation_service.compute_total_from_coords(sp, ss, ep, es)
         return ('coord', sp, ss, ep, es, max(0, total), limit_val)
 
-    # รูปแบบจำนวนชิ้นรวม เช่น 15, 2 หรือ 15
-    qty_val = max(0, int(main_part)) if main_part.isdigit() else 0
+    qty_val = max(0, int(q_text)) if q_text.isdigit() else 0
     return ('qty', 1, 1, 1, 1, qty_val, limit_val)
 
 
-class SetAllItemsModal(discord.ui.Modal):
-    """Modal ตั้งค่าไอเทมทั้ง 4 ประเภทพร้อมกันในครั้งเดียว (หมายเหตุ: Discord จำกัด label <= 45 ตัวอักษร)"""
+def parse_item_input(raw: str) -> tuple[str, int, int, int, int, int, int]:
+    """ฟังก์ชันรองรับรูปแบบเดิม ('จำนวน, ลิมิต') สำหรับ backward compatibility"""
+    text = (raw or '').strip()
+    if ',' in text:
+        parts = [p.strip() for p in text.split(',', 1)]
+        return parse_qty_and_limit(parts[0], parts[1])
+    return parse_qty_and_limit(text, '1')
 
-    album_input = discord.ui.TextInput(
-        label='📖 สมุดการ์ด (จำนวน, ลิมิต)',
-        placeholder='เช่น 12, 2 หรือ 1:1-3:4, 2 (ใส่ 0 ถ้าไม่มี)',
-        required=True,
-        max_length=40,
+
+def recalculate_continuous_sessions(
+    event_name: str,
+    session_date: str,
+    items_config: dict[str, dict],
+    current_status: str = 'active',
+) -> list[dict]:
+    """
+    คำนวณพิกัดหน้าและช่อง (Page/Slot 1-4) ต่อเนื่องกันทั้ง 4 ไอเทมตามลำดับ ITEM_ORDER
+    """
+    running_page = 1
+    running_slot = 1
+    rows: list[dict] = []
+
+    for item_key in ITEM_ORDER:
+        cfg = items_config.get(item_key, {})
+        mode = cfg.get('mode', 'qty')
+        total_qty = int(cfg.get('total_quantity', 0) or 0)
+        limit_val = max(1, int(cfg.get('personal_limit', 1) or 1))
+        sp = int(cfg.get('start_page', 1) or 1)
+        ss = int(cfg.get('start_slot', 1) or 1)
+        ep = int(cfg.get('end_page', 1) or 1)
+        es = int(cfg.get('end_slot', 1) or 1)
+
+        if mode == 'coord' and total_qty > 0:
+            next_slot = es + 1
+            next_page = ep
+            if next_slot > 4:
+                next_slot = 1
+                next_page += 1
+            running_page, running_slot = next_page, next_slot
+        else:
+            if total_qty > 0:
+                sp = running_page
+                ss = running_slot
+                offset = (ss - 1) + total_qty - 1
+                ep = sp + (offset // 4)
+                es = (offset % 4) + 1
+                next_offset = offset + 1
+                running_page = sp + (next_offset // 4)
+                running_slot = (next_offset % 4) + 1
+            else:
+                sp, ss, ep, es = 1, 1, 1, 1
+
+        rows.append({
+            'event_name': event_name,
+            'session_date': session_date,
+            'item_type': item_key,
+            'start_page': sp,
+            'start_slot': ss,
+            'end_page': ep,
+            'end_slot': es,
+            'total_quantity': total_qty,
+            'personal_limit': limit_val,
+            'status': current_status,
+        })
+
+    return rows
+
+
+async def save_and_build_summary_embed(
+    event_name: str,
+    session_date: str,
+    updated_subset: dict[str, tuple[str, int, int, int, int, int, int]],
+    step_title: str,
+) -> discord.Embed:
+    """โหลดค่าปัจจุบันของทั้ง 4 ไอเทม ผสานกับค่าที่เพิ่งแก้ไข คำนวณพิกัดใหม่ และบันทึกลง DB"""
+    res = await asyncio.to_thread(
+        lambda: supabase.table('event_sessions')
+        .select('*')
+        .eq('event_name', event_name)
+        .eq('session_date', session_date)
+        .execute()
     )
-    puppet_input = discord.ui.TextInput(
-        label='🎭 เศษการ์ดบอส (จำนวน, ลิมิต)',
-        placeholder='เช่น 20, 3 หรือ 4:1-8:4, 3 (ใส่ 0 ถ้าไม่มี)',
-        required=True,
-        max_length=40,
+    existing_rows = {r['item_type']: r for r in (res.data or [])}
+
+    # รักษาสถานะเดิมของรอบ (เช่น ถ้าปิดโหวต 'closed' แล้ว ให้คงสถานะ 'closed' ไว้)
+    current_status = 'active'
+    if existing_rows and all(r.get('status') == 'closed' for r in existing_rows.values()):
+        current_status = 'closed'
+
+    merged_config: dict[str, dict] = {}
+    for item_key in ITEM_ORDER:
+        if item_key in updated_subset:
+            mode, sp, ss, ep, es, total_qty, limit_val = updated_subset[item_key]
+            merged_config[item_key] = {
+                'mode': mode,
+                'start_page': sp,
+                'start_slot': ss,
+                'end_page': ep,
+                'end_slot': es,
+                'total_quantity': total_qty,
+                'personal_limit': limit_val,
+            }
+        elif item_key in existing_rows:
+            r = existing_rows[item_key]
+            merged_config[item_key] = {
+                'mode': 'qty',
+                'start_page': r.get('start_page', 1),
+                'start_slot': r.get('start_slot', 1),
+                'end_page': r.get('end_page', 1),
+                'end_slot': r.get('end_slot', 1),
+                'total_quantity': r.get('total_quantity', 0),
+                'personal_limit': r.get('personal_limit', 1),
+            }
+        else:
+            merged_config[item_key] = {
+                'mode': 'qty',
+                'start_page': 1,
+                'start_slot': 1,
+                'end_page': 1,
+                'end_slot': 1,
+                'total_quantity': 0,
+                'personal_limit': 1,
+            }
+
+    final_rows = recalculate_continuous_sessions(
+        event_name, session_date, merged_config, current_status=current_status
     )
-    white_input = discord.ui.TextInput(
-        label='🪶 ขนนกขาว (จำนวน, ลิมิต)',
-        placeholder='เช่น 16, 2 หรือ 9:1-12:4, 2 (ใส่ 0 ถ้าไม่มี)',
-        required=True,
-        max_length=40,
+
+    for row_data in final_rows:
+        await asyncio.to_thread(
+            lambda d=row_data: supabase.table('event_sessions')
+            .upsert(d, on_conflict='event_name,session_date,item_type')
+            .execute()
+        )
+        _SESSIONS_CACHE.setdefault((event_name, session_date), {})[row_data['item_type']] = row_data
+
+    embed = discord.Embed(
+        title=step_title,
+        description=f'รอบกิจกรรม: **{event_name}** ({session_date})',
+        color=discord.Color.green(),
     )
-    redblack_input = discord.ui.TextInput(
-        label='🔴 ขนนกดำแดง (จำนวน, ลิมิต)',
-        placeholder='เช่น 8, 1 หรือ 13:1-14:4, 1 (ใส่ 0 ถ้าไม่มี)',
+    for row_data in final_rows:
+        item_key = row_data['item_type']
+        iname = ITEM_LABELS.get(item_key, item_key)
+        total_qty = row_data['total_quantity']
+        limit_val = row_data['personal_limit']
+        sp, ss, ep, es = row_data['start_page'], row_data['start_slot'], row_data['end_page'], row_data['end_slot']
+        if total_qty > 0:
+            embed.add_field(
+                name=iname,
+                value=f'จำนวน **{total_qty}** ชิ้น | ลิมิต **{limit_val}**/คน\n`Page {sp}:{ss} -> {ep}:{es}`',
+                inline=True,
+            )
+        else:
+            embed.add_field(
+                name=iname,
+                value='ไม่มีไอเทม (0 ชิ้น)',
+                inline=True,
+            )
+    embed.set_footer(text='สามารถกดปุ่มด้านล่างเพื่อตั้งค่าไอเทมชุดถัดไป หรือแก้ไขซ้ำได้ทันที')
+    return embed
+
+
+class SetItemsPart1Modal(discord.ui.Modal):
+    """
+    หน้าต่างที่ 1: สมุดการ์ด และ เศษการ์ดบอส
+    แยก 2 ช่องต่อไอเทม (ช่องจำนวน และ ช่องลิมิตต่อคน) รวม 4 ช่อง
+    """
+
+    album_qty = discord.ui.TextInput(
+        label='สมุดการ์ด - จำนวนชิ้น (หรือพิกัด 1:1-3:4)',
+        placeholder='กรอกเฉพาะตัวเลข เช่น 12 (ใส่ 0 ถ้าไม่มี)',
         required=True,
-        max_length=40,
+        max_length=30,
+    )
+    album_limit = discord.ui.TextInput(
+        label='สมุดการ์ด - ลิมิตต่อคน',
+        placeholder='กรอกเฉพาะตัวเลข เช่น 2',
+        required=True,
+        max_length=10,
+    )
+    puppet_qty = discord.ui.TextInput(
+        label='เศษการ์ดบอส - จำนวนชิ้น (หรือพิกัด)',
+        placeholder='กรอกเฉพาะตัวเลข เช่น 20 (ใส่ 0 ถ้าไม่มี)',
+        required=True,
+        max_length=30,
+    )
+    puppet_limit = discord.ui.TextInput(
+        label='เศษการ์ดบอส - ลิมิตต่อคน',
+        placeholder='กรอกเฉพาะตัวเลข เช่น 3',
+        required=True,
+        max_length=10,
     )
 
     def __init__(self, event_name: str, session_date: str, existing_map: dict[str, dict]):
-        modal_title = f'ตั้งค่าไอเทม — {event_name}'[:45]
+        modal_title = f'ตั้งค่าไอเทม (1/2) - {event_name}'[:45]
         super().__init__(title=modal_title)
         self._event_name = event_name
         self._session_date = session_date
 
-        def fmt_default(item_key: str) -> str:
-            row = existing_map.get(item_key)
-            if not row:
-                return '0, 1'
-            return f"{row.get('total_quantity', 0)}, {row.get('personal_limit', 1)}"
+        album_row = existing_map.get('Album', {})
+        puppet_row = existing_map.get('Puppet', {})
 
-        self.album_input.default = fmt_default('Album')
-        self.puppet_input.default = fmt_default('Puppet')
-        self.white_input.default = fmt_default('White')
-        self.redblack_input.default = fmt_default('RedBlack')
+        self.album_qty.default = str(album_row.get('total_quantity', 0))
+        self.album_limit.default = str(album_row.get('personal_limit', 1))
+        self.puppet_qty.default = str(puppet_row.get('total_quantity', 0))
+        self.puppet_limit.default = str(puppet_row.get('personal_limit', 1))
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-
-        # ตรวจสอบ admin ใน on_submit
-        profile = await auction_service.get_profile_by_discord_id(str(interaction.user.id))
-        if not profile or profile.get('role') != 'admin':
-            await interaction.followup.send('❌ คำสั่งนี้ใช้ได้เฉพาะ Admin เท่านั้น', ephemeral=True)
+        if not await check_admin_defer(interaction):
             return
 
-        raw_map = {
-            'Album': str(self.album_input),
-            'Puppet': str(self.puppet_input),
-            'White': str(self.white_input),
-            'RedBlack': str(self.redblack_input),
-        }
+        try:
+            updated = {
+                'Album': parse_qty_and_limit(str(self.album_qty), str(self.album_limit)),
+                'Puppet': parse_qty_and_limit(str(self.puppet_qty), str(self.puppet_limit)),
+            }
+            embed = await save_and_build_summary_embed(
+                self._event_name,
+                self._session_date,
+                updated,
+                step_title='บันทึก สมุดการ์ด และ เศษการ์ดบอส สำเร็จ (1/2)',
+            )
+            view = SetItemsStepView(self._event_name, self._session_date)
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f'เกิดข้อผิดพลาดในการบันทึก: {e}', ephemeral=True)
+
+
+class SetItemsPart2Modal(discord.ui.Modal):
+    """
+    หน้าต่างที่ 2: ขนนกขาว และ ขนนกดำแดง
+    แยก 2 ช่องต่อไอเทม (ช่องจำนวน และ ช่องลิมิตต่อคน) รวม 4 ช่อง
+    """
+
+    white_qty = discord.ui.TextInput(
+        label='ขนนกขาว - จำนวนชิ้น (หรือพิกัด 1:1-3:4)',
+        placeholder='กรอกเฉพาะตัวเลข เช่น 16 (ใส่ 0 ถ้าไม่มี)',
+        required=True,
+        max_length=30,
+    )
+    white_limit = discord.ui.TextInput(
+        label='ขนนกขาว - ลิมิตต่อคน',
+        placeholder='กรอกเฉพาะตัวเลข เช่น 2',
+        required=True,
+        max_length=10,
+    )
+    redblack_qty = discord.ui.TextInput(
+        label='ขนนกดำแดง - จำนวนชิ้น (หรือพิกัด)',
+        placeholder='กรอกเฉพาะตัวเลข เช่น 8 (ใส่ 0 ถ้าไม่มี)',
+        required=True,
+        max_length=30,
+    )
+    redblack_limit = discord.ui.TextInput(
+        label='ขนนกดำแดง - ลิมิตต่อคน',
+        placeholder='กรอกเฉพาะตัวเลข เช่น 1',
+        required=True,
+        max_length=10,
+    )
+
+    def __init__(self, event_name: str, session_date: str, existing_map: dict[str, dict]):
+        modal_title = f'ตั้งค่าไอเทม (2/2) - {event_name}'[:45]
+        super().__init__(title=modal_title)
+        self._event_name = event_name
+        self._session_date = session_date
+
+        white_row = existing_map.get('White', {})
+        redblack_row = existing_map.get('RedBlack', {})
+
+        self.white_qty.default = str(white_row.get('total_quantity', 0))
+        self.white_limit.default = str(white_row.get('personal_limit', 1))
+        self.redblack_qty.default = str(redblack_row.get('total_quantity', 0))
+        self.redblack_limit.default = str(redblack_row.get('personal_limit', 1))
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        if not await check_admin_defer(interaction):
+            return
 
         try:
-            running_page = 1
-            running_slot = 1
-            embed = discord.Embed(
-                title='✅ บันทึกไอเทมทั้ง 4 ประเภทสำเร็จ',
-                description=f'รอบกิจกรรม: **{self._event_name}** ({self._session_date})',
-                color=discord.Color.green()
+            updated = {
+                'White': parse_qty_and_limit(str(self.white_qty), str(self.white_limit)),
+                'RedBlack': parse_qty_and_limit(str(self.redblack_qty), str(self.redblack_limit)),
+            }
+            embed = await save_and_build_summary_embed(
+                self._event_name,
+                self._session_date,
+                updated,
+                step_title='บันทึกไอเทมครบทั้ง 4 ประเภทเรียบร้อยแล้ว (2/2)',
             )
-
-            for item_key in ITEM_ORDER:
-                mode, sp, ss, ep, es, total_qty, limit_val = parse_item_input(raw_map[item_key])
-
-                if mode == 'qty':
-                    if total_qty > 0:
-                        sp = running_page
-                        ss = running_slot
-                        offset = (ss - 1) + total_qty - 1
-                        ep = sp + (offset // 4)
-                        es = (offset % 4) + 1
-                        next_offset = offset + 1
-                        running_page = sp + (next_offset // 4)
-                        running_slot = (next_offset % 4) + 1
-                    else:
-                        sp, ss, ep, es = 1, 1, 1, 1
-                else:
-                    next_slot = es + 1
-                    next_page = ep
-                    if next_slot > 4:
-                        next_slot = 1
-                        next_page += 1
-                    running_page, running_slot = next_page, next_slot
-
-                row_data = {
-                    'event_name': self._event_name,
-                    'session_date': self._session_date,
-                    'item_type': item_key,
-                    'start_page': sp,
-                    'start_slot': ss,
-                    'end_page': ep,
-                    'end_slot': es,
-                    'total_quantity': total_qty,
-                    'personal_limit': limit_val,
-                    'status': 'active',
-                }
-                await asyncio.to_thread(
-                    lambda d=row_data: supabase.table('event_sessions')
-                    .upsert(d, on_conflict='event_name,session_date,item_type')
-                    .execute()
-                )
-                _SESSIONS_CACHE.setdefault((self._event_name, self._session_date), {})[item_key] = row_data
-
-                iname = ITEM_LABELS.get(item_key, item_key)
-                if total_qty > 0:
-                    embed.add_field(
-                        name=iname,
-                        value=f'**{total_qty}** ชิ้น (Limit {limit_val}/คน)\n`Page {sp}:{ss} → {ep}:{es}`',
-                        inline=True
-                    )
-                else:
-                    embed.add_field(
-                        name=iname,
-                        value='ไม่มีไอเทม (0 ชิ้น)',
-                        inline=True
-                    )
-
-            embed.set_footer(text='ใช้คำสั่ง /announce_allocation เพื่อคำนวณและประกาศพิกัดสล็อตได้ทันที')
-            await interaction.followup.send(embed=embed, ephemeral=True)
+            view = SetItemsStepView(self._event_name, self._session_date)
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         except Exception as e:
-            await interaction.followup.send(f'❌ เกิดข้อผิดพลาดในการบันทึก: {e}', ephemeral=True)
+            await interaction.followup.send(f'เกิดข้อผิดพลาดในการบันทึก: {e}', ephemeral=True)
+
+
+class SetItemsStepView(discord.ui.View):
+    """ปุ่มกดสำหรับสลับเปิดหน้าต่างที่ 1 และหน้าต่างที่ 2 โดยไม่ต้องพิมพ์คำสั่งใหม่"""
+
+    def __init__(self, event_name: str, session_date: str):
+        super().__init__(timeout=600)
+        self._event_name = event_name
+        self._session_date = session_date
+
+    @discord.ui.button(label='ตั้งค่า ขนนกขาว & ขนนกดำแดง (2/2)', style=discord.ButtonStyle.primary)
+    async def open_part2(self, interaction: discord.Interaction, button: discord.ui.Button):
+        existing_map = _SESSIONS_CACHE.get((self._event_name, self._session_date), {})
+        modal = SetItemsPart2Modal(self._event_name, self._session_date, existing_map)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label='แก้ไข สมุดการ์ด & เศษการ์ดบอส (1/2)', style=discord.ButtonStyle.secondary)
+    async def open_part1(self, interaction: discord.Interaction, button: discord.ui.Button):
+        existing_map = _SESSIONS_CACHE.get((self._event_name, self._session_date), {})
+        modal = SetItemsPart1Modal(self._event_name, self._session_date, existing_map)
+        await interaction.response.send_modal(modal)
 
 
 class AuctionCog(commands.Cog):
@@ -318,7 +514,6 @@ class AuctionCog(commands.Cog):
         today = (event_date or str(date.today())).strip()
         clean_name = event_name.strip()
 
-        # สร้างรายการตั้งต้นทั้ง 4 ไอเทมลงฐานข้อมูลทันที เพื่อให้คำสั่งอื่นและหน้าเว็บดึงชื่อรอบนี้ไปใช้ต่อได้ทันที
         for item_key in ITEM_ORDER:
             row_data = {
                 'event_name': clean_name,
@@ -342,19 +537,51 @@ class AuctionCog(commands.Cog):
         if (clean_name, today) not in _EVENTS_CACHE:
             _EVENTS_CACHE.insert(0, (clean_name, today))
 
-        embed = build_attendance_embed(clean_name, today)
+        embed = build_attendance_embed(clean_name, today, is_closed=False)
         view = EventPollView(clean_name, today)
         await channel.send(embed=embed, view=view)
 
         await interaction.followup.send(
-            f'✅ เปิดโพลและบันทึกรอบลงระบบเรียบร้อยที่ {channel.mention}\n'
-            f'📌 รอบกิจกรรม: **{clean_name}** ({today})\n'
-            f'💡 ขั้นตอนถัดไป: ใช้คำสั่ง `/set_items` เพื่อกรอกจำนวนไอเทมทั้ง 4 ประเภทในครั้งเดียว',
+            f'เปิดโพลและบันทึกรอบลงระบบเรียบร้อยที่ {channel.mention}\n'
+            f'รอบกิจกรรม: **{clean_name}** ({today})\n'
+            f'ขั้นตอนถัดไป: ใช้คำสั่ง `/set_items` เพื่อกรอกจำนวนและลิมิตไอเทม',
             ephemeral=True
         )
 
-    # ─── /set_items (ตั้งค่าทั้ง 4 ประเภทในครั้งเดียว) ───────────────────────
-    @app_commands.command(name='set_items', description='[Admin] ตั้งค่าจำนวนและลิมิตไอเทมทั้ง 4 ประเภทพร้อมกันในครั้งเดียว')
+    # ─── /close_poll (ปิดโหวตผ่านคำสั่ง) ──────────────────────────────────
+    @app_commands.command(name='close_poll', description='[Admin] ปิดโหวตของรอบกิจกรรม เพื่อเตรียมประกาศผลจัดสรรสล็อต')
+    @app_commands.describe(
+        event='เลือกรอบกิจกรรมจากฐานข้อมูล (หากไม่เลือกจะใช้รอบล่าสุดอัตโนมัติ)',
+    )
+    @app_commands.autocomplete(event=event_autocomplete)
+    async def close_poll(
+        self,
+        interaction: discord.Interaction,
+        event: str | None = None,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await check_admin_defer(interaction):
+            return
+
+        resolved = resolve_event_key(event)
+        if not resolved:
+            await interaction.followup.send('ยังไม่มีรอบกิจกรรมในระบบ', ephemeral=True)
+            return
+
+        event_name, event_date = resolved
+        await asyncio.to_thread(close_poll_in_db_sync, event_name, event_date)
+
+        if (event_name, event_date) in _SESSIONS_CACHE:
+            for row in _SESSIONS_CACHE[(event_name, event_date)].values():
+                row['status'] = 'closed'
+
+        await interaction.followup.send(
+            f'ปิดโหวตรอบกิจกรรม **{event_name}** ({event_date}) เรียบร้อยแล้ว ตอนนี้สามารถใช้คำสั่ง `/announce_allocation` เพื่อแจ้งผลให้สมาชิกได้เลยครับ',
+            ephemeral=True
+        )
+
+    # ─── /set_items (แยก 2 ช่องต่อไอเทม: จำนวน และ ลิมิต) ──────────────────
+    @app_commands.command(name='set_items', description='[Admin] ตั้งค่าจำนวนและลิมิตไอเทม (แยกช่องจำนวนและช่องลิมิต)')
     @app_commands.describe(
         event='เลือกรอบกิจกรรมจากฐานข้อมูล (หากไม่เลือกจะใช้รอบล่าสุดอัตโนมัติ)',
     )
@@ -390,18 +617,18 @@ class AuctionCog(commands.Cog):
 
             if not event_name or not session_date:
                 await interaction.response.send_message(
-                    '❌ ยังไม่มีรอบกิจกรรมในระบบ กรุณาเปิดโพลด้วย `/event_poll` ก่อนครับ',
+                    'ยังไม่มีรอบกิจกรรมในระบบ กรุณาเปิดโพลด้วย `/event_poll` ก่อนครับ',
                     ephemeral=True
                 )
                 return
 
             existing_map = _SESSIONS_CACHE.get((event_name, session_date), {})
-            modal = SetAllItemsModal(event_name, session_date, existing_map)
+            modal = SetItemsPart1Modal(event_name, session_date, existing_map)
             await interaction.response.send_modal(modal)
         except Exception as e:
             print(f'[AuctionCog] /set_items error: {e}')
             if not interaction.response.is_done():
-                await interaction.response.send_message(f'❌ ไม่สามารถเปิดหน้าต่างตั้งค่าได้: {e}', ephemeral=True)
+                await interaction.response.send_message(f'ไม่สามารถเปิดหน้าต่างตั้งค่าได้: {e}', ephemeral=True)
 
     # ─── /delete_event (ลบรอบกิจกรรมที่ผิดพลาด) ─────────────────────────────
     @app_commands.command(name='delete_event', description='[Admin] ลบรอบกิจกรรมและข้อมูลคิว/สล็อตของรอบนั้นเพื่อคีย์ใหม่')
@@ -420,28 +647,34 @@ class AuctionCog(commands.Cog):
 
         resolved = resolve_event_key(event)
         if not resolved:
-            await interaction.followup.send('❌ ไม่พบรอบกิจกรรมที่ต้องการลบ', ephemeral=True)
+            await interaction.followup.send('ไม่พบรอบกิจกรรมที่ต้องการลบ', ephemeral=True)
             return
 
         event_name, event_date = resolved
         try:
-            supabase.table('allocated_slots').delete().eq('event_name', event_name).eq('session_date', event_date).execute()
-            supabase.table('event_attendance').delete().eq('event_name', event_name).eq('event_date', event_date).execute()
-            supabase.table('event_sessions').delete().eq('event_name', event_name).eq('session_date', event_date).execute()
+            await asyncio.to_thread(
+                lambda: supabase.table('allocated_slots').delete().eq('event_name', event_name).eq('session_date', event_date).execute()
+            )
+            await asyncio.to_thread(
+                lambda: supabase.table('event_attendance').delete().eq('event_name', event_name).eq('event_date', event_date).execute()
+            )
+            await asyncio.to_thread(
+                lambda: supabase.table('event_sessions').delete().eq('event_name', event_name).eq('session_date', event_date).execute()
+            )
 
             if (event_name, event_date) in _EVENTS_CACHE:
                 _EVENTS_CACHE.remove((event_name, event_date))
             _SESSIONS_CACHE.pop((event_name, event_date), None)
 
             await interaction.followup.send(
-                f'🗑️ ลบรอบกิจกรรม **{event_name}** ({event_date}) ออกจากฐานข้อมูลเรียบร้อยแล้วครับ',
+                f'ลบรอบกิจกรรม **{event_name}** ({event_date}) ออกจากฐานข้อมูลเรียบร้อยแล้วครับ',
                 ephemeral=True
             )
         except Exception as e:
-            await interaction.followup.send(f'❌ ลบไม่สำเร็จ: {e}', ephemeral=True)
+            await interaction.followup.send(f'ลบไม่สำเร็จ: {e}', ephemeral=True)
 
     # ─── /announce_allocation ────────────────────────────────────────────
-    @app_commands.command(name='announce_allocation', description='[Admin] คำนวณและประกาศผลการจัดสรรสล็อตลงห้องแชท')
+    @app_commands.command(name='announce_allocation', description='[Admin] คำนวณและประกาศผลการจัดสรรสล็อตลงห้องแชท (ต้องปิดโหวตก่อน)')
     @app_commands.describe(
         channel='ช่องที่จะประกาศผล',
         event='เลือกรอบกิจกรรมจากฐานข้อมูล (หากไม่เลือกจะใช้รอบล่าสุดอัตโนมัติ)',
@@ -459,19 +692,41 @@ class AuctionCog(commands.Cog):
 
         resolved = resolve_event_key(event)
         if not resolved:
-            await interaction.followup.send('❌ ยังไม่มีรอบกิจกรรมในระบบ', ephemeral=True)
+            await interaction.followup.send('ยังไม่มีรอบกิจกรรมในระบบ', ephemeral=True)
             return
 
         event_name, today = resolved
 
-        sessions_res = supabase.table('event_sessions').select('*') \
-            .eq('event_name', event_name).eq('session_date', today) \
-            .eq('status', 'active').execute()
-        sessions = [s for s in (sessions_res.data or []) if (s.get('total_quantity') or 0) > 0]
+        sessions_res = await asyncio.to_thread(
+            lambda: supabase.table('event_sessions')
+            .select('*')
+            .eq('event_name', event_name)
+            .eq('session_date', today)
+            .execute()
+        )
+        all_sessions = sessions_res.data or []
 
+        if not all_sessions:
+            await interaction.followup.send(
+                f'ไม่พบข้อมูลรอบกิจกรรม **{event_name}** ({today})',
+                ephemeral=True
+            )
+            return
+
+        # เงื่อนไขบังคับ: ต้องทำการปิดโหวตก่อน (status == 'closed') จึงจะประกาศผลให้สมาชิกรับรู้ได้
+        is_closed = all(s.get('status') == 'closed' for s in all_sessions)
+        if not is_closed:
+            await interaction.followup.send(
+                f'ไม่สามารถประกาศผลสำหรับ **{event_name}** ({today}) ได้ เนื่องจากยังไม่ได้ปิดโหวต\n'
+                f'กรุณากดปุ่ม **"ปิดโหวต [Admin]"** ที่ข้อความโพล หรือใช้คำสั่ง `/close_poll` ก่อนครับ',
+                ephemeral=True
+            )
+            return
+
+        sessions = [s for s in all_sessions if (s.get('total_quantity') or 0) > 0]
         if not sessions:
             await interaction.followup.send(
-                f'❌ ยังไม่ได้กำหนดจำนวนไอเทมสำหรับ **{event_name}** ({today})\n'
+                f'ยังไม่ได้กำหนดจำนวนไอเทมสำหรับ **{event_name}** ({today})\n'
                 f'กรุณาใช้คำสั่ง `/set_items` เพื่อระบุจำนวนไอเทมก่อนครับ',
                 ephemeral=True
             )
@@ -479,19 +734,21 @@ class AuctionCog(commands.Cog):
 
         overall_total_pages = max((s.get('end_page', 1) for s in sessions), default=1)
         header_embed = discord.Embed(
-            title=f'📋 ผลการจัดสรรสล็อต — {event_name}',
-            description=f'📅 {today} | ประกาศโดย {interaction.user.display_name}',
+            title=f'ผลการจัดสรรสล็อต — {event_name}',
+            description=f'วันที่: {today} | ประกาศโดย {interaction.user.display_name}',
             color=discord.Color.gold()
         )
 
         combined_member_slots: dict[str, dict] = {}
 
-        no_bid_res = supabase.table('event_attendance') \
-            .select('user_id') \
-            .eq('event_name', event_name) \
-            .eq('event_date', today) \
-            .eq('status', 'no_bid') \
+        no_bid_res = await asyncio.to_thread(
+            lambda: supabase.table('event_attendance')
+            .select('user_id')
+            .eq('event_name', event_name)
+            .eq('event_date', today)
+            .eq('status', 'no_bid')
             .execute()
+        )
         no_bid_users = [r['user_id'] for r in (no_bid_res.data or []) if r.get('user_id')]
 
         from services import credit_service
@@ -542,7 +799,7 @@ class AuctionCog(commands.Cog):
 
             header_embed.add_field(
                 name=f'{iname}',
-                value=f'จำนวน {total_qty} ชิ้น | {len(members)} คนขอ | Limit {personal_limit}/คน',
+                value=f'จำนวน {total_qty} ชิ้น | {len(members)} คนขอ | ลิมิต {personal_limit}/คน',
                 inline=True
             )
 
@@ -576,7 +833,7 @@ class AuctionCog(commands.Cog):
                     await channel.send(chunk)
 
         await interaction.followup.send(
-            f'✅ ประกาศผลสำเร็จที่ {channel.mention}',
+            f'ประกาศผลสำเร็จที่ {channel.mention}',
             ephemeral=True
         )
 
@@ -594,32 +851,45 @@ class AuctionCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         resolved = resolve_event_key(event)
         if not resolved:
-            await interaction.followup.send('❌ ยังไม่มีรอบกิจกรรมในระบบ', ephemeral=True)
+            await interaction.followup.send('ยังไม่มีรอบกิจกรรมในระบบ', ephemeral=True)
             return
 
         event_name, today = resolved
-        res = supabase.table('event_attendance').select('status') \
-            .eq('event_name', event_name).eq('event_date', today).execute()
+        res = await asyncio.to_thread(
+            lambda: supabase.table('event_attendance')
+            .select('status')
+            .eq('event_name', event_name)
+            .eq('event_date', today)
+            .execute()
+        )
         counts = {'want_bid': 0, 'no_bid': 0, 'absent': 0}
         for row in (res.data or []):
             s = row.get('status', '')
             if s in counts:
                 counts[s] += 1
 
-        embed = build_attendance_embed(event_name, today, counts)
+        sess_res = await asyncio.to_thread(
+            lambda: supabase.table('event_sessions')
+            .select('*')
+            .eq('event_name', event_name)
+            .eq('session_date', today)
+            .execute()
+        )
+        sess_rows = sess_res.data or []
+        is_closed = bool(sess_rows) and all(r.get('status') == 'closed' for r in sess_rows)
 
-        sess_res = supabase.table('event_sessions').select('*') \
-            .eq('event_name', event_name).eq('session_date', today).execute()
-        sess_map = {r['item_type']: r for r in (sess_res.data or [])}
+        embed = build_attendance_embed(event_name, today, counts, is_closed=is_closed)
+
+        sess_map = {r['item_type']: r for r in sess_rows}
         items_summary = []
         for k in ITEM_ORDER:
             r = sess_map.get(k)
             if r and (r.get('total_quantity') or 0) > 0:
                 items_summary.append(
-                    f"{ITEM_LABELS[k]}: **{r['total_quantity']}** ชิ้น (Limit {r['personal_limit']}) `[{r['start_page']}:{r['start_slot']}-{r['end_page']}:{r['end_slot']}]`"
+                    f"{ITEM_LABELS[k]}: **{r['total_quantity']}** ชิ้น (ลิมิต {r['personal_limit']}) `[{r['start_page']}:{r['start_slot']}-{r['end_page']}:{r['end_slot']}]`"
                 )
         if items_summary:
-            embed.add_field(name='📦 ไอเทมที่ตั้งค่าแล้ว', value='\n'.join(items_summary), inline=False)
+            embed.add_field(name='ไอเทมที่ตั้งค่าแล้ว', value='\n'.join(items_summary), inline=False)
 
         await interaction.followup.send(embed=embed, ephemeral=True)
 
@@ -642,21 +912,23 @@ class AuctionCog(commands.Cog):
 
         target_profile = await auction_service.get_profile_by_discord_id(str(member.id))
         if not target_profile:
-            await interaction.followup.send(f'❌ {member.display_name} ยังไม่ได้ลงทะเบียนในระบบ', ephemeral=True)
+            await interaction.followup.send(f'{member.display_name} ยังไม่ได้ลงทะเบียนในระบบ', ephemeral=True)
             return
 
         admin_profile = await auction_service.get_profile_by_discord_id(str(interaction.user.id))
-        supabase.table('auction_history').insert({
-            'user_id': target_profile['id'],
-            'item_type': item_type.value,
-            'qty_awarded': 1,
-            'awarded_by': admin_profile['id'] if admin_profile else None,
-            'note': f'Award ผ่านคำสั่ง /award โดย {interaction.user.display_name}',
-        }).execute()
+        await asyncio.to_thread(
+            lambda: supabase.table('auction_history').insert({
+                'user_id': target_profile['id'],
+                'item_type': item_type.value,
+                'qty_awarded': 1,
+                'awarded_by': admin_profile['id'] if admin_profile else None,
+                'note': f'Award ผ่านคำสั่ง /award โดย {interaction.user.display_name}',
+            }).execute()
+        )
 
         iname = ITEM_LABELS.get(item_type.value, item_type.value)
         embed = discord.Embed(
-            title='🎁 Award สำเร็จ',
+            title='Award สำเร็จ',
             description=f'มอบ **{iname}** ให้ **{target_profile["display_name"]}** เรียบร้อยแล้ว',
             color=discord.Color.green()
         )

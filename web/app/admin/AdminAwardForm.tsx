@@ -3,10 +3,10 @@
 import { useState } from "react"
 
 const ITEM_CHOICES = [
-  { value: "Album", label: "📖 สมุดการ์ด" },
-  { value: "Puppet", label: "🎭 เศษการ์ดบอส" },
-  { value: "White", label: "🪶 ขนนกขาว" },
-  { value: "RedBlack", label: "🔴 ขนนกดำแดง" },
+  { value: "Album", label: "สมุดการ์ด" },
+  { value: "Puppet", label: "เศษการ์ดบอส" },
+  { value: "White", label: "ขนนกขาว" },
+  { value: "RedBlack", label: "ขนนกดำแดง" },
 ]
 
 interface Member { id: string; display_name: string; discord_id: string }
@@ -32,11 +32,11 @@ export default function AdminAwardForm({ members }: { members: Member[] }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาด")
-      setResult({ type: "success", text: `✅ Award สำเร็จ!` })
+      setResult({ type: "success", text: `Award สำเร็จ` })
       setMemberId("")
       setNote("")
     } catch (e: any) {
-      setResult({ type: "error", text: `❌ ${e.message}` })
+      setResult({ type: "error", text: `${e.message}` })
     } finally {
       setLoading(false)
     }
@@ -88,7 +88,7 @@ export default function AdminAwardForm({ members }: { members: Member[] }) {
         disabled={loading || !memberId}
         className="px-5 py-2.5 bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-600 text-zinc-900 text-sm font-semibold rounded-lg transition-colors cursor-pointer"
       >
-        {loading ? "กำลัง..." : "🎁 Award"}
+        {loading ? "กำลังบันทึก..." : "Award"}
       </button>
 
       {result && (

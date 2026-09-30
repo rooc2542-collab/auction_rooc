@@ -1,32 +1,27 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { JOB_EMOJI } from "@/app/members/MemberTable"
 
 type ItemKey = "Album" | "Puppet" | "White" | "RedBlack"
 
-const ITEMS_META: Record<ItemKey, { label: string; icon: string; desc: string; badge: string }> = {
+const ITEMS_META: Record<ItemKey, { label: string; desc: string; badge: string }> = {
   Album: {
     label: "สมุดการ์ด",
-    icon: "📖",
     desc: "สมุดเลือกการ์ดส้ม / การ์ดบอสปลอม",
     badge: "bg-violet-950 text-violet-300 border border-violet-800/60",
   },
   Puppet: {
     label: "เศษการ์ดบอส",
-    icon: "🎭",
     desc: "เศษการ์ดบอสปลอมสำหรับสะสม",
     badge: "bg-amber-950 text-amber-300 border border-amber-800/60",
   },
   White: {
     label: "ขนนกขาว",
-    icon: "🪶",
     desc: "ขนนกขาวเกรดอัปเกรดสเตตัส",
     badge: "bg-zinc-800 text-zinc-200 border border-zinc-600",
   },
   RedBlack: {
     label: "ขนนกดำแดง",
-    icon: "🔴",
     desc: "ขนนกแดง/ดำสเตตัสขั้นสูง",
     badge: "bg-rose-950 text-rose-300 border border-rose-800/60",
   },
@@ -62,7 +57,6 @@ export default function QueueManagerClient({
 }: Props) {
   const todayStr = new Date().toISOString().split("T")[0]
 
-  // หา event ล่าสุดถ้ามี
   const existingEvents = useMemo(() => {
     const set = new Set<string>()
     for (const s of initialSessions) set.add(`${s.event_name}|${s.session_date}`)
@@ -87,7 +81,6 @@ export default function QueueManagerClient({
   const [proxyStatus, setProxyStatus] = useState<"want_bid" | "no_bid" | "absent">("want_bid")
   const [proxyItems, setProxyItems] = useState<ItemKey[]>(["Album", "Puppet", "White", "RedBlack"])
 
-  // Item config state initialized from current eventSessions
   const buildInitialForm = (evName: string, evDate: string): Record<ItemKey, ItemFormEntry> => {
     const result = {} as Record<ItemKey, ItemFormEntry>
     for (const k of ITEM_KEYS) {
@@ -148,6 +141,13 @@ export default function QueueManagerClient({
       return { ...prev, [key]: updated }
     })
   }
+
+  // สถานะการปิดโหวตของรอบที่เลือก
+  const isPollClosed = useMemo(() => {
+    const rows = initialSessions.filter((s) => s.event_name === eventName && s.session_date === eventDate)
+    if (rows.length === 0) return false
+    return rows.every((r) => r.status === "closed")
+  }, [initialSessions, eventName, eventDate])
 
   // ข้อมูลที่กรองตาม Event ปัจจุบัน
   const currentAttendance = useMemo(
@@ -261,10 +261,19 @@ export default function QueueManagerClient({
       setToast({ type: "ok", text: successMsg })
       setTimeout(() => window.location.reload(), 700)
     } catch (e: any) {
-      setToast({ type: "err", text: `❌ ${e.message}` })
+      setToast({ type: "err", text: `${e.message}` })
     } finally {
       setBusy(false)
     }
+  }
+
+  const handleTogglePollStatus = async () => {
+    const nextStatus = isPollClosed ? "active" : "closed"
+    const msg = nextStatus === "closed" ? "ปิดโหวตเรียบร้อยแล้ว" : "เปิดโหวตอีกครั้งเรียบร้อยแล้ว"
+    await callApi(
+      { action: "set_poll_status", event_name: eventName, session_date: eventDate, status: nextStatus },
+      msg
+    )
   }
 
   const handleSaveSessions = async () => {
@@ -279,11 +288,19 @@ export default function QueueManagerClient({
     }))
     await callApi(
       { action: "save_sessions", event_name: eventName, session_date: eventDate, items },
-      "✅ บันทึกพิกัดและจำนวนไอเทมทั้ง 4 ชนิดเรียบร้อยแล้ว!"
+      "บันทึกพิกัดและจำนวนไอเทมทั้ง 4 ชนิดเรียบร้อยแล้ว"
     )
   }
 
   const handleRunAllocation = async () => {
+    if (!isPollClosed) {
+      setToast({
+        type: "err",
+        text: "ไม่สามารถคำนวณจัดสรรสล็อตได้: กรุณากดปุ่ม 'ปิดโหวต' ก่อน จึงจะสามารถจัดสรรและแจ้งผลให้สมาชิกได้",
+      })
+      return
+    }
+
     setBusy(true)
     setToast(null)
     try {
@@ -309,10 +326,10 @@ export default function QueueManagerClient({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "คำนวณไม่สำเร็จ")
-      setToast({ type: "ok", text: `⚡ จัดสรรสล็อตสำเร็จทั้งหมด ${data.allocated_count} ช่อง!` })
+      setToast({ type: "ok", text: `จัดสรรสล็อตสำเร็จทั้งหมด ${data.allocated_count} ช่อง` })
       setTimeout(() => window.location.reload(), 800)
     } catch (e: any) {
-      setToast({ type: "err", text: `❌ ${e.message}` })
+      setToast({ type: "err", text: `${e.message}` })
     } finally {
       setBusy(false)
     }
@@ -321,7 +338,7 @@ export default function QueueManagerClient({
   const handleDeleteEvent = async () => {
     await callApi(
       { action: "delete_event", event_name: eventName, session_date: eventDate },
-      `🗑️ ลบรอบ "${eventName}" (${eventDate}) เรียบร้อยแล้ว`
+      `ลบรอบ "${eventName}" (${eventDate}) เรียบร้อยแล้ว`
     )
     setConfirmDelete(false)
   }
@@ -339,7 +356,7 @@ export default function QueueManagerClient({
         status: proxyStatus,
         interested_items: proxyStatus === "want_bid" ? proxyItems : [],
       },
-      `✅ เพิ่ม ${member.display_name} เข้าคิวเรียบร้อยแล้ว`
+      `เพิ่ม ${member.display_name} เข้าคิวเรียบร้อยแล้ว`
     )
   }
 
@@ -359,7 +376,7 @@ export default function QueueManagerClient({
         status: att.status,
         interested_items: next,
       },
-      "✅ อัปเดตไอเทมที่ต้องการสำเร็จ"
+      "อัปเดตไอเทมที่ต้องการสำเร็จ"
     )
   }
 
@@ -375,7 +392,7 @@ export default function QueueManagerClient({
         status: newStatus,
         interested_items: newStatus === "want_bid" ? (att.interested_items?.length ? att.interested_items : ITEM_KEYS) : [],
       },
-      "✅ เปลี่ยนสถานะคิวสำเร็จ"
+      "เปลี่ยนสถานะคิวสำเร็จ"
     )
   }
 
@@ -385,7 +402,7 @@ export default function QueueManagerClient({
     const next = Math.max(0, cur + delta)
     await callApi(
       { action: "update_credit", user_id: userId, item_type: itemType, credit: next },
-      `✅ ปรับยอดสะสม ${ITEMS_META[itemType].label} เป็น ${next} แต้ม`
+      `ปรับยอดสะสม ${ITEMS_META[itemType].label} เป็น ${next} แต้ม`
     )
   }
 
@@ -393,7 +410,7 @@ export default function QueueManagerClient({
     if (!isAdmin || slotIds.length === 0) return
     await callApi(
       { action: "update_slot_status", slot_ids: slotIds, status },
-      `✅ อัปเดตสถานะ ${slotIds.length} สล็อตเรียบร้อยแล้ว`
+      `อัปเดตสถานะ ${slotIds.length} สล็อตเรียบร้อยแล้ว`
     )
   }
 
@@ -403,12 +420,22 @@ export default function QueueManagerClient({
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 shadow-lg">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
-              <span>🎯</span>
-              <span>จัดคิวและกระดานสล็อต (4 ช่อง/หน้า)</span>
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold text-zinc-100">
+                จัดคิวและกระดานสล็อต (4 ช่อง/หน้า)
+              </h1>
+              <span
+                className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+                  isPollClosed
+                    ? "bg-emerald-950 text-emerald-400 border-emerald-800/60"
+                    : "bg-amber-950 text-amber-400 border-amber-800/60"
+                }`}
+              >
+                {isPollClosed ? "สถานะ: ปิดโหวตแล้ว" : "สถานะ: กำลังเปิดโหวต"}
+              </span>
+            </div>
             <p className="text-zinc-500 text-sm mt-1">
-              ตั้งค่าพิกัดหน้า/ช่อง จัดลำดับคิวผู้เข้าร่วม และคำนวณสล็อตประมูล
+              ตั้งค่าพิกัดหน้า/ช่อง จัดลำดับคิวผู้เข้าร่วม และคำนวณสล็อตประมูล (ต้องปิดโหวตก่อนคำนวณสล็อต)
             </p>
           </div>
 
@@ -424,7 +451,7 @@ export default function QueueManagerClient({
                   const [en, ed] = ev.split("|")
                   return (
                     <option key={ev} value={ev}>
-                      📌 {en} ({ed})
+                      {en} ({ed})
                     </option>
                   )
                 })}
@@ -481,17 +508,29 @@ export default function QueueManagerClient({
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={handleTogglePollStatus}
+                disabled={busy}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all disabled:opacity-50 cursor-pointer ${
+                  isPollClosed
+                    ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700"
+                    : "bg-amber-950 hover:bg-amber-900/60 text-amber-300 border-amber-800/60"
+                }`}
+              >
+                {isPollClosed ? "เปิดโหวตอีกครั้ง" : "ปิดโหวตรอบนี้"}
+              </button>
+            )}
             {isAdmin && (
               <button
                 onClick={handleRunAllocation}
                 disabled={busy}
                 className="px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-100 font-semibold text-sm border border-zinc-600 transition-all disabled:opacity-50 cursor-pointer"
               >
-                {busy ? "⏳ กำลังคำนวณ..." : "⚡ คำนวณและจัดสรรสล็อตใหม่"}
+                {busy ? "กำลังคำนวณ..." : "คำนวณและจัดสรรสล็อตใหม่"}
               </button>
             )}
-            {/* ปุ่มลบรอบ */}
             {isAdmin && existingEvents.length > 0 && (
               confirmDelete ? (
                 <div className="flex items-center gap-1.5">
@@ -516,7 +555,7 @@ export default function QueueManagerClient({
                   className="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-rose-950 text-zinc-500 hover:text-rose-400 text-sm border border-zinc-700 hover:border-rose-800/60 transition-all cursor-pointer"
                   title="ลบรอบนี้ทั้งหมด"
                 >
-                  🗑️ ลบรอบ
+                  ลบรอบ
                 </button>
               )
             )}
@@ -554,7 +593,7 @@ export default function QueueManagerClient({
                         : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-200"
                     }`}
                   >
-                    {ITEMS_META[k].icon} {ITEMS_META[k].label} ({count})
+                    {ITEMS_META[k].label} ({count})
                   </button>
                 )
               })}
@@ -568,13 +607,13 @@ export default function QueueManagerClient({
                   onClick={() => handleSlotStatus(Array.from(selectedSlotIds), "awarded")}
                   className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer"
                 >
-                  ✅ มอบของที่เลือก
+                  มอบของที่เลือก
                 </button>
                 <button
                   onClick={() => handleSlotStatus(Array.from(selectedSlotIds), "skipped")}
                   className="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-white text-xs font-medium cursor-pointer"
                 >
-                  ⏭️ ข้ามคิว
+                  ข้ามคิว
                 </button>
                 <button
                   onClick={() => setSelectedSlotIds(new Set())}
@@ -589,11 +628,11 @@ export default function QueueManagerClient({
           {/* 4-Slot In-Game Page View */}
           {pagesList.length === 0 ? (
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-16 text-center space-y-3">
-              <div className="text-4xl">🎲</div>
               <div className="text-base font-semibold text-zinc-100">ยังไม่มีสล็อตที่ถูกจัดสรรสำหรับอีเวนต์นี้</div>
               <p className="text-zinc-500 text-sm max-w-md mx-auto">
-                ไปที่แท็บ <b className="text-zinc-300">ตั้งค่าพิกัดไอเทม &amp; ลิมิต</b> เพื่อระบุจำนวนและลิมิต จากนั้นกด{" "}
-                <b className="text-zinc-300">⚡ คำนวณและจัดสรรสล็อตใหม่</b>
+                ไปที่แท็บ <b className="text-zinc-300">ตั้งค่าพิกัดไอเทม &amp; ลิมิต</b> เพื่อระบุจำนวนและลิมิต กด{" "}
+                <b className="text-zinc-300">ปิดโหวตรอบนี้</b> จากนั้นกด{" "}
+                <b className="text-zinc-300">คำนวณและจัดสรรสล็อตใหม่</b>
               </p>
             </div>
           ) : (
@@ -679,12 +718,9 @@ export default function QueueManagerClient({
                         </div>
 
                         {/* Item Badge */}
-                        <div className="flex items-center gap-2 mb-4">
-                          <span className="text-xl">{meta.icon}</span>
-                          <div>
-                            <div className="text-xs font-semibold text-zinc-100">{meta.label}</div>
-                            <div className="text-[11px] text-zinc-600">ONLY BID ตามช่องที่กำหนด</div>
-                          </div>
+                        <div className="mb-4">
+                          <div className="text-xs font-semibold text-zinc-100">{meta.label}</div>
+                          <div className="text-[11px] text-zinc-600">ONLY BID ตามช่องที่กำหนด</div>
                         </div>
 
                         {/* Assigned Member */}
@@ -694,9 +730,7 @@ export default function QueueManagerClient({
                             {slotData.profiles?.display_name || "ไม่ทราบชื่อ"}
                           </div>
                           <div className="text-xs text-zinc-500 mt-0.5">
-                            {slotData.profiles?.job_class
-                              ? `${JOB_EMOJI[slotData.profiles.job_class] || "⚔️"} ${slotData.profiles.job_class}`
-                              : "ไม่ระบุอาชีพ"}
+                            {slotData.profiles?.job_class || "ไม่ระบุอาชีพ"}
                           </div>
                         </div>
                       </div>
@@ -713,10 +747,10 @@ export default function QueueManagerClient({
                           }`}
                         >
                           {slotData.status === "awarded"
-                            ? "✅ ประมูลสำเร็จ"
+                            ? "ประมูลสำเร็จ"
                             : slotData.status === "skipped"
-                            ? "⏭️ ข้ามคิว"
-                            : "⏳ รอประมูล"}
+                            ? "ข้ามคิว"
+                            : "รอประมูล"}
                         </span>
 
                         {isAdmin && (
@@ -728,7 +762,7 @@ export default function QueueManagerClient({
                                 className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer"
                                 title="บันทึกว่าได้รับของแล้ว"
                               >
-                                🎁 ได้ของ
+                                ได้ของ
                               </button>
                             )}
                             {slotData.status !== "allocated" && (
@@ -738,7 +772,7 @@ export default function QueueManagerClient({
                                 className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs cursor-pointer border border-zinc-700"
                                 title="รีเซ็ตสถานะ"
                               >
-                                ↩️
+                                รีเซ็ต
                               </button>
                             )}
                           </div>
@@ -753,18 +787,17 @@ export default function QueueManagerClient({
               {kafraAnnouncementText && (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
                   <div className="px-5 py-3.5 border-b border-zinc-800 flex items-center justify-between">
-                    <div className="font-medium text-zinc-100 text-sm flex items-center gap-2">
-                      <span>📢</span>
-                      <span>ข้อความสรุปพิกัด (รูปแบบ Kafra สำหรับ Discord)</span>
+                    <div className="font-medium text-zinc-100 text-sm">
+                      ข้อความสรุปพิกัด (รูปแบบ Kafra สำหรับ Discord)
                     </div>
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(kafraAnnouncementText)
-                        setToast({ type: "ok", text: "📋 คัดลอกข้อความลง Clipboard แล้ว!" })
+                        setToast({ type: "ok", text: "คัดลอกข้อความลง Clipboard แล้ว" })
                       }}
                       className="px-3.5 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-100 text-xs font-medium transition-all cursor-pointer border border-zinc-600"
                     >
-                      📋 คัดลอก
+                      คัดลอก
                     </button>
                   </div>
                   <pre className="p-5 text-xs font-mono text-zinc-300 bg-zinc-950/60 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-80">
@@ -783,9 +816,8 @@ export default function QueueManagerClient({
           {/* Admin Proxy Add Form */}
           {isAdmin && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-              <h3 className="font-semibold text-zinc-100 text-sm mb-3 flex items-center gap-2">
-                <span>➕</span>
-                <span>ดึงสมาชิกเข้าคิว / ลงชื่อแทนสมาชิก (Proxy Queue)</span>
+              <h3 className="font-semibold text-zinc-100 text-sm mb-3">
+                ดึงสมาชิกเข้าคิว / ลงชื่อแทนสมาชิก (Proxy Queue)
               </h3>
               <div className="flex flex-wrap items-end gap-3">
                 <div className="min-w-52 flex-1">
@@ -811,9 +843,9 @@ export default function QueueManagerClient({
                     onChange={(e) => setProxyStatus(e.target.value as any)}
                     className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
                   >
-                    <option value="want_bid">🎮 Join the war / Want to bid</option>
-                    <option value="no_bid">🚫 Join the war / Do not want to bid</option>
-                    <option value="absent">⛔ Unable to attend</option>
+                    <option value="want_bid">Join the war / Want to bid</option>
+                    <option value="no_bid">Join the war / Do not want to bid</option>
+                    <option value="absent">Unable to attend</option>
                   </select>
                 </div>
 
@@ -838,7 +870,7 @@ export default function QueueManagerClient({
                                 : "bg-zinc-800 border-zinc-700 text-zinc-600 hover:text-zinc-400"
                             }`}
                           >
-                            {ITEMS_META[k].icon} {ITEMS_META[k].label}
+                            {ITEMS_META[k].label}
                           </button>
                         )
                       })}
@@ -851,7 +883,7 @@ export default function QueueManagerClient({
                   disabled={!proxyUserId || busy}
                   className="px-5 py-2.5 rounded-lg bg-zinc-100 hover:bg-white disabled:opacity-40 text-zinc-900 text-sm font-semibold cursor-pointer"
                 >
-                  ➕ บันทึกเข้าคิว
+                  บันทึกเข้าคิว
                 </button>
               </div>
             </div>
@@ -860,7 +892,7 @@ export default function QueueManagerClient({
           {/* Attendance & Queue Order Table */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-zinc-800">
-              <h3 className="font-semibold text-zinc-100 text-sm">📋 ลำดับคิวผู้เข้าร่วม ({sortedAttendance.length} คน)</h3>
+              <h3 className="font-semibold text-zinc-100 text-sm">ลำดับคิวผู้เข้าร่วม ({sortedAttendance.length} คน)</h3>
               <p className="text-xs text-zinc-500 mt-0.5">
                 คนที่มียอดค้างสะสม (Credit) สูงกว่าจะได้รับสิทธิ์จัดสรรเศษสล็อตก่อนอัตโนมัติ
               </p>
@@ -898,9 +930,7 @@ export default function QueueManagerClient({
                               {att.profiles?.display_name || "ไม่ทราบชื่อ"}
                             </div>
                             <div className="text-xs text-zinc-600">
-                              {att.profiles?.job_class
-                                ? `${JOB_EMOJI[att.profiles.job_class] || "⚔️"} ${att.profiles.job_class}`
-                                : "ไม่ระบุอาชีพ"}
+                              {att.profiles?.job_class || "ไม่ระบุอาชีพ"}
                             </div>
                           </td>
                           <td className="px-4 py-3.5">
@@ -910,9 +940,9 @@ export default function QueueManagerClient({
                                 onChange={(e) => handleStatusChange(att, e.target.value)}
                                 className="bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100 focus:outline-none"
                               >
-                                <option value="want_bid">🎮 Want to bid</option>
-                                <option value="no_bid">🚫 Do not bid (Credit)</option>
-                                <option value="absent">⛔ Unable to attend</option>
+                                <option value="want_bid">Want to bid</option>
+                                <option value="no_bid">Do not bid (Credit)</option>
+                                <option value="absent">Unable to attend</option>
                               </select>
                             ) : (
                               <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
@@ -940,7 +970,7 @@ export default function QueueManagerClient({
                                           : "bg-zinc-900 border-zinc-800 text-zinc-700 opacity-60"
                                       }`}
                                     >
-                                      {ITEMS_META[k].icon} {ITEMS_META[k].label}
+                                      {ITEMS_META[k].label}
                                     </button>
                                   )
                                 })}
@@ -959,7 +989,7 @@ export default function QueueManagerClient({
                                     className="inline-flex items-center gap-1 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-xs"
                                     title={`Carry Credit: ${ITEMS_META[k].label}`}
                                   >
-                                    <span>{ITEMS_META[k].icon}</span>
+                                    <span className="text-zinc-400">{ITEMS_META[k].label}:</span>
                                     <span className="font-mono font-bold text-amber-400">{cVal}</span>
                                     {isAdmin && (
                                       <div className="flex items-center gap-0.5 ml-1">
@@ -986,11 +1016,11 @@ export default function QueueManagerClient({
                             <td className="px-4 py-3.5 text-right">
                               <button
                                 onClick={() =>
-                                  callApi({ action: "delete_attendance", id: att.id }, "🗑️ ลบคิวเรียบร้อยแล้ว")
+                                  callApi({ action: "delete_attendance", id: att.id }, "ลบคิวเรียบร้อยแล้ว")
                                 }
                                 className="text-xs font-medium text-rose-400 hover:text-white bg-rose-950/40 hover:bg-rose-700 border border-rose-800/50 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
                               >
-                                🗑️ ลบ
+                                ลบ
                               </button>
                             </td>
                           )}
@@ -1018,12 +1048,9 @@ export default function QueueManagerClient({
                   className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{meta.icon}</span>
-                      <div>
-                        <h3 className="text-base font-bold text-zinc-100">{meta.label}</h3>
-                        <p className="text-xs text-zinc-600">{meta.desc}</p>
-                      </div>
+                    <div>
+                      <h3 className="text-base font-bold text-zinc-100">{meta.label}</h3>
+                      <p className="text-xs text-zinc-600">{meta.desc}</p>
                     </div>
                     <div className="text-right">
                       <div className="text-[11px] text-zinc-600">จำนวนรวม</div>
@@ -1037,7 +1064,7 @@ export default function QueueManagerClient({
                   {/* Coord Input */}
                   <div className="bg-zinc-800/50 border border-zinc-700/60 rounded-xl p-4 space-y-3">
                     <div className="text-xs font-semibold text-zinc-400">
-                      📍 ระบุพิกัดหน้าและช่องในเกม (1 หน้ามี 4 ช่อง)
+                      ระบุพิกัดหน้าและช่องในเกม (1 หน้ามี 4 ช่อง)
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -1097,7 +1124,7 @@ export default function QueueManagerClient({
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-zinc-800/50 border border-zinc-700/60 rounded-xl p-3.5">
                       <label className="block text-xs font-semibold text-zinc-400 mb-1">
-                        🔢 จำนวนชิ้นรวมโดยตรง
+                        จำนวนชิ้นรวมโดยตรง
                       </label>
                       <input
                         type="number"
@@ -1110,7 +1137,7 @@ export default function QueueManagerClient({
                     </div>
                     <div className="bg-zinc-800/50 border border-zinc-700/60 rounded-xl p-3.5">
                       <label className="block text-xs font-semibold text-zinc-400 mb-1">
-                        👤 ลิมิตต่อคน (Limit)
+                        ลิมิตต่อคน (Limit)
                       </label>
                       <input
                         type="number"
@@ -1134,14 +1161,14 @@ export default function QueueManagerClient({
                 disabled={busy}
                 className="px-6 py-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-semibold text-sm border border-zinc-700 transition-all cursor-pointer"
               >
-                💾 บันทึกเฉพาะค่าไอเทม
+                บันทึกเฉพาะค่าไอเทม
               </button>
               <button
                 onClick={handleRunAllocation}
                 disabled={busy}
                 className="px-6 py-3 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 font-bold text-sm transition-all cursor-pointer"
               >
-                ⚡ บันทึกและคำนวณจัดสรรสล็อตทันที
+                บันทึกและคำนวณจัดสรรสล็อตทันที
               </button>
             </div>
           )}

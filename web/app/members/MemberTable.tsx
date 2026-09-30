@@ -8,12 +8,7 @@ export const JOB_CLASSES = [
   "Rogue", "Wizard", "Sage", "Summoner", "Rebellion"
 ]
 
-export const JOB_EMOJI: Record<string, string> = {
-  "Lord Knight": "⚔️", "Paladin": "🛡️", "Biochemist": "🧪", "Mastersmith": "🔨",
-  "Bard": "🎵", "Gypsy": "💃", "Sniper": "🏹", "Champion": "👊",
-  "Priest": "✝️", "Assassin": "🗡️", "Rogue": "🎭", "Wizard": "🔮",
-  "Sage": "📖", "Summoner": "🌟", "Rebellion": "🔫"
-}
+export const JOB_EMOJI: Record<string, string> = {}
 
 interface Member {
   id: string
@@ -79,7 +74,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาด")
-        setMessage({ type: "success", text: "✅ เพิ่มสมาชิกสำเร็จ!" })
+        setMessage({ type: "success", text: "เพิ่มสมาชิกสำเร็จ" })
         setTimeout(() => { setIsAddModalOpen(false); window.location.reload() }, 1000)
       } else if (editMember) {
         const res = await fetch("/api/members/update", {
@@ -89,11 +84,11 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาด")
-        setMessage({ type: "success", text: "✅ อัปเดตข้อมูลสำเร็จ!" })
+        setMessage({ type: "success", text: "อัปเดตข้อมูลสำเร็จ" })
         setTimeout(() => { setEditMember(null); window.location.reload() }, 1000)
       }
     } catch (e: any) {
-      setMessage({ type: "error", text: `❌ ${e.message}` })
+      setMessage({ type: "error", text: `${e.message}` })
     } finally {
       setSaving(false)
     }
@@ -106,7 +101,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
       if (!res.ok) throw new Error("ลบไม่สำเร็จ")
       window.location.reload()
     } catch (e: any) {
-      alert(`❌ ${e.message}`)
+      alert(`${e.message}`)
     }
   }
 
@@ -128,7 +123,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
         >
           <option value="">ทุกอาชีพ (15 อาชีพ)</option>
           {JOB_CLASSES.map((j) => (
-            <option key={j} value={j}>{JOB_EMOJI[j]} {j}</option>
+            <option key={j} value={j}>{j}</option>
           ))}
         </select>
         <select
@@ -137,8 +132,8 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
           className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
         >
           <option value="">ทุกสิทธิ์ (Role)</option>
-          <option value="admin">👑 Admin</option>
-          <option value="member">🛡️ Member</option>
+          <option value="admin">Admin</option>
+          <option value="member">Member</option>
         </select>
         <div className="text-xs font-medium text-zinc-500 px-2">พบ {filtered.length} คน</div>
         {isAdmin && (
@@ -146,7 +141,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
             onClick={openAdd}
             className="px-4 py-2.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-all cursor-pointer"
           >
-            ➕ เพิ่มสมาชิกใหม่
+            เพิ่มสมาชิกใหม่
           </button>
         )}
       </div>
@@ -184,9 +179,8 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
                   </td>
                   <td className="px-5 py-3.5">
                     {m.job_class ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-medium">
-                        <span>{JOB_EMOJI[m.job_class] || "⚔️"}</span>
-                        <span>{m.job_class}</span>
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-medium">
+                        {m.job_class}
                       </span>
                     ) : (
                       <span className="text-zinc-600 text-xs">ยังไม่ระบุ</span>
@@ -199,7 +193,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
                         ? "bg-zinc-700 text-zinc-200 border-zinc-600"
                         : "bg-zinc-800/50 text-zinc-500 border-zinc-800"
                     }`}>
-                      {m.role === "admin" ? "👑 Admin" : "Member"}
+                      {m.role === "admin" ? "Admin" : "Member"}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-zinc-600 text-xs">
@@ -212,13 +206,13 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
                           onClick={() => openEdit(m)}
                           className="text-xs font-medium text-zinc-400 hover:text-zinc-100 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
                         >
-                          ✏️ แก้ไข
+                          แก้ไข
                         </button>
                         <button
                           onClick={() => handleDelete(m.id, m.display_name)}
                           className="text-xs font-medium text-rose-400 hover:text-white bg-rose-950/40 hover:bg-rose-600 border border-rose-800/50 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
                         >
-                          🗑️ ลบ
+                          ลบ
                         </button>
                       </div>
                     </td>
@@ -236,7 +230,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
           <div className="bg-zinc-900 rounded-xl border border-zinc-700 w-full max-w-md shadow-2xl overflow-hidden">
             <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
               <h3 className="font-semibold text-zinc-100 text-sm">
-                {isAddModalOpen ? "➕ เพิ่มสมาชิกใหม่ในกิลด์" : `✏️ แก้ไขข้อมูล: ${editMember?.display_name}`}
+                {isAddModalOpen ? "เพิ่มสมาชิกใหม่ในกิลด์" : `แก้ไขข้อมูล: ${editMember?.display_name}`}
               </h3>
               <button
                 onClick={() => { setEditMember(null); setIsAddModalOpen(false) }}
@@ -276,7 +270,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
                   >
                     <option value="">-- กรุณาเลือก --</option>
                     {JOB_CLASSES.map((j) => (
-                      <option key={j} value={j}>{JOB_EMOJI[j]} {j}</option>
+                      <option key={j} value={j}>{j}</option>
                     ))}
                   </select>
                 </div>
@@ -312,7 +306,7 @@ export default function MemberTable({ members, isAdmin }: MemberTableProps) {
                 disabled={saving}
                 className="px-5 py-2 text-sm font-semibold text-zinc-900 bg-zinc-100 hover:bg-white rounded-lg transition-all disabled:opacity-50 cursor-pointer"
               >
-                {saving ? "กำลังบันทึก..." : "💾 บันทึก"}
+                {saving ? "กำลังบันทึก..." : "บันทึก"}
               </button>
             </div>
           </div>

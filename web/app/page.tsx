@@ -49,7 +49,6 @@ export default async function HomePage() {
     supabase.from("allocated_slots").select("*", { count: "exact", head: true }),
   ])
 
-  // Group attendance by event
   const eventMap: Record<
     string,
     { event_name: string; event_date: string; want_bid: number; no_bid: number; absent: number }
@@ -101,19 +100,18 @@ export default async function HomePage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: "สมาชิกในกิลด์", value: totalMembers ?? 0, icon: "👥", href: "/members" },
-            { label: "ลงชื่อวันนี้", value: todayAttendees ?? 0, icon: "⚔️", href: "/queues" },
-            { label: "สล็อตจัดสรรแล้ว", value: totalAllocated ?? 0, icon: "🎯", href: "/queues" },
-            { label: "อีเวนต์ที่เปิดรับ", value: events.length, icon: "📅", href: "/queues" },
+            { label: "สมาชิกในกิลด์", value: totalMembers ?? 0, href: "/members" },
+            { label: "ลงชื่อวันนี้", value: todayAttendees ?? 0, href: "/queues" },
+            { label: "สล็อตจัดสรรแล้ว", value: totalAllocated ?? 0, href: "/queues" },
+            { label: "อีเวนต์ที่เปิดรับ", value: events.length, href: "/queues" },
           ].map((stat) => (
             <Link
               key={stat.label}
               href={stat.href}
               className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 hover:bg-zinc-800/60 transition-all"
             >
-              <div className="text-2xl mb-2">{stat.icon}</div>
+              <div className="text-xs text-zinc-500 font-medium mb-2">{stat.label}</div>
               <div className="text-3xl font-bold text-zinc-100 font-mono">{stat.value}</div>
-              <div className="text-xs text-zinc-500 mt-1 font-medium">{stat.label}</div>
             </Link>
           ))}
         </div>
@@ -122,9 +120,8 @@ export default async function HomePage() {
           {/* Event Attendance Poll Summary */}
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
             <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
-              <h2 className="font-semibold text-zinc-100 text-sm flex items-center gap-2">
-                <span>⚔️</span>
-                <span>สถิติผู้เข้าร่วมกิจกรรม</span>
+              <h2 className="font-semibold text-zinc-100 text-sm">
+                สถิติผู้เข้าร่วมกิจกรรม
               </h2>
               <Link href="/queues" className="text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
                 จัดการคิว →
@@ -186,9 +183,8 @@ export default async function HomePage() {
           {/* Configured Items Summary */}
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
             <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
-              <h2 className="font-semibold text-zinc-100 text-sm flex items-center gap-2">
-                <span>📦</span>
-                <span>รายการไอเทมและพิกัดหน้า/ช่อง</span>
+              <h2 className="font-semibold text-zinc-100 text-sm">
+                รายการไอเทมและพิกัดหน้า/ช่อง
               </h2>
               <Link href="/queues" className="text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
                 ตั้งค่าไอเทม →
@@ -206,22 +202,11 @@ export default async function HomePage() {
               ) : (
                 eventSessions.slice(0, 4).map((s: any) => {
                   const cfg = ITEM_CONFIG[s.item_type as ItemType]
-                  const icon =
-                    s.item_type === "Album"
-                      ? "📖"
-                      : s.item_type === "Puppet"
-                      ? "🎭"
-                      : s.item_type === "White"
-                      ? "🪶"
-                      : "🔴"
                   return (
                     <div
                       key={s.id}
                       className="bg-zinc-800/50 border border-zinc-700/60 rounded-xl p-4 flex items-center gap-4"
                     >
-                      <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-xl flex-shrink-0">
-                        {icon}
-                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-zinc-100 text-sm">{cfg?.label || s.item_type}</span>
@@ -247,7 +232,7 @@ export default async function HomePage() {
         {allocatedSlots && allocatedSlots.length > 0 && (
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
             <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
-              <h2 className="font-semibold text-zinc-100 text-sm">🎯 พิกัดสล็อตที่จัดสรรล่าสุด</h2>
+              <h2 className="font-semibold text-zinc-100 text-sm">พิกัดสล็อตที่จัดสรรล่าสุด</h2>
               <Link href="/queues" className="text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
                 เปิดกระดาน 4 ช่องเต็ม →
               </Link>
@@ -293,10 +278,10 @@ export default async function HomePage() {
                             }`}
                           >
                             {slot.status === "awarded"
-                              ? "✅ ได้รับแล้ว"
+                              ? "ได้รับแล้ว"
                               : slot.status === "skipped"
-                              ? "⏭️ ข้ามคิว"
-                              : "⏳ รอประมูล"}
+                              ? "ข้ามคิว"
+                              : "รอประมูล"}
                           </span>
                         </td>
                       </tr>
@@ -311,7 +296,7 @@ export default async function HomePage() {
         {/* Recent Members */}
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
           <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
-            <h2 className="font-semibold text-zinc-100 text-sm">👥 สมาชิกล่าสุด</h2>
+            <h2 className="font-semibold text-zinc-100 text-sm">สมาชิกล่าสุด</h2>
             <Link href="/members" className="text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
               จัดการสมาชิกทั้งหมด →
             </Link>

@@ -22,6 +22,16 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "ข้อมูลไม่ครบถ้วน" }, { status: 400 })
       }
 
+      const { data: existingRows } = await supabase
+        .from("event_sessions")
+        .select("status")
+        .eq("event_name", event_name)
+        .eq("session_date", session_date)
+
+      const isAlreadyClosed =
+        existingRows && existingRows.length > 0 && existingRows.every((r: any) => r.status === "closed")
+      const preservedStatus = isAlreadyClosed ? "closed" : "active"
+
       for (const it of items) {
         const total = Math.max(0, Number(it.total_quantity) || 0)
         const limit = Math.max(1, Number(it.personal_limit) || 1)
@@ -41,13 +51,55 @@ export async function POST(req: NextRequest) {
             end_slot: es,
             total_quantity: total,
             personal_limit: limit,
-            status: "active",
+            status: preservedStatus,
           },
           { onConflict: "event_name,session_date,item_type" }
         )
       }
 
       return NextResponse.json({ success: true })
+    }
+
+    // 1.5 ปิดโหวต / เปิดโหวต (Toggle Poll Status)
+    if (action === "set_poll_status") {
+      const { event_name, session_date, status } = body
+      if (!event_name || !session_date || !["active", "closed"].includes(status)) {
+        return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 })
+      }
+
+      const { data: existing } = await supabase
+        .from("event_sessions")
+        .select("id")
+        .eq("event_name", event_name)
+        .eq("session_date", session_date)
+
+      if (!existing || existing.length === 0) {
+        for (const itemType of PRIORITY_ORDER) {
+          await supabase.from("event_sessions").upsert(
+            {
+              event_name,
+              session_date,
+              item_type: itemType,
+              start_page: 1,
+              start_slot: 1,
+              end_page: 1,
+              end_slot: 1,
+              total_quantity: 0,
+              personal_limit: 1,
+              status,
+            },
+            { onConflict: "event_name,session_date,item_type" }
+          )
+        }
+      } else {
+        await supabase
+          .from("event_sessions")
+          .update({ status })
+          .eq("event_name", event_name)
+          .eq("session_date", session_date)
+      }
+
+      return NextResponse.json({ success: true, status })
     }
 
     // 2. เพิ่มหรือแก้ไขคิวผู้เข้าร่วม (Proxy Add / Edit Queue)
@@ -121,10 +173,17 @@ export async function POST(req: NextRequest) {
         .select("*")
         .eq("event_name", event_name)
         .eq("session_date", session_date)
-        .eq("status", "active")
 
       if (!sessions || sessions.length === 0) {
         return NextResponse.json({ error: "ยังไม่ได้ตั้งค่าจำนวนไอเทมของอีเวนต์นี้" }, { status: 400 })
+      }
+
+      const isPollClosed = sessions.every((s: any) => s.status === "closed")
+      if (!isPollClosed) {
+        return NextResponse.json(
+          { error: "กรุณากดปิดโหวตก่อน จึงจะสามารถคำนวณและจัดสรรสล็อตให้สมาชิกได้" },
+          { status: 400 }
+        )
       }
 
       const { data: attendees } = await supabase

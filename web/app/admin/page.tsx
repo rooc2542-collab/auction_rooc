@@ -40,14 +40,14 @@ export default async function AdminPage() {
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">⚙️ Admin Panel</h1>
+          <h1 className="text-2xl font-bold text-zinc-100">Admin Panel</h1>
           <p className="text-zinc-500 text-sm mt-1">จัดการระบบประมูล</p>
         </div>
 
         {/* Award Form */}
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
           <div className="px-5 py-4 border-b border-zinc-800">
-            <h2 className="font-semibold text-zinc-100 text-sm">🎁 Award ไอเทม</h2>
+            <h2 className="font-semibold text-zinc-100 text-sm">Award ไอเทม</h2>
           </div>
           <div className="p-5">
             <AdminAwardForm members={members || []} />
@@ -58,7 +58,7 @@ export default async function AdminPage() {
         {allocatedSlots && allocatedSlots.length > 0 && (
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
             <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
-              <h2 className="font-semibold text-zinc-100 text-sm">🎯 สล็อตที่จัดสรรวันนี้</h2>
+              <h2 className="font-semibold text-zinc-100 text-sm">สล็อตที่จัดสรรวันนี้</h2>
               <span className="text-xs text-zinc-600 font-mono">{today}</span>
             </div>
             <div className="overflow-x-auto">
@@ -91,7 +91,7 @@ export default async function AdminPage() {
                             ? "bg-rose-950 text-rose-400 border-rose-800/60"
                             : "bg-zinc-800 text-zinc-400 border-zinc-700"
                         }`}>
-                          {slot.status === "awarded" ? "✅ ได้รับแล้ว" : slot.status === "skipped" ? "⏭️ ข้าม" : "⏳ รอ"}
+                          {slot.status === "awarded" ? "ได้รับแล้ว" : slot.status === "skipped" ? "ข้าม" : "รอ"}
                         </span>
                       </td>
                     </tr>
@@ -106,7 +106,7 @@ export default async function AdminPage() {
         {recentAttendance && recentAttendance.length > 0 && (
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
             <div className="px-5 py-4 border-b border-zinc-800">
-              <h2 className="font-semibold text-zinc-100 text-sm">⚔️ ผู้เข้าร่วมวันนี้</h2>
+              <h2 className="font-semibold text-zinc-100 text-sm">ผู้เข้าร่วมวันนี้</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -131,7 +131,7 @@ export default async function AdminPage() {
                             ? "bg-amber-950 text-amber-400 border-amber-800/60"
                             : "bg-rose-950 text-rose-400 border-rose-800/60"
                         }`}>
-                          {a.status === "want_bid" ? "🎮 Want to bid" : a.status === "no_bid" ? "📦 No bid" : "⛔ Absent"}
+                          {a.status === "want_bid" ? "Want to bid" : a.status === "no_bid" ? "No bid" : "Absent"}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-zinc-500 text-xs">
@@ -148,7 +148,7 @@ export default async function AdminPage() {
         {/* Recent Event Sessions */}
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
           <div className="px-5 py-4 border-b border-zinc-800">
-            <h2 className="font-semibold text-zinc-100 text-sm">📦 Sessions ล่าสุด</h2>
+            <h2 className="font-semibold text-zinc-100 text-sm">Sessions ล่าสุด</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

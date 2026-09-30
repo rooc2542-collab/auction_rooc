@@ -17,7 +17,6 @@ export default async function CreditsPage() {
     .select("*, profiles:user_id(display_name, discord_id)")
     .order("credit", { ascending: false })
 
-  // Group by user
   const userMap: Record<string, { display_name: string; discord_id: string; items: Record<string, number> }> = {}
   for (const c of credits || []) {
     const uid = c.user_id
@@ -39,13 +38,12 @@ export default async function CreditsPage() {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-zinc-100">💳 ยอดค้างสะสม (Carry Credits)</h1>
+          <h1 className="text-2xl font-bold text-zinc-100">ยอดค้างสะสม (Carry Credits)</h1>
           <p className="text-zinc-500 text-sm mt-1">สะสมจากการเลือก &quot;Join / Do not bid&quot; — นำไปลัดคิวรอบถัดไป</p>
         </div>
 
         {users.length === 0 ? (
           <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-16 text-center">
-            <div className="text-4xl mb-3">💳</div>
             <p className="text-zinc-500">ยังไม่มียอดค้างสะสมในระบบ</p>
           </div>
         ) : (

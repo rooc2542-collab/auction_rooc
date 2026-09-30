@@ -10,16 +10,8 @@ JOB_CLASSES = [
     'Wizard','Sage','Summoner','Rebellion'
 ]
 
-JOB_EMOJIS = {
-    'Lord Knight': '⚔️', 'Paladin': '🛡️', 'Biochemist': '🧪',
-    'Mastersmith': '🔨', 'Bard': '🎵', 'Gypsy': '💃',
-    'Sniper': '🏹', 'Champion': '👊', 'Priest': '✝️',
-    'Assassin': '🗡️', 'Rogue': '🎭', 'Wizard': '🔮',
-    'Sage': '📖', 'Summoner': '🌟', 'Rebellion': '🔫'
-}
 
-# Modal สำหรับแก้ไขข้อมูล
-class EditProfileModal(discord.ui.Modal, title='✏️ แก้ไขข้อมูลโปรไฟล์'):
+class EditProfileModal(discord.ui.Modal, title='แก้ไขข้อมูลโปรไฟล์'):
     display_name = discord.ui.TextInput(
         label='ชื่อตัวละคร (Display Name)',
         placeholder='ชื่อที่แสดงในระบบ',
@@ -35,7 +27,7 @@ class EditProfileModal(discord.ui.Modal, title='✏️ แก้ไขข้อ�
     async def on_submit(self, interaction: discord.Interaction):
         view = JobClassSelectView(self._discord_id, str(self.display_name), is_update=True)
         embed = discord.Embed(
-            title='🎭 เลือกอาชีพของคุณ',
+            title='เลือกอาชีพของคุณ',
             description='กรุณาเลือกอาชีพตัวละครของคุณในเกม',
             color=discord.Color.blue()
         )
@@ -50,7 +42,6 @@ class JobClassSelect(discord.ui.Select):
         options = [
             discord.SelectOption(
                 label=jc,
-                emoji=JOB_EMOJIS.get(jc, '⚔️'),
                 value=jc
             ) for jc in JOB_CLASSES
         ]
@@ -68,7 +59,7 @@ class JobClassSelect(discord.ui.Select):
             if self._is_update:
                 update_data = {'display_name': self._display_name, 'job_class': job_class}
                 supabase.table('profiles').update(update_data).eq('discord_id', self._discord_id).execute()
-                title = '✅ อัปเดตข้อมูลสำเร็จ!'
+                title = 'อัปเดตข้อมูลสำเร็จ'
             else:
                 insert_data = {
                     'discord_id': self._discord_id,
@@ -77,17 +68,17 @@ class JobClassSelect(discord.ui.Select):
                     'role': 'member'
                 }
                 supabase.table('profiles').insert(insert_data).execute()
-                title = '🎉 ลงทะเบียนสำเร็จ!'
+                title = 'ลงทะเบียนสำเร็จ'
 
             embed = discord.Embed(title=title, color=discord.Color.green())
-            embed.add_field(name='👤 ชื่อ', value=self._display_name, inline=True)
-            embed.add_field(name=f'{JOB_EMOJIS.get(job_class,"⚔️")} อาชีพ', value=job_class, inline=True)
-            embed.set_footer(text='ยินดีต้อนรับสู่ระบบประมูล!')
+            embed.add_field(name='ชื่อตัวละคร', value=self._display_name, inline=True)
+            embed.add_field(name='อาชีพ', value=job_class, inline=True)
+            embed.set_footer(text='ยินดีต้อนรับสู่ระบบประมูล')
 
             self.disabled = True
             await interaction.response.edit_message(embed=embed, view=self.view)
         except Exception as e:
-            await interaction.response.send_message(f'❌ เกิดข้อผิดพลาด: {e}', ephemeral=True)
+            await interaction.response.send_message(f'เกิดข้อผิดพลาด: {e}', ephemeral=True)
 
 
 class JobClassSelectView(discord.ui.View):
@@ -102,10 +93,10 @@ class EditProfileView(discord.ui.View):
         self._profile = profile
         self._discord_id = discord_id
 
-    @discord.ui.button(label='✏️ แก้ไขข้อมูล', style=discord.ButtonStyle.primary)
+    @discord.ui.button(label='แก้ไขข้อมูล', style=discord.ButtonStyle.primary)
     async def edit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if str(interaction.user.id) != self._discord_id:
-            await interaction.response.send_message('❌ คุณไม่มีสิทธิ์แก้ไขข้อมูลของคนอื่น', ephemeral=True)
+            await interaction.response.send_message('คุณไม่มีสิทธิ์แก้ไขข้อมูลของคนอื่น', ephemeral=True)
             return
         modal = EditProfileModal(
             current_name=self._profile.get('display_name', ''),
@@ -134,19 +125,19 @@ class MemberCog(commands.Cog):
         if existing:
             job = existing.get('job_class', 'ไม่ได้ระบุ') or 'ไม่ได้ระบุ'
             embed = discord.Embed(
-                title='⚠️ คุณลงทะเบียนไว้แล้ว',
+                title='คุณลงทะเบียนไว้แล้ว',
                 description='ข้อมูลปัจจุบันของคุณในระบบ:',
                 color=discord.Color.yellow()
             )
-            embed.add_field(name='👤 ชื่อ', value=existing.get('display_name', '-'), inline=True)
-            embed.add_field(name=f'{JOB_EMOJIS.get(job,"⚔️")} อาชีพ', value=job, inline=True)
+            embed.add_field(name='ชื่อตัวละคร', value=existing.get('display_name', '-'), inline=True)
+            embed.add_field(name='อาชีพ', value=job, inline=True)
             embed.set_footer(text='กดปุ่มด้านล่างหากต้องการแก้ไขข้อมูล')
             view = EditProfileView(existing, discord_id)
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         else:
             embed = discord.Embed(
-                title='🎭 เลือกอาชีพของคุณ',
-                description=f'ยินดีต้อนรับ **{display_name}**! กรุณาเลือกอาชีพตัวละครของคุณ',
+                title='เลือกอาชีพของคุณ',
+                description=f'ยินดีต้อนรับ **{display_name}** กรุณาเลือกอาชีพตัวละครของคุณ',
                 color=discord.Color.blue()
             )
             view = JobClassSelectView(discord_id, display_name, is_update=False)
@@ -164,11 +155,11 @@ class MemberCog(commands.Cog):
         profile = await auction_service.get_profile_by_discord_id(str(target.id))
         if not profile:
             name = member.display_name if member else 'คุณ'
-            await interaction.followup.send(f'❌ {name} ยังไม่ได้ลงทะเบียนในระบบ', ephemeral=True)
+            await interaction.followup.send(f'{name} ยังไม่ได้ลงทะเบียนในระบบ', ephemeral=True)
             return
         credits_data = await credit_service.get_credits(profile['id'])
         ITEM_LABELS = {'Album': 'สมุดการ์ด', 'Puppet': 'เศษการ์ดบอส', 'White': 'ขนนกขาว', 'RedBlack': 'ขนนกดำแดง'}
-        embed = discord.Embed(title=f'💳 Carry Credits — {profile["display_name"]}', color=discord.Color.gold())
+        embed = discord.Embed(title=f'Carry Credits — {profile["display_name"]}', color=discord.Color.gold())
         credits_map = {c['item_type']: c['credit'] for c in credits_data}
         for it, lbl in ITEM_LABELS.items():
             val = credits_map.get(it, 0)
@@ -184,12 +175,12 @@ class MemberCog(commands.Cog):
         discord_id = str(interaction.user.id)
         profile = await auction_service.get_profile_by_discord_id(discord_id)
         if not profile:
-            await interaction.followup.send('❌ คุณยังไม่ได้ลงทะเบียน ใช้คำสั่ง /register ก่อนนะครับ', ephemeral=True)
+            await interaction.followup.send('คุณยังไม่ได้ลงทะเบียน ใช้คำสั่ง /register ก่อนนะครับ', ephemeral=True)
             return
         job = profile.get('job_class', 'ไม่ได้ระบุ') or 'ไม่ได้ระบุ'
-        embed = discord.Embed(title=f'👤 โปรไฟล์ — {profile["display_name"]}', color=discord.Color.blurple())
-        embed.add_field(name=f'{JOB_EMOJIS.get(job,"⚔️")} อาชีพ', value=job, inline=True)
-        embed.add_field(name='🏷️ Role', value=profile.get('role', 'member'), inline=True)
+        embed = discord.Embed(title=f'โปรไฟล์ — {profile["display_name"]}', color=discord.Color.blurple())
+        embed.add_field(name='อาชีพ', value=job, inline=True)
+        embed.add_field(name='Role', value=profile.get('role', 'member'), inline=True)
         await interaction.followup.send(embed=embed, ephemeral=True)
 
 

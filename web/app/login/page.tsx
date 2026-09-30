@@ -39,8 +39,8 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-14 h-14 mx-auto mb-4 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-2xl">
-            ⚔️
+          <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-lg font-bold text-zinc-100">
+            R
           </div>
           <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">ระบบประมูล</h1>
           <p className="text-zinc-500 text-sm mt-1">Auction_Rooc</p>

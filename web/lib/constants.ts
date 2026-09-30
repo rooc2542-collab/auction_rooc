@@ -37,13 +37,13 @@ export const ITEM_CONFIG = {
 export type ItemType = keyof typeof ITEM_CONFIG
 
 export const VOTE_LABELS = {
-  want_bid: "✅ ต้องการประมูล",
-  no_bid: "📦 ไม่ประมูล (สะสม credit)",
-  absent: "❌ ไม่เข้าร่วม",
+  want_bid: "ต้องการประมูล",
+  no_bid: "ไม่ประมูล (สะสม credit)",
+  absent: "ไม่เข้าร่วม",
 } as const
 
 export const ROUND_STATUS_LABELS = {
-  voting: "🗳️ กำลังโหวต",
-  bidding: "🎯 กำลังจองคิว",
-  closed: "✅ ปิดแล้ว",
+  voting: "กำลังโหวต",
+  bidding: "กำลังจองคิว",
+  closed: "ปิดแล้ว",
 } as const

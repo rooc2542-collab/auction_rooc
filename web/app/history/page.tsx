@@ -24,14 +24,13 @@ export default async function HistoryPage() {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-zinc-100">📋 ประวัติการประมูล</h1>
+          <h1 className="text-2xl font-bold text-zinc-100">ประวัติการประมูล</h1>
           <p className="text-zinc-500 text-sm mt-1">รายการล่าสุด 200 รายการ</p>
         </div>
 
         <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
           {(!history || history.length === 0) ? (
             <div className="p-16 text-center">
-              <div className="text-4xl mb-3">📋</div>
               <p className="text-zinc-500">ยังไม่มีประวัติการประมูล</p>
             </div>
           ) : (
