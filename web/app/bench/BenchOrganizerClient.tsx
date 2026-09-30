@@ -25,6 +25,24 @@ interface Props {
   initialAttendance: Attendance[]
 }
 
+const JOB_EMOJIS: Record<string, string> = {
+  "Lord Knight": "⚔️",
+  "Paladin": "🛡️",
+  "Biochemist": "🧪",
+  "Mastersmith": "🔨",
+  "Bard": "🎵",
+  "Gypsy": "💃",
+  "Sniper": "🏹",
+  "Champion": "👊",
+  "Priest": "✝️",
+  "Assassin": "🗡️",
+  "Rogue": "🎭",
+  "Wizard": "🔮",
+  "Sage": "📖",
+  "Summoner": "🌟",
+  "Rebellion": "🔫",
+}
+
 export default function BenchOrganizerClient({
   isAdmin,
   initialMembers,
@@ -283,7 +301,7 @@ export default function BenchOrganizerClient({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
         {/* Search */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3.5 sm:p-4 shadow-sm">
-          <label className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
+          <label className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
             SEARCH BENCH MEMBERS
           </label>
           <input
@@ -291,13 +309,13 @@ export default function BenchOrganizerClient({
             placeholder="ค้นหาชื่อ, Discord ID, หรือ ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-zinc-800/80 border border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-all"
+            className="w-full bg-zinc-100/80 dark:bg-zinc-800/80 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-all"
           />
         </div>
 
         {/* Discord Message ID */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3.5 sm:p-4 shadow-sm">
-          <label className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
+          <label className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
             DISCORD MESSAGE ID
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
@@ -306,7 +324,7 @@ export default function BenchOrganizerClient({
               placeholder="ระบุ Message ID ของโพล"
               value={discordMessageId}
               onChange={(e) => setDiscordMessageId(e.target.value)}
-              className="flex-1 bg-zinc-800/80 border border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 font-mono transition-all"
+              className="flex-1 bg-zinc-100/80 dark:bg-zinc-800/80 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-500 font-mono transition-all"
             />
             <button
               onClick={handleImportDiscordPoll}
@@ -320,13 +338,13 @@ export default function BenchOrganizerClient({
       </div>
 
       {/* Mobile Tab Switcher (Visible only on mobile screens < 768px) */}
-      <div className="md:hidden flex items-center bg-zinc-900 border border-zinc-800 rounded-xl p-1 gap-1">
+      <div className="md:hidden flex items-center bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 gap-1">
         <button
           onClick={() => setMobileTab("assigned")}
           className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
             mobileTab === "assigned"
               ? "bg-emerald-950 text-emerald-300 border border-emerald-800/60 shadow-sm"
-              : "text-zinc-400"
+              : "text-zinc-600 dark:text-zinc-400"
           }`}
         >
           Assigned ({assignedList.length})
@@ -335,8 +353,8 @@ export default function BenchOrganizerClient({
           onClick={() => setMobileTab("unassigned")}
           className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
             mobileTab === "unassigned"
-              ? "bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm"
-              : "text-zinc-400"
+              ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 shadow-sm"
+              : "text-zinc-600 dark:text-zinc-400"
           }`}
         >
           Unassigned ({unassignedList.length})
@@ -345,7 +363,7 @@ export default function BenchOrganizerClient({
           onClick={() => setMobileTab("both")}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
             mobileTab === "both"
-              ? "bg-zinc-800 text-zinc-100 border border-zinc-700"
+              ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700"
               : "text-zinc-500"
           }`}
         >
@@ -363,7 +381,7 @@ export default function BenchOrganizerClient({
         >
           <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-zinc-800">
             <div className="flex items-center gap-2">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 UNASSIGNED BENCH
               </h2>
               <span className="px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 text-xs font-mono font-bold border border-zinc-700">
@@ -385,19 +403,26 @@ export default function BenchOrganizerClient({
                   <div
                     key={m.id}
                     onClick={() => handleToggleMember(m.id)}
-                    className="group bg-zinc-800/70 hover:bg-zinc-800 active:scale-[0.98] border border-zinc-700/70 hover:border-zinc-500 rounded-xl p-3 cursor-pointer transition-all shadow-sm flex flex-col justify-between"
+                    className="group bg-zinc-50 dark:bg-zinc-800/80 hover:bg-zinc-100 dark:hover:bg-zinc-800 active:scale-[0.98] border border-zinc-200 dark:border-zinc-700/80 hover:border-emerald-400 dark:hover:border-emerald-500 rounded-xl p-3 cursor-pointer transition-all shadow-sm flex flex-col justify-between min-h-[64px]"
                   >
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="font-semibold text-xs text-zinc-100 truncate group-hover:text-white">
-                        {m.display_name}
-                      </span>
-                      <svg className="w-3.5 h-3.5 text-indigo-400 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                    <div className="flex items-center justify-between gap-1 mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                          {m.display_name}
+                        </span>
+                        {m.job_class && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 font-medium shrink-0">
+                            {JOB_EMOJIS[m.job_class] ? `${JOB_EMOJIS[m.job_class]} ` : ""}{m.job_class}
+                          </span>
+                        )}
+                      </div>
+                      <svg className={`w-3.5 h-3.5 shrink-0 ${m.discord_id ? "text-indigo-500 dark:text-indigo-400" : "text-zinc-300 dark:text-zinc-600"}`} fill="currentColor" viewBox="0 0 24 24">
                         <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
                       </svg>
                     </div>
-                    <div className="flex items-center justify-between text-[11px] text-zinc-500">
-                      <span>Id: {idNum}</span>
-                      <span className="text-[10px] text-zinc-600 group-hover:text-emerald-400 font-medium">
+                    <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <span className="font-mono">Id: {idNum}</span>
+                      <span className="text-[10px] text-zinc-500 dark:text-zinc-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 font-semibold transition-colors">
                         + Assign
                       </span>
                     </div>
@@ -438,19 +463,27 @@ export default function BenchOrganizerClient({
                   <div
                     key={m.id}
                     onClick={() => handleToggleMember(m.id)}
-                    className="group bg-zinc-800/90 hover:bg-zinc-800 active:scale-[0.98] border border-emerald-800/50 hover:border-rose-700/60 rounded-xl p-3 cursor-pointer transition-all shadow-sm flex flex-col justify-between"
+                    className="group bg-emerald-50/80 dark:bg-zinc-800/90 hover:bg-rose-50/80 dark:hover:bg-zinc-800 active:scale-[0.98] border border-emerald-300 dark:border-emerald-700/60 hover:border-rose-400 dark:hover:border-rose-600/70 rounded-xl p-3 cursor-pointer transition-all shadow-sm flex flex-col justify-between min-h-[64px]"
                   >
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="font-semibold text-xs text-zinc-100 truncate group-hover:text-white">
-                        {m.display_name}
-                      </span>
-                      <svg className="w-3.5 h-3.5 text-indigo-400 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                    <div className="flex items-center justify-between gap-1 mb-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 shadow-sm" />
+                        <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 truncate group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                          {m.display_name}
+                        </span>
+                        {m.job_class && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100/90 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-medium border border-emerald-200/80 dark:border-emerald-800/40 shrink-0">
+                            {JOB_EMOJIS[m.job_class] ? `${JOB_EMOJIS[m.job_class]} ` : ""}{m.job_class}
+                          </span>
+                        )}
+                      </div>
+                      <svg className={`w-3.5 h-3.5 shrink-0 ${m.discord_id ? "text-indigo-500 dark:text-indigo-400" : "text-zinc-300 dark:text-zinc-600"}`} fill="currentColor" viewBox="0 0 24 24">
                         <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
                       </svg>
                     </div>
-                    <div className="flex items-center justify-between text-[11px] text-zinc-500">
-                      <span>Id: {idNum}</span>
-                      <span className="text-[10px] text-zinc-600 group-hover:text-rose-400 font-medium">
+                    <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <span className="font-mono">Id: {idNum}</span>
+                      <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold group-hover:text-rose-700 dark:group-hover:text-rose-300 transition-colors">
                         - Remove
                       </span>
                     </div>
