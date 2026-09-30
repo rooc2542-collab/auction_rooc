@@ -61,16 +61,72 @@ export default function ResourcePoolClient({
   initialSnapshots,
 }: Props) {
   const [activeTab, setActiveTab] = useState<"pool" | "snapshots">("pool")
-  const [poolName, setPoolName] = useState("Guild League : September 29, 2026")
 
-  // 4 item counts
-  const [albumQty, setAlbumQty] = useState<string>("41")
-  const [puppetQty, setPuppetQty] = useState<string>("11")
-  const [whiteQty, setWhiteQty] = useState<string>("174")
-  const [redBlackQty, setRedBlackQty] = useState<string>("210")
+  // Derive event name and quantities from the latest active session in DB
+  const latestSession = useMemo(() => {
+    if (!initialSessions || initialSessions.length === 0) return null
+    // Sort by session_date desc, take first
+    const sorted = [...initialSessions].sort(
+      (a, b) => new Date(b.session_date).getTime() - new Date(a.session_date).getTime()
+    )
+    return sorted[0]
+  }, [initialSessions])
 
-  // Assigned members for allocation from database/localStorage
+  const getQtyForItem = (itemType: string) => {
+    const found = initialSessions.find((s: any) => s.item_type === itemType && s.session_date === latestSession?.session_date && s.event_name === latestSession?.event_name)
+    return found ? String(found.total_quantity ?? 0) : "0"
+  }
+
+  const [poolName, setPoolName] = useState(() =>
+    latestSession
+      ? `${latestSession.event_name} : ${latestSession.session_date}`
+      : "Resource Pool"
+  )
+
+  // 4 item counts — auto-populated from DB
+  const [albumQty, setAlbumQty] = useState<string>(() => getQtyForItem("Album"))
+  const [puppetQty, setPuppetQty] = useState<string>(() => getQtyForItem("Puppet"))
+  const [whiteQty, setWhiteQty] = useState<string>(() => getQtyForItem("White"))
+  const [redBlackQty, setRedBlackQty] = useState<string>(() => getQtyForItem("RedBlack"))
+
+  // Re-populate when initialSessions changes (e.g. after navigation)
+  useEffect(() => {
+    if (!latestSession) return
+    setAlbumQty(getQtyForItem("Album"))
+    setPuppetQty(getQtyForItem("Puppet"))
+    setWhiteQty(getQtyForItem("White"))
+    setRedBlackQty(getQtyForItem("RedBlack"))
+    setPoolName(`${latestSession.event_name} : ${latestSession.session_date}`)
+  }, [initialSessions])
+
+  // Assigned members: prefer event_attendance (want_bid) from DB, fallback to localStorage
+  const getAssignedFromDb = () => {
+    if (!initialSlots || initialSlots.length === 0) return null
+    // Get unique user_ids from allocated_slots for the latest event
+    const userSet = new Set<string>()
+    const nameList: string[] = []
+    for (const slot of initialSlots) {
+      if (
+        latestSession &&
+        slot.event_name === latestSession.event_name &&
+        slot.session_date === latestSession.session_date
+      ) {
+        const uid = slot.user_id
+        if (uid && !userSet.has(uid)) {
+          userSet.add(uid)
+          const profile = (slot.profiles as any) || {}
+          const name = profile.display_name || ""
+          if (name) nameList.push(name)
+        }
+      }
+    }
+    return nameList.length > 0 ? nameList : null
+  }
+
   const [assignedMemberNames, setAssignedMemberNames] = useState<string[]>(() => {
+    // Priority: DB allocated_slots > localStorage > all members
+    const fromDb = getAssignedFromDb()
+    if (fromDb) return fromDb
     if (typeof window !== "undefined") {
       try {
         const cached = localStorage.getItem("rooc_assigned_bench_members")
@@ -85,8 +141,13 @@ export default function ResourcePoolClient({
     return initialMembers.map((m) => m.display_name)
   })
 
-  // Read assigned members from localStorage or initialMembers on mount
+  // Read assigned members on mount / when initialSlots changes
   useEffect(() => {
+    const fromDb = getAssignedFromDb()
+    if (fromDb) {
+      setAssignedMemberNames(fromDb)
+      return
+    }
     if (typeof window !== "undefined") {
       try {
         const cached = localStorage.getItem("rooc_assigned_bench_members")
@@ -102,7 +163,7 @@ export default function ResourcePoolClient({
     if (initialMembers.length > 0) {
       setAssignedMemberNames(initialMembers.map((m) => m.display_name))
     }
-  }, [initialMembers])
+  }, [initialSlots, initialMembers])
 
   // Generated slots state
   const [slotsList, setSlotsList] = useState<SlotEntry[]>([])
@@ -153,14 +214,16 @@ export default function ResourcePoolClient({
     return result
   }
 
-  // Initial calculation on load
+  // Initial calculation on load and whenever key values change
   useEffect(() => {
     const qA = parseInt(albumQty) || 0
     const qP = parseInt(puppetQty) || 0
     const qW = parseInt(whiteQty) || 0
     const qRB = parseInt(redBlackQty) || 0
-    setSlotsList(computeSlots(qA, qP, qW, qRB, assignedMemberNames))
-  }, [])
+    if (qA + qP + qW + qRB > 0 && assignedMemberNames.length > 0) {
+      setSlotsList(computeSlots(qA, qP, qW, qRB, assignedMemberNames))
+    }
+  }, [albumQty, puppetQty, whiteQty, redBlackQty, assignedMemberNames])
 
   // Handle Apply Pool button
   const handleApplyPool = () => {
@@ -424,6 +487,16 @@ export default function ResourcePoolClient({
                 placeholder="Guild League : September 29, 2026"
                 className="w-full bg-zinc-800/80 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-all font-medium"
               />
+              {latestSession && (
+                <p className="text-[10px] text-emerald-500 mt-1.5 font-mono">
+                  โหลดจาก DB: {latestSession.event_name} ({latestSession.session_date})
+                </p>
+              )}
+              {!latestSession && (
+                <p className="text-[10px] text-zinc-600 mt-1.5">
+                  ยังไม่มีข้อมูล session ใน DB — กรุณาสร้างอีเวนต์ใน /queues ก่อน
+                </p>
+              )}
             </div>
 
             {/* 2x2 Grid for 4 Items */}
@@ -482,11 +555,18 @@ export default function ResourcePoolClient({
             </div>
 
             {/* Assigned Member Count Indicator */}
-            <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-xl p-3 text-xs text-zinc-400 flex items-center justify-between">
-              <span>สมาชิกใน Assigned Bench:</span>
-              <span className="font-bold text-emerald-400 font-mono">
-                {assignedMemberNames.length} คน
-              </span>
+            <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-xl p-3 text-xs text-zinc-400 space-y-1">
+              <div className="flex items-center justify-between">
+                <span>สมาชิกใน Assigned Bench:</span>
+                <span className="font-bold text-emerald-400 font-mono">
+                  {assignedMemberNames.length} คน
+                </span>
+              </div>
+              <div className="text-[10px] text-zinc-600 font-mono">
+                {getAssignedFromDb()
+                  ? "แหล่งข้อมูล: allocated_slots (DB)"
+                  : "แหล่งข้อมูล: localStorage / ทั้งหมด"}
+              </div>
             </div>
 
             {/* Apply Pool Button (Teal like image 4) */}
