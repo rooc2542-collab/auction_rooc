@@ -356,16 +356,26 @@ export default function MemberTable({
                     className="bg-zinc-900 border border-zinc-800 rounded-xl p-3.5 space-y-2.5 shadow-sm"
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-zinc-500 font-bold text-xs">#{idx + 1}</span>
-                        <span className="font-bold text-sm text-zinc-100">{m.display_name}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-zinc-500 font-bold text-xs shrink-0">#{idx + 1}</span>
+                        <span className="font-bold text-sm text-zinc-100 truncate">{m.display_name}</span>
                         {m.job_class && (
-                          <span className="text-[10px] text-zinc-500">({m.job_class})</span>
+                          <span className="text-[10px] text-zinc-500 shrink-0">({m.job_class})</span>
                         )}
                       </div>
-                      <span className="text-[10px] font-mono text-zinc-400">
-                        {m.discord_id ? m.discord_id.slice(-6) : "-"}
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] font-mono text-zinc-400">
+                          {m.discord_id ? m.discord_id.slice(-6) : "-"}
+                        </span>
+                        {isAdmin && (
+                          <button
+                            onClick={() => openEdit(m)}
+                            className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] font-medium border border-zinc-700 cursor-pointer shrink-0"
+                          >
+                            แก้ไข
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* 4 Items Grid */}
@@ -403,7 +413,7 @@ export default function MemberTable({
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs min-w-[650px]">
+              <table className="w-full text-left text-xs min-w-[700px]">
                 <thead>
                   <tr className="border-b border-zinc-800 bg-zinc-950/40 text-zinc-400 font-bold uppercase tracking-wider text-[11px]">
                     <th className="px-3.5 sm:px-4 py-3.5 w-12 sticky left-0 z-10 bg-zinc-950">#</th>
@@ -423,12 +433,13 @@ export default function MemberTable({
                     <th className="px-4 py-3.5 text-center">
                       Time-Space Feathers ({columnTotals.RedBlack})
                     </th>
+                    {isAdmin && <th className="px-4 py-3.5 text-right">จัดการ</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/60">
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center text-zinc-600 py-12 text-xs">
+                      <td colSpan={8} className="text-center text-zinc-600 py-12 text-xs">
                         ไม่พบสมาชิกที่ตรงกับการค้นหา
                       </td>
                     </tr>
@@ -447,12 +458,23 @@ export default function MemberTable({
                             {idx + 1}
                           </td>
                           <td className="px-3.5 sm:px-4 py-3.5 sticky left-12 z-10 bg-zinc-900 border-r border-zinc-800/60">
-                            <div className="font-semibold text-zinc-100 whitespace-nowrap">
-                              {m.display_name}
+                            <div className="flex items-center gap-2">
+                              <div>
+                                <div className="font-semibold text-zinc-100 whitespace-nowrap">
+                                  {m.display_name}
+                                </div>
+                                {m.job_class && (
+                                  <div className="text-[10px] text-zinc-500">{m.job_class}</div>
+                                )}
+                              </div>
+                              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-semibold border shrink-0 ${
+                                m.role === "admin"
+                                  ? "bg-purple-950 text-purple-300 border-purple-800/60"
+                                  : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                              }`}>
+                                {m.role}
+                              </span>
                             </div>
-                            {m.job_class && (
-                              <div className="text-[10px] text-zinc-500">{m.job_class}</div>
-                            )}
                           </td>
                           <td className="px-4 py-3.5 font-mono text-zinc-400">
                             {m.discord_id || "-"}
@@ -493,6 +515,16 @@ export default function MemberTable({
                               Skipped: {stats.RedBlack.skip}
                             </div>
                           </td>
+                          {isAdmin && (
+                            <td className="px-4 py-3.5 text-right">
+                              <button
+                                onClick={() => openEdit(m)}
+                                className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[11px] font-medium border border-zinc-700 cursor-pointer whitespace-nowrap"
+                              >
+                                แก้ไข
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       )
                     })
@@ -571,9 +603,31 @@ export default function MemberTable({
       {(isAddModalOpen || editMember) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4">
-            <h3 className="text-base font-bold text-zinc-100">
-              {isAddModalOpen ? "เพิ่มสมาชิกใหม่" : `แก้ไขข้อมูล: ${editMember?.display_name}`}
-            </h3>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-zinc-100">
+                  {isAddModalOpen ? "เพิ่มสมาชิกใหม่" : `แก้ไขข้อมูล`}
+                </h3>
+                {editMember && (
+                  <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-2">
+                    {editMember.display_name}
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                      editMember.role === "admin"
+                        ? "bg-purple-950 text-purple-300 border-purple-800/60"
+                        : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                    }`}>
+                      {editMember.role}
+                    </span>
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => { setIsAddModalOpen(false); setEditMember(null) }}
+                className="text-zinc-500 hover:text-zinc-300 text-lg leading-none cursor-pointer shrink-0"
+              >
+                &times;
+              </button>
+            </div>
 
             <div className="space-y-3">
               <div>
@@ -596,33 +650,65 @@ export default function MemberTable({
                 />
               </div>
 
-              <div>
-                <label className="block text-xs text-zinc-400 mb-1">อาชีพ</label>
-                <select
-                  value={editForm.job_class}
-                  onChange={(e) => setEditForm((p) => ({ ...p, job_class: e.target.value }))}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-100 focus:outline-none"
-                >
-                  {JOB_CLASSES.map((j) => (
-                    <option key={j} value={j}>{j}</option>
-                  ))}
-                </select>
+              {/* Job Class & Role side by side */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">อาชีพ</label>
+                  <select
+                    value={editForm.job_class}
+                    onChange={(e) => setEditForm((p) => ({ ...p, job_class: e.target.value }))}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-zinc-500"
+                  >
+                    <option value="">ไม่ระบุ</option>
+                    {JOB_CLASSES.map((j) => (
+                      <option key={j} value={j}>{j}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">สิทธิ์ (Role)</label>
+                  <select
+                    value={editForm.role}
+                    onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value as any }))}
+                    className={`w-full bg-zinc-800 border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-500 ${
+                      editForm.role === "admin"
+                        ? "text-purple-300 border-purple-800/60"
+                        : "text-zinc-100 border-zinc-700"
+                    }`}
+                  >
+                    <option value="member">Member</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs text-zinc-400 mb-1">สิทธิ์ (Role)</label>
-                <select
-                  value={editForm.role}
-                  onChange={(e) => setEditForm((p) => ({ ...p, role: e.target.value as any }))}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-100 focus:outline-none"
-                >
-                  <option value="member">Member</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
+              {/* Preview badge */}
+              {editForm.role && (
+                <div className="flex items-center gap-2 text-xs text-zinc-500">
+                  <span>ตัวอย่าง Role:</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                    editForm.role === "admin"
+                      ? "bg-purple-950 text-purple-300 border-purple-800/60"
+                      : "bg-zinc-800 text-zinc-400 border-zinc-700"
+                  }`}>
+                    {editForm.role}
+                  </span>
+                </div>
+              )}
             </div>
 
-            <div className="flex gap-2 pt-2">
+            {message && (
+              <div className={`px-3 py-2 rounded-lg text-xs font-medium border ${
+                message.type === "success"
+                  ? "bg-emerald-950/40 border-emerald-800/60 text-emerald-300"
+                  : "bg-rose-950/40 border-rose-800/60 text-rose-300"
+              }`}>
+                {message.text}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
               <button
                 onClick={() => { setIsAddModalOpen(false); setEditMember(null) }}
                 className="flex-1 px-4 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold border border-zinc-700 cursor-pointer"
