@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 export const JOB_CLASSES = [
   "Lord Knight", "Paladin", "Biochemist", "Mastersmith", "Bard",
@@ -43,6 +44,7 @@ export default function MemberTable({
   attendance = [],
   isAdmin,
 }: MemberTableProps) {
+  const router = useRouter()
   const [viewMode, setViewMode] = useState<"items" | "profile">("items")
   const [mobileDisplay, setMobileDisplay] = useState<"cards" | "table">("cards")
   const [search, setSearch] = useState("")
@@ -52,8 +54,26 @@ export default function MemberTable({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [editForm, setEditForm] = useState({ display_name: "", discord_id: "", job_class: "", role: "member" })
   const [saving, setSaving] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const [lastSyncedTime, setLastSyncedTime] = useState<string>("18:36:00")
+  const [lastSyncedTime, setLastSyncedTime] = useState<string>("")
+
+  // Load last synced time from localStorage or current time on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("rooc_members_last_synced")
+      if (saved) {
+        setLastSyncedTime(saved)
+      } else {
+        const timeStr = new Date().toTimeString().split(" ")[0]
+        setLastSyncedTime(timeStr)
+        localStorage.setItem("rooc_members_last_synced", timeStr)
+      }
+    } catch {
+      const timeStr = new Date().toTimeString().split(" ")[0]
+      setLastSyncedTime(timeStr)
+    }
+  }, [])
 
   // Filter members by search query and dropdowns
   const filtered = useMemo(() => {
@@ -133,11 +153,17 @@ export default function MemberTable({
   }, [slots])
 
   function handleSync() {
+    setIsSyncing(true)
     const now = new Date()
     const timeStr = now.toTimeString().split(" ")[0]
     setLastSyncedTime(timeStr)
+    try {
+      localStorage.setItem("rooc_members_last_synced", timeStr)
+    } catch {}
+    router.refresh()
     setMessage({ type: "success", text: `ซิงค์ข้อมูลกับฐานข้อมูลเรียบร้อย ณ เวลา ${timeStr}` })
     setTimeout(() => setMessage(null), 3000)
+    setTimeout(() => setIsSyncing(false), 600)
   }
 
   function openAdd() {
@@ -233,14 +259,15 @@ export default function MemberTable({
         {/* Sync Indicator & Actions */}
         <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
           <span className="text-[11px] sm:text-xs text-zinc-500 font-mono">
-            Synced: {lastSyncedTime}
+            Synced: {lastSyncedTime || "--:--:--"}
           </span>
           <div className="flex items-center gap-1.5">
             <button
               onClick={handleSync}
-              className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition-all cursor-pointer shadow-sm"
+              disabled={isSyncing}
+              className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition-all cursor-pointer shadow-sm disabled:opacity-50"
             >
-              Sync
+              {isSyncing ? "Syncing..." : "Sync"}
             </button>
             {isAdmin && (
               <button
