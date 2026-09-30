@@ -318,7 +318,7 @@ export default function BenchOrganizerClient({
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
           <button
             onClick={handleResetToNoBid}
-            className="px-3.5 py-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-xs font-semibold border border-zinc-300 dark:border-zinc-700 transition-all cursor-pointer shadow-sm text-center"
+            className="px-3.5 py-2 rounded-lg bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold border border-zinc-300 dark:border-zinc-700 transition-all cursor-pointer shadow-sm text-center"
           >
             รีเซ็ตเป็นไม่ประมูล
           </button>
@@ -331,7 +331,7 @@ export default function BenchOrganizerClient({
           <button
             onClick={handleProceedToQueues}
             disabled={busy}
-            className="col-span-2 sm:col-span-1 px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-bold transition-all cursor-pointer shadow-sm text-center"
+            className="col-span-2 sm:col-span-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer shadow-md text-center border border-emerald-500 disabled:opacity-50"
           >
             {busy ? "กำลังบันทึก..." : "ส่งไป จัดคิวและสล็อต →"}
           </button>

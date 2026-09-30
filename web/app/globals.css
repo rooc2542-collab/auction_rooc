@@ -71,6 +71,16 @@ html:not(.dark) .text-zinc-900 {
   color: #09090b !important;
 }
 
+/* Safeguard: Ensure buttons with white text never have white background in Light Mode */
+html:not(.dark) button.text-white {
+  color: #ffffff !important;
+}
+html:not(.dark) button.text-white.bg-zinc-900,
+html:not(.dark) button.text-white.bg-zinc-800 {
+  background-color: #18181b !important;
+  color: #ffffff !important;
+}
+
 /* Borders */
 html:not(.dark) .border-zinc-800 { border-color: #e4e4e7 !important; }
 html:not(.dark) .border-zinc-800\/80 { border-color: #e4e4e7 !important; }
