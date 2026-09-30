@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { createAdminClient } from "@/lib/supabase/server"
@@ -45,14 +46,16 @@ export default async function QueuesPage() {
       <NavBar isAdmin={isAdmin} />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <QueueManagerClient
-          isAdmin={isAdmin}
-          members={members || []}
-          initialAttendance={attendance || []}
-          initialSessions={eventSessions || []}
-          initialSlots={allocatedSlots || []}
-          initialCredits={carryCredits || []}
-        />
+        <Suspense fallback={<div className="text-zinc-500 py-10 text-center text-sm font-medium">กำลังโหลดข้อมูล...</div>}>
+          <QueueManagerClient
+            isAdmin={isAdmin}
+            members={members || []}
+            initialAttendance={attendance || []}
+            initialSessions={eventSessions || []}
+            initialSlots={allocatedSlots || []}
+            initialCredits={carryCredits || []}
+          />
+        </Suspense>
       </main>
     </div>
   )

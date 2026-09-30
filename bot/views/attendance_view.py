@@ -155,6 +155,8 @@ class ItemMultiSelect(discord.ui.Select):
 
         selected = self.values
         try:
+            poll_msg_id = str(self._poll_message.id) if self._poll_message else None
+            poll_chan_id = str(self._poll_message.channel.id) if self._poll_message and hasattr(self._poll_message, 'channel') and self._poll_message.channel else None
             await asyncio.to_thread(
                 lambda: supabase.table('event_attendance').upsert({
                     'event_name': self._event,
@@ -163,6 +165,8 @@ class ItemMultiSelect(discord.ui.Select):
                     'user_id': self._user_id,
                     'status': 'want_bid',
                     'interested_items': selected,
+                    'message_id': poll_msg_id,
+                    'channel_id': poll_chan_id,
                     'updated_at': datetime.now(timezone.utc).isoformat()
                 }, on_conflict='event_name,event_date,discord_id').execute()
             )
@@ -227,6 +231,8 @@ async def handle_attendance_action(interaction: discord.Interaction, status: str
             )
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         else:
+            msg_id = str(interaction.message.id) if interaction.message else None
+            chan_id = str(interaction.channel_id) if interaction.channel_id else None
             await asyncio.to_thread(
                 lambda: supabase.table('event_attendance').upsert({
                     'event_name': event_name,
@@ -235,6 +241,8 @@ async def handle_attendance_action(interaction: discord.Interaction, status: str
                     'user_id': user_id,
                     'status': status,
                     'interested_items': [],
+                    'message_id': msg_id,
+                    'channel_id': chan_id,
                     'updated_at': datetime.now(timezone.utc).isoformat()
                 }, on_conflict='event_name,event_date,discord_id').execute()
             )

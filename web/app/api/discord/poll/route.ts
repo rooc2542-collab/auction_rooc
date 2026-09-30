@@ -132,11 +132,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. กรณีดึงจาก event_attendance ในฐานข้อมูล (ที่บอท /event_poll บันทึกไว้)
-    const { data: dbAttendance } = await supabase
+    // 3. กรณีดึงจาก event_attendance ในฐานข้อมูล (ค้นหาจาก message_id หรือชื่อรอบ event_name)
+    let { data: dbAttendance } = await supabase
       .from("event_attendance")
-      .select("discord_id, status")
+      .select("discord_id, status, event_name, event_date")
       .eq("message_id", cleanMessageId)
+
+    if (!dbAttendance || dbAttendance.length === 0) {
+      const { data: byName } = await supabase
+        .from("event_attendance")
+        .select("discord_id, status, event_name, event_date")
+        .ilike("event_name", cleanMessageId)
+      if (byName && byName.length > 0) {
+        dbAttendance = byName
+      }
+    }
 
     if (dbAttendance && dbAttendance.length > 0) {
       const wantBidDiscordIds = dbAttendance
@@ -153,10 +163,16 @@ export async function POST(req: NextRequest) {
       const noBidMembers = profilesList.filter((p) => noBidDiscordIds.includes(String(p.discord_id)))
       const absentMembers = profilesList.filter((p) => absentDiscordIds.includes(String(p.discord_id)))
 
+      const eventName = dbAttendance[0]?.event_name || ""
+      const eventDate = dbAttendance[0]?.event_date || ""
+      const pollTitle = eventName ? `${eventName} (${eventDate})` : `Poll ID: ${cleanMessageId}`
+
       return NextResponse.json({
         success: true,
         source: "database",
-        poll_title: `Poll ID: ${cleanMessageId}`,
+        poll_title: pollTitle,
+        event_name: eventName,
+        event_date: eventDate,
         want_bid_count: wantBidMembers.length,
         no_bid_count: noBidMembers.length,
         absent_count: absentMembers.length,
@@ -169,10 +185,10 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // 4. ถ้าไม่พบใน Discord API และไม่มีใน DB ให้ส่งข้อความแจ้งเตือนชัดเจน
+    // 4. ถ้าไม่พบใน Discord API และไม่มีใน DB ให้ส่งข้อความแจ้งเตือนพร้อมคำแนะนำ
     return NextResponse.json({
       success: false,
-      error: `ไม่พบข้อมูลโพลสำหรับ Message ID: ${cleanMessageId} (กรุณาตรวจสอบว่า Bot Token หรือ Message ID ถูกต้อง และบอทอยู่ในห้องแชทนั้น)`,
+      error: `ไม่พบข้อมูลโพลสำหรับ Message ID หรือชื่องาน: "${cleanMessageId}" (คำแนะนำ: คุณสามารถเลือกชื่อรอบกิจกรรมจากเมนู Dropdown ด้านบนได้ทันทีโดยไม่ต้องใช้ Message ID)`,
     }, { status: 404 })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "เกิดข้อผิดพลาดในการดึงข้อมูลโพล" }, { status: 500 })

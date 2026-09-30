@@ -13,18 +13,25 @@ export default async function BenchPage() {
   const isAdmin = (session.user as any)?.role === "admin"
   const supabase = createAdminClient()
 
-  // Load all profiles
-  const { data: members } = await supabase
-    .from("profiles")
-    .select("id, display_name, discord_id, job_class, role, created_at")
-    .order("display_name")
-
-  // Load recent attendance to see current assigned bench
-  const { data: recentAttendance } = await supabase
-    .from("event_attendance")
-    .select("event_name, event_date, discord_id, status, user_id")
-    .order("event_date", { ascending: false })
-    .limit(100)
+  // Load profiles, attendance, and event sessions in parallel
+  const [
+    { data: members },
+    { data: attendance },
+    { data: eventSessions },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, display_name, discord_id, job_class, role, created_at")
+      .order("display_name"),
+    supabase
+      .from("event_attendance")
+      .select("event_name, event_date, discord_id, status, user_id, message_id")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("event_sessions")
+      .select("event_name, session_date")
+      .order("session_date", { ascending: false }),
+  ])
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -33,7 +40,8 @@ export default async function BenchPage() {
         <BenchOrganizerClient
           isAdmin={isAdmin}
           initialMembers={members || []}
-          initialAttendance={recentAttendance || []}
+          initialAttendance={attendance || []}
+          initialSessions={eventSessions || []}
         />
       </main>
     </div>

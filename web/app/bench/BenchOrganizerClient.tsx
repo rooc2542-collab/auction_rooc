@@ -19,10 +19,16 @@ interface Attendance {
   user_id: string
 }
 
+interface Session {
+  event_name: string
+  session_date: string
+}
+
 interface Props {
   isAdmin: boolean
   initialMembers: Member[]
   initialAttendance: Attendance[]
+  initialSessions?: Session[]
 }
 
 type AttendanceStatus = "want_bid" | "no_bid" | "absent"
@@ -49,11 +55,34 @@ export default function BenchOrganizerClient({
   isAdmin,
   initialMembers,
   initialAttendance,
+  initialSessions = [],
 }: Props) {
   const router = useRouter()
+  const todayStr = useMemo(() => new Date().toISOString().split("T")[0], [])
+
+  // Collect all available events from sessions and attendance
+  const existingEvents = useMemo(() => {
+    const set = new Set<string>()
+    for (const s of (initialSessions || [])) {
+      if (s.event_name && s.session_date) set.add(`${s.event_name}|${s.session_date}`)
+    }
+    for (const a of (initialAttendance || [])) {
+      if (a.event_name && a.event_date) set.add(`${a.event_name}|${a.event_date}`)
+    }
+    return Array.from(set)
+  }, [initialSessions, initialAttendance])
+
+  const defaultPair = useMemo(() => {
+    return existingEvents[0] ? existingEvents[0].split("|") : ["Emperium Overrun", todayStr]
+  }, [existingEvents, todayStr])
+
+  const [selectedEventKey, setSelectedEventKey] = useState(existingEvents[0] || "__custom__")
+  const [eventName, setEventName] = useState(defaultPair[0] || "Emperium Overrun")
+  const [eventDate, setEventDate] = useState(defaultPair[1] || todayStr)
+  const [isCustomEvent, setIsCustomEvent] = useState(existingEvents.length === 0)
+
   const [searchTerm, setSearchTerm] = useState("")
   const [discordMessageId, setDiscordMessageId] = useState("")
-  const [eventName, setEventName] = useState("Emperium Overrun")
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null)
 
@@ -69,56 +98,55 @@ export default function BenchOrganizerClient({
     return map
   }, [initialMembers])
 
+  // Helper to build status map for a given event
+  const buildStatusMapForEvent = (evName: string, evDate: string): Map<string, AttendanceStatus> => {
+    const map = new Map<string, AttendanceStatus>()
+    // 1. All members default to no_bid
+    for (const m of initialMembers) {
+      map.set(m.id, "no_bid")
+    }
+    // 2. Load attendance matching this event
+    for (const a of initialAttendance) {
+      if (a.event_name === evName && a.event_date === evDate && a.user_id) {
+        if (a.status === "want_bid" || a.status === "no_bid" || a.status === "absent") {
+          map.set(a.user_id, a.status as AttendanceStatus)
+        }
+      }
+    }
+    return map
+  }
+
   // Initialize status map for all members (want_bid | no_bid | absent)
   const [statusMap, setStatusMap] = useState<Map<string, AttendanceStatus>>(() => {
-    const map = new Map<string, AttendanceStatus>()
-
-    // 1. From database initialAttendance (most recent)
-    for (const a of initialAttendance) {
-      if (a.user_id && (a.status === "want_bid" || a.status === "no_bid" || a.status === "absent")) {
-        map.set(a.user_id, a.status as AttendanceStatus)
-      }
-    }
-
-    // 2. From localStorage cache if available
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem("rooc_bench_status_map")
-        if (cached) {
-          const parsed = JSON.parse(cached)
-          if (typeof parsed === "object" && parsed !== null) {
-            Object.entries(parsed).forEach(([id, st]) => {
-              if (st === "want_bid" || st === "no_bid" || st === "absent") {
-                map.set(id, st as AttendanceStatus)
-              }
-            })
-          }
-        }
-      } catch {}
-    }
-
-    // 3. Any remaining member defaults to "no_bid" (สำรอง / ไม่ต้องการประมูล)
-    for (const m of initialMembers) {
-      if (!map.has(m.id)) {
-        map.set(m.id, "no_bid")
-      }
-    }
-
-    return map
+    return buildStatusMapForEvent(defaultPair[0], defaultPair[1])
   })
 
-  // Persist to localStorage whenever statusMap changes
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const obj: Record<string, AttendanceStatus> = {}
-        statusMap.forEach((val, key) => {
-          obj[key] = val
-        })
-        localStorage.setItem("rooc_bench_status_map", JSON.stringify(obj))
-      } catch {}
+  // Switch event via dropdown
+  const handleSelectEvent = (val: string) => {
+    setSelectedEventKey(val)
+    if (val === "__custom__") {
+      setIsCustomEvent(true)
+    } else {
+      setIsCustomEvent(false)
+      const [name, date] = val.split("|")
+      const d = date || todayStr
+      setEventName(name)
+      setEventDate(d)
+      const nextMap = buildStatusMapForEvent(name, d)
+      setStatusMap(nextMap)
+
+      let wb = 0, nb = 0, ab = 0
+      nextMap.forEach((st) => {
+        if (st === "want_bid") wb++
+        else if (st === "no_bid") nb++
+        else if (st === "absent") ab++
+      })
+      setToast({
+        type: "ok",
+        text: `โหลดข้อมูลรอบ "${name}" (${d}) สำเร็จ: ต้องการประมูล ${wb} คน, ไม่ประมูล ${nb} คน, ไม่เข้าร่วม ${ab} คน`,
+      })
     }
-  }, [statusMap])
+  }
 
   // Split into 3 Discord-aligned groups: want_bid, no_bid, absent
   const { wantBidList, noBidList, absentList } = useMemo(() => {
@@ -194,7 +222,12 @@ export default function BenchOrganizerClient({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาดในการดึงข้อมูลโพล")
 
-      if (data.poll_title) {
+      if (data.event_name) {
+        setEventName(data.event_name)
+        if (data.event_date) setEventDate(data.event_date)
+        setSelectedEventKey(`${data.event_name}|${data.event_date || eventDate}`)
+        setIsCustomEvent(false)
+      } else if (data.poll_title) {
         setEventName(data.poll_title)
       }
 
@@ -237,10 +270,9 @@ export default function BenchOrganizerClient({
 
   // Capture PNG or Copy Summary (All 3 areas)
   const handleCapturePNG = () => {
-    const todayStr = new Date().toISOString().split("T")[0]
     const text = [
       `=== Bench Organizer Summary: ${eventName} ===`,
-      `📅 วันที่: ${todayStr}`,
+      `📅 วันที่: ${eventDate}`,
       ``,
       `[ 🎮 1. เข้าร่วม / ต้องการประมูล (${wantBidList.length} คน) ]`,
       wantBidList.length > 0
@@ -276,8 +308,7 @@ export default function BenchOrganizerClient({
     setBusy(true)
     try {
       if (isAdmin) {
-        const todayStr = new Date().toISOString().split("T")[0]
-        const cleanName = eventName.split(":")[0]?.trim() || "Emperium Overrun"
+        const cleanName = eventName.trim() || "Emperium Overrun"
         for (const m of initialMembers) {
           const st = statusMap.get(m.id) || "no_bid"
           await fetch("/api/queues", {
@@ -286,7 +317,7 @@ export default function BenchOrganizerClient({
             body: JSON.stringify({
               action: "upsert_attendance",
               event_name: cleanName,
-              event_date: todayStr,
+              event_date: eventDate,
               user_id: m.id,
               discord_id: m.discord_id,
               status: st,
@@ -295,7 +326,7 @@ export default function BenchOrganizerClient({
           }).catch(() => {})
         }
       }
-      router.push("/queues")
+      router.push(`/queues?event=${encodeURIComponent(eventName.trim())}&date=${encodeURIComponent(eventDate)}`)
     } finally {
       setBusy(false)
     }
@@ -351,11 +382,68 @@ export default function BenchOrganizerClient({
         </div>
       )}
 
+      {/* Event Selector Banner (Auto-loads Discord votes) */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-sm space-y-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-base">⚔️</span>
+              <label className="text-xs font-bold uppercase tracking-wider text-zinc-300 dark:text-zinc-200">
+                เลือกรอบกิจกรรม (ผลโหวตจาก Discord บันทึกเข้าระบบอัตโนมัติ)
+              </label>
+            </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <select
+                value={selectedEventKey}
+                onChange={(e) => handleSelectEvent(e.target.value)}
+                className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-emerald-500 font-medium cursor-pointer"
+              >
+                {existingEvents.map((ev) => {
+                  const [en, ed] = ev.split("|")
+                  return (
+                    <option key={ev} value={ev}>
+                      {en} ({ed})
+                    </option>
+                  )
+                })}
+                <option value="__custom__">➕ กำหนดชื่อรอบกิจกรรมใหม่...</option>
+              </select>
+
+              {isCustomEvent && (
+                <input
+                  type="text"
+                  placeholder="พิมพ์ชื่อรอบกิจกรรม เช่น Emperium Overrun..."
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500 font-medium"
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Current Event Live Stats Badges */}
+          <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-zinc-800">
+            <div className="px-2.5 py-1.5 rounded-lg bg-emerald-950/60 border border-emerald-800/60 text-emerald-300 text-xs font-medium flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span>ประมูล: <b>{wantBidList.length}</b></span>
+            </div>
+            <div className="px-2.5 py-1.5 rounded-lg bg-amber-950/60 border border-amber-800/60 text-amber-300 text-xs font-medium flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              <span>ไม่ประมูล: <b>{noBidList.length}</b></span>
+            </div>
+            <div className="px-2.5 py-1.5 rounded-lg bg-rose-950/60 border border-rose-800/60 text-rose-300 text-xs font-medium flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-rose-400" />
+              <span>ไม่เข้าร่วม: <b>{absentList.length}</b></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Search & Discord Poll Import Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
         {/* Search */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3.5 sm:p-4 shadow-sm">
-          <label className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
+          <label className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
             SEARCH BENCH MEMBERS
           </label>
           <input
@@ -363,22 +451,25 @@ export default function BenchOrganizerClient({
             placeholder="ค้นหาชื่อ, อาชีพ, Discord ID, หรือ ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-zinc-100/80 dark:bg-zinc-800/80 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-all"
+            className="w-full bg-zinc-800/80 border border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-all"
           />
         </div>
 
         {/* Discord Message ID */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3.5 sm:p-4 shadow-sm">
-          <label className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
-            DISCORD MESSAGE ID
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+              DISCORD MESSAGE ID
+            </label>
+            <span className="text-[10px] text-zinc-500">หรือค้นหาด้วยชื่อรอบ</span>
+          </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
-              placeholder="ระบุ Message ID ของโพล"
+              placeholder="ระบุ Message ID ของโพล หรือ ชื่อรอบ..."
               value={discordMessageId}
               onChange={(e) => setDiscordMessageId(e.target.value)}
-              className="flex-1 bg-zinc-100/80 dark:bg-zinc-800/80 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-500 font-mono transition-all"
+              className="flex-1 bg-zinc-800/80 border border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 font-mono transition-all"
             />
             <button
               onClick={handleImportDiscordPoll}

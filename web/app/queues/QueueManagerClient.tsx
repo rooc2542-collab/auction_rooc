@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useMutation } from "@tanstack/react-query"
 
@@ -59,6 +59,9 @@ export default function QueueManagerClient({
   initialCredits,
 }: Props) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const paramEvent = searchParams.get("event")
+  const paramDate = searchParams.get("date")
   const todayStr = new Date().toISOString().split("T")[0]
 
   // Local state for dynamic data (prevents full-page reloads and white flashes)
@@ -79,10 +82,22 @@ export default function QueueManagerClient({
     return Array.from(set)
   }, [sessions, attendance])
 
-  const defaultPair = existingEvents[0] ? existingEvents[0].split("|") : ["Emperium Overrun", todayStr]
+  const defaultPair = useMemo(() => {
+    if (paramEvent) {
+      return [paramEvent, paramDate || todayStr]
+    }
+    return existingEvents[0] ? existingEvents[0].split("|") : ["Emperium Overrun", todayStr]
+  }, [paramEvent, paramDate, existingEvents, todayStr])
 
   const [eventName, setEventName] = useState(defaultPair[0] || "Emperium Overrun")
   const [eventDate, setEventDate] = useState(defaultPair[1] || todayStr)
+
+  useEffect(() => {
+    if (paramEvent) {
+      setEventName(paramEvent)
+      if (paramDate) setEventDate(paramDate)
+    }
+  }, [paramEvent, paramDate])
   const [activeTab, setActiveTab] = useState<"board" | "queue" | "config">("board")
   const [filterItem, setFilterItem] = useState<"ALL" | ItemKey>("ALL")
   const [currentPage, setCurrentPage] = useState(1)
