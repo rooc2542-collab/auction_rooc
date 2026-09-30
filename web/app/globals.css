@@ -46,10 +46,23 @@ html:not(.dark) .bg-zinc-800\/60 { background-color: #f4f4f5 !important; }
 html:not(.dark) .bg-zinc-800\/30 { background-color: #f4f4f5 !important; }
 html:not(.dark) .bg-zinc-700 { background-color: #e4e4e7 !important; }
 
-/* Primary inverted buttons/tabs in Light Mode (.bg-zinc-100 -> dark button) */
-html:not(.dark) .bg-zinc-100 { background-color: #18181b !important; }
-html:not(.dark) .hover\:bg-white:hover { background-color: #27272a !important; }
-html:not(.dark) .text-zinc-900 { color: #fafafa !important; }
+/* Primary inverted buttons/tabs in Light Mode */
+html:not(.dark) button.bg-zinc-100,
+html:not(.dark) .bg-zinc-100.text-zinc-900,
+html:not(.dark) .bg-zinc-100.font-bold,
+html:not(.dark) .bg-zinc-100.font-semibold {
+  background-color: #18181b !important;
+  color: #fafafa !important;
+}
+html:not(.dark) button.bg-zinc-100:hover,
+html:not(.dark) .bg-zinc-100.hover\:bg-white:hover,
+html:not(.dark) .hover\:bg-white:hover {
+  background-color: #27272a !important;
+  color: #ffffff !important;
+}
+html:not(.dark) .text-zinc-900 {
+  color: #09090b !important;
+}
 
 /* Borders */
 html:not(.dark) .border-zinc-800 { border-color: #e4e4e7 !important; }

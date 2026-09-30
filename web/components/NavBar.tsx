@@ -31,10 +31,12 @@ export default function NavBar({ isAdmin }: { isAdmin?: boolean }) {
           href="/"
           className="flex items-center gap-2.5 font-semibold text-sm text-zinc-900 dark:text-zinc-100 hover:text-black dark:hover:text-white transition-colors shrink-0"
         >
-          <span className="w-6 h-6 rounded-md bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-950 flex items-center justify-center text-xs font-bold tracking-tighter">
+          <span className="w-6 h-6 rounded-md bg-teal-700 text-white flex items-center justify-center text-xs font-bold tracking-tighter shadow-sm">
             R
           </span>
-          <span className="tracking-tight font-bold whitespace-nowrap">ระบบประมูล RoOC</span>
+          <span className="tracking-tight font-bold whitespace-nowrap text-zinc-900 dark:text-zinc-100">
+            ระบบประมูล RoOC
+          </span>
         </Link>
 
         {/* Desktop Navigation Links */}
@@ -47,8 +49,8 @@ export default function NavBar({ isAdmin }: { isAdmin?: boolean }) {
                 href={item.href}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
                   active
-                    ? "bg-zinc-100 dark:bg-zinc-800/90 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700/70"
-                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                    ? "bg-teal-700 text-white shadow-sm font-semibold"
+                    : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
                 }`}
               >
                 {item.label}
@@ -75,7 +77,7 @@ export default function NavBar({ isAdmin }: { isAdmin?: boolean }) {
           {/* Mobile Hamburger Toggle Button */}
           <button
             onClick={() => setMobileMenuOpen((p) => !p)}
-            className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-200 hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer border border-zinc-300 dark:border-zinc-700/60"
+            className="p-2 rounded-lg bg-zinc-200/80 hover:bg-zinc-300/80 text-zinc-800 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 dark:text-zinc-200 transition-colors cursor-pointer border border-zinc-300 dark:border-zinc-700/60"
             aria-label="Toggle Menu"
           >
             {mobileMenuOpen ? (
@@ -106,8 +108,8 @@ export default function NavBar({ isAdmin }: { isAdmin?: boolean }) {
                   onClick={() => setMobileMenuOpen(false)}
                   className={`px-3 py-2.5 rounded-lg text-xs font-semibold text-center transition-all ${
                     active
-                      ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-sm"
-                      : "bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800"
+                      ? "bg-teal-700 hover:bg-teal-600 text-white border border-teal-600 shadow-sm"
+                      : "bg-zinc-200/70 hover:bg-zinc-300/70 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-800"
                   }`}
                 >
                   {item.label}

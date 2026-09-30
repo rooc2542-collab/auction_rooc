@@ -303,19 +303,23 @@ export default function MemberTable({
 
         {/* Mobile Display Switcher for Items View (Card vs Table) */}
         {viewMode === "items" && (
-          <div className="sm:hidden flex items-center gap-1 bg-zinc-800 p-0.5 rounded-lg border border-zinc-700">
+          <div className="sm:hidden flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
             <button
               onClick={() => setMobileDisplay("cards")}
-              className={`px-2.5 py-1 rounded text-[11px] font-bold ${
-                mobileDisplay === "cards" ? "bg-zinc-900 text-white" : "text-zinc-400"
+              className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
+                mobileDisplay === "cards"
+                  ? "bg-teal-700 text-white shadow-sm"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
               }`}
             >
               การ์ด
             </button>
             <button
               onClick={() => setMobileDisplay("table")}
-              className={`px-2.5 py-1 rounded text-[11px] font-bold ${
-                mobileDisplay === "table" ? "bg-zinc-900 text-white" : "text-zinc-400"
+              className={`px-2.5 py-1 rounded text-[11px] font-bold transition-all ${
+                mobileDisplay === "table"
+                  ? "bg-teal-700 text-white shadow-sm"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
               }`}
             >
               ตาราง
