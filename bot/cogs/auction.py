@@ -172,6 +172,21 @@ class SetAllItemsModal(discord.ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
+
+        # ตรวจสอบ admin ใน on_submit แทน (เพราะเราไม่ check ก่อน send_modal)
+        profile = await auction_service.get_profile_by_discord_id(str(interaction.user.id))
+        if not profile or profile.get('role') != 'admin':
+            await interaction.followup.send('❌ คำสั่งนี้ใช้ได้เฉพาะ Admin เท่านั้น', ephemeral=True)
+            return
+
+        # โหลดข้อมูลเดิมมา merge (ถ้ามี) — กรณีใส่ 0 จะ skip ไอเทมนั้น
+        res = supabase.table('event_sessions') \
+            .select('*') \
+            .eq('event_name', self._event_name) \
+            .eq('session_date', self._session_date) \
+            .execute()
+        existing_map = {r['item_type']: r for r in (res.data or [])}
+
         raw_map = {
             'Album': str(self.album_input),
             'Puppet': str(self.puppet_input),
@@ -308,11 +323,7 @@ class AuctionCog(commands.Cog):
         interaction: discord.Interaction,
         event: str | None = None,
     ) -> None:
-        profile = await auction_service.get_profile_by_discord_id(str(interaction.user.id))
-        if not profile or profile.get('role') != 'admin':
-            await interaction.response.send_message('❌ คำสั่งนี้ใช้ได้เฉพาะ Admin เท่านั้น', ephemeral=True)
-            return
-
+        # ต้อง send_modal ทันที ห้าม query DB ก่อน เพราะ Discord timeout 3 วินาที
         resolved = resolve_event_key(event)
         if not resolved:
             await interaction.response.send_message(
@@ -322,14 +333,8 @@ class AuctionCog(commands.Cog):
             return
 
         event_name, session_date = resolved
-        res = supabase.table('event_sessions') \
-            .select('*') \
-            .eq('event_name', event_name) \
-            .eq('session_date', session_date) \
-            .execute()
-        existing_map = {r['item_type']: r for r in (res.data or [])}
-
-        modal = SetAllItemsModal(event_name, session_date, existing_map)
+        # ส่ง modal ทันที ไม่รอ DB (on_submit จะ check admin + load existing)
+        modal = SetAllItemsModal(event_name, session_date, {})
         await interaction.response.send_modal(modal)
 
     # ─── /delete_event (ลบรอบกิจกรรมที่ผิดพลาด) ─────────────────────────────
