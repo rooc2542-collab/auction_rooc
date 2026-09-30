@@ -271,8 +271,8 @@ export default function BenchOrganizerClient({
     })
   }
 
-  // Proceed to Resource Pool (Upsert attendance for all members)
-  const handleProceedToPool = async () => {
+  // Proceed to Queue Manager (Upsert attendance for all members)
+  const handleProceedToQueues = async () => {
     setBusy(true)
     try {
       if (isAdmin) {
@@ -295,7 +295,7 @@ export default function BenchOrganizerClient({
           }).catch(() => {})
         }
       }
-      router.push("/pool")
+      router.push("/queues")
     } finally {
       setBusy(false)
     }
@@ -329,11 +329,11 @@ export default function BenchOrganizerClient({
             Copy Summary
           </button>
           <button
-            onClick={handleProceedToPool}
+            onClick={handleProceedToQueues}
             disabled={busy}
             className="col-span-2 sm:col-span-1 px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-bold transition-all cursor-pointer shadow-sm text-center"
           >
-            {busy ? "กำลังบันทึก..." : "ส่งไป Resource Pool →"}
+            {busy ? "กำลังบันทึก..." : "ส่งไป จัดคิวและสล็อต →"}
           </button>
         </div>
       </div>
