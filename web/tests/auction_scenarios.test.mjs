@@ -322,7 +322,9 @@ test("Scenario 6: แยกช่องกรอก จำนวน และ �
   assert.equal(res2.totalQty, 8)
   assert.equal(res2.limitVal, 3)
 
-  const auctionPyPath = path.resolve(process.cwd(), "../bot/cogs/auction.py")
+  const botPath1 = path.resolve(process.cwd(), "bot/cogs/auction.py")
+  const botPath2 = path.resolve(process.cwd(), "../bot/cogs/auction.py")
+  const auctionPyPath = fs.existsSync(botPath1) ? botPath1 : botPath2
   const auctionPy = fs.readFileSync(auctionPyPath, "utf8")
 
   const labelMatches = [...auctionPy.matchAll(/label='([^']+)'/g)]
