@@ -60,26 +60,26 @@ export default function BenchOrganizerClient({
   const router = useRouter()
   const todayStr = useMemo(() => new Date().toISOString().split("T")[0], [])
 
-  // Collect all available events from sessions and attendance
+  // Collect only events that have member attendance/votes
+  const [importedEvents, setImportedEvents] = useState<string[]>([])
   const existingEvents = useMemo(() => {
     const set = new Set<string>()
-    for (const s of (initialSessions || [])) {
-      if (s.event_name && s.session_date) set.add(`${s.event_name}|${s.session_date}`)
-    }
     for (const a of (initialAttendance || [])) {
       if (a.event_name && a.event_date) set.add(`${a.event_name}|${a.event_date}`)
     }
+    for (const ev of importedEvents) {
+      set.add(ev)
+    }
     return Array.from(set)
-  }, [initialSessions, initialAttendance])
+  }, [initialAttendance, importedEvents])
 
   const defaultPair = useMemo(() => {
-    return existingEvents[0] ? existingEvents[0].split("|") : ["Emperium Overrun", todayStr]
+    return existingEvents[0] ? existingEvents[0].split("|") : ["", todayStr]
   }, [existingEvents, todayStr])
 
-  const [selectedEventKey, setSelectedEventKey] = useState(existingEvents[0] || "__custom__")
-  const [eventName, setEventName] = useState(defaultPair[0] || "Emperium Overrun")
+  const [selectedEventKey, setSelectedEventKey] = useState(existingEvents[0] || "")
+  const [eventName, setEventName] = useState(defaultPair[0] || "")
   const [eventDate, setEventDate] = useState(defaultPair[1] || todayStr)
-  const [isCustomEvent, setIsCustomEvent] = useState(existingEvents.length === 0)
 
   const [searchTerm, setSearchTerm] = useState("")
   const [discordMessageId, setDiscordMessageId] = useState("")
@@ -122,30 +122,27 @@ export default function BenchOrganizerClient({
   })
 
   // Switch event via dropdown
+  // Switch event via dropdown (only existing rounds from member votes)
   const handleSelectEvent = (val: string) => {
+    if (!val) return
     setSelectedEventKey(val)
-    if (val === "__custom__") {
-      setIsCustomEvent(true)
-    } else {
-      setIsCustomEvent(false)
-      const [name, date] = val.split("|")
-      const d = date || todayStr
-      setEventName(name)
-      setEventDate(d)
-      const nextMap = buildStatusMapForEvent(name, d)
-      setStatusMap(nextMap)
+    const [name, date] = val.split("|")
+    const d = date || todayStr
+    setEventName(name)
+    setEventDate(d)
+    const nextMap = buildStatusMapForEvent(name, d)
+    setStatusMap(nextMap)
 
-      let wb = 0, nb = 0, ab = 0
-      nextMap.forEach((st) => {
-        if (st === "want_bid") wb++
-        else if (st === "no_bid") nb++
-        else if (st === "absent") ab++
-      })
-      setToast({
-        type: "ok",
-        text: `โหลดข้อมูลรอบ "${name}" (${d}) สำเร็จ: ต้องการประมูล ${wb} คน, ไม่ประมูล ${nb} คน, ไม่เข้าร่วม ${ab} คน`,
-      })
-    }
+    let wb = 0, nb = 0, ab = 0
+    nextMap.forEach((st) => {
+      if (st === "want_bid") wb++
+      else if (st === "no_bid") nb++
+      else if (st === "absent") ab++
+    })
+    setToast({
+      type: "ok",
+      text: `โหลดข้อมูลรอบ "${name}" (${d}) สำเร็จ: ต้องการประมูล ${wb} คน, ไม่ประมูล ${nb} คน, ไม่เข้าร่วม ${ab} คน`,
+    })
   }
 
   // Live Sync state & handler (Fetches fresh attendance from DB)
@@ -265,10 +262,11 @@ export default function BenchOrganizerClient({
       if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาดในการดึงข้อมูลโพล")
 
       if (data.event_name) {
+        const evKey = `${data.event_name}|${data.event_date || eventDate}`
+        setImportedEvents((prev) => (prev.includes(evKey) ? prev : [evKey, ...prev]))
         setEventName(data.event_name)
         if (data.event_date) setEventDate(data.event_date)
-        setSelectedEventKey(`${data.event_name}|${data.event_date || eventDate}`)
-        setIsCustomEvent(false)
+        setSelectedEventKey(evKey)
       } else if (data.poll_title) {
         setEventName(data.poll_title)
       }
@@ -347,10 +345,14 @@ export default function BenchOrganizerClient({
 
   // Proceed to Queue Manager (Upsert attendance for all members)
   const handleProceedToQueues = async () => {
+    if (!eventName.trim()) {
+      setToast({ type: "err", text: "กรุณาเลือกรอบกิจกรรมที่ผ่านการโหวตจากสมาชิกก่อนดำเนินการ" })
+      return
+    }
     setBusy(true)
     try {
       if (isAdmin) {
-        const cleanName = eventName.trim() || "Emperium Overrun"
+        const cleanName = eventName.trim()
         for (const m of initialMembers) {
           const st = statusMap.get(m.id) || "no_bid"
           await fetch("/api/queues", {
@@ -434,32 +436,28 @@ export default function BenchOrganizerClient({
                 เลือกรอบกิจกรรม (ผลโหวตจาก Discord บันทึกเข้าระบบอัตโนมัติ)
               </label>
             </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div>
               <select
                 value={selectedEventKey}
                 onChange={(e) => handleSelectEvent(e.target.value)}
-                className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-emerald-500 font-medium cursor-pointer shadow-sm"
+                disabled={existingEvents.length === 0}
+                className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-emerald-500 font-medium cursor-pointer shadow-sm disabled:opacity-50"
               >
-                {existingEvents.map((ev) => {
-                  const [en, ed] = ev.split("|")
-                  return (
-                    <option key={ev} value={ev}>
-                      {en} ({ed})
-                    </option>
-                  )
-                })}
-                <option value="__custom__">➕ กำหนดชื่อรอบกิจกรรมใหม่...</option>
+                {existingEvents.length === 0 ? (
+                  <option value="" disabled>
+                    ไม่มีรอบกิจกรรมที่ผ่านการโหวตจากสมาชิก
+                  </option>
+                ) : (
+                  existingEvents.map((ev) => {
+                    const [en, ed] = ev.split("|")
+                    return (
+                      <option key={ev} value={ev}>
+                        {en} ({ed})
+                      </option>
+                    )
+                  })
+                )}
               </select>
-
-              {isCustomEvent && (
-                <input
-                  type="text"
-                  placeholder="พิมพ์ชื่อรอบกิจกรรม เช่น Emperium Overrun..."
-                  value={eventName}
-                  onChange={(e) => setEventName(e.target.value)}
-                  className="flex-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-emerald-500 font-medium shadow-sm"
-                />
-              )}
             </div>
           </div>
 

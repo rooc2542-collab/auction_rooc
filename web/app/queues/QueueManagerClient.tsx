@@ -77,19 +77,20 @@ export default function QueueManagerClient({
 
   const existingEvents = useMemo(() => {
     const set = new Set<string>()
-    for (const s of sessions) set.add(`${s.event_name}|${s.session_date}`)
-    for (const a of attendance) set.add(`${a.event_name}|${a.event_date}`)
+    for (const a of attendance) {
+      if (a.event_name && a.event_date) set.add(`${a.event_name}|${a.event_date}`)
+    }
     return Array.from(set)
-  }, [sessions, attendance])
+  }, [attendance])
 
   const defaultPair = useMemo(() => {
     if (paramEvent) {
       return [paramEvent, paramDate || todayStr]
     }
-    return existingEvents[0] ? existingEvents[0].split("|") : ["Emperium Overrun", todayStr]
+    return existingEvents[0] ? existingEvents[0].split("|") : ["", todayStr]
   }, [paramEvent, paramDate, existingEvents, todayStr])
 
-  const [eventName, setEventName] = useState(defaultPair[0] || "Emperium Overrun")
+  const [eventName, setEventName] = useState(defaultPair[0] || "")
   const [eventDate, setEventDate] = useState(defaultPair[1] || todayStr)
 
   useEffect(() => {
@@ -752,11 +753,11 @@ export default function QueueManagerClient({
 
           {/* Event & Date Controls */}
           <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 w-full lg:w-auto">
-            {existingEvents.length > 0 && (
+            {existingEvents.length > 0 ? (
               <select
                 value={`${eventName}|${eventDate}`}
                 onChange={(e) => handleSelectEventPreset(e.target.value)}
-                className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 w-full sm:w-auto"
+                className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 w-full sm:w-auto font-medium cursor-pointer"
               >
                 {existingEvents.map((ev) => {
                   const [en, ed] = ev.split("|")
@@ -767,20 +768,11 @@ export default function QueueManagerClient({
                   )
                 })}
               </select>
+            ) : (
+              <div className="text-xs text-zinc-500 bg-zinc-800/60 px-3.5 py-2 rounded-lg border border-zinc-700">
+                ไม่มีรอบกิจกรรมที่ผ่านการโหวตจากสมาชิก
+              </div>
             )}
-            <input
-              type="text"
-              value={eventName}
-              onChange={(e) => setEventName(e.target.value)}
-              placeholder="ชื่ออีเวนต์ เช่น Emperium Overrun"
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 flex-1 min-w-44"
-            />
-            <input
-              type="date"
-              value={eventDate}
-              onChange={(e) => setEventDate(e.target.value)}
-              className="bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 w-full sm:w-auto"
-            />
           </div>
         </div>
 
