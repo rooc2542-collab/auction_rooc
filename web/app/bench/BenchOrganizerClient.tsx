@@ -438,7 +438,7 @@ export default function BenchOrganizerClient({
               <select
                 value={selectedEventKey}
                 onChange={(e) => handleSelectEvent(e.target.value)}
-                className="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-emerald-500 font-medium cursor-pointer"
+                className="bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-emerald-500 font-medium cursor-pointer shadow-sm"
               >
                 {existingEvents.map((ev) => {
                   const [en, ed] = ev.split("|")
@@ -457,7 +457,7 @@ export default function BenchOrganizerClient({
                   placeholder="พิมพ์ชื่อรอบกิจกรรม เช่น Emperium Overrun..."
                   value={eventName}
                   onChange={(e) => setEventName(e.target.value)}
-                  className="flex-1 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-emerald-500 font-medium"
+                  className="flex-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-emerald-500 font-medium shadow-sm"
                 />
               )}
             </div>
@@ -466,12 +466,12 @@ export default function BenchOrganizerClient({
           {/* Live Sync Controls */}
           <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-zinc-200 dark:border-zinc-800">
             {/* Live Indicator */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs">
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-zinc-800 border border-emerald-200 dark:border-zinc-700 text-xs shadow-sm">
               <span className="relative flex h-2 w-2">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${autoSync ? "bg-emerald-400 opacity-75" : "bg-zinc-400 opacity-0"}`}></span>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${autoSync ? "bg-emerald-500 opacity-75" : "bg-zinc-400 opacity-0"}`}></span>
                 <span className={`relative inline-flex rounded-full h-2 w-2 ${autoSync ? "bg-emerald-500" : "bg-zinc-400"}`}></span>
               </span>
-              <span className="text-[11px] font-medium text-zinc-600 dark:text-zinc-300">Live 5s</span>
+              <span className="text-[11px] font-semibold text-emerald-800 dark:text-zinc-300">Live 5s</span>
             </div>
 
             {/* Manual Sync Button */}
@@ -479,7 +479,7 @@ export default function BenchOrganizerClient({
               type="button"
               onClick={() => handleSyncLatest(false)}
               disabled={isSyncing}
-              className="px-2.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold border border-zinc-300 dark:border-zinc-700 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              className="px-3 py-1.5 rounded-lg bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold border border-zinc-300 dark:border-zinc-700 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 shadow-sm"
               title="ดึงผลโหวตล่าสุดจากระบบทันที"
             >
               <span className={isSyncing ? "animate-spin inline-block" : ""}>🔄</span>
@@ -501,7 +501,7 @@ export default function BenchOrganizerClient({
             placeholder="ค้นหาชื่อ, อาชีพ, Discord ID, หรือ ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-all"
+            className="w-full bg-white dark:bg-zinc-800/80 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-all shadow-sm"
           />
         </div>
 
@@ -519,12 +519,12 @@ export default function BenchOrganizerClient({
               placeholder="ระบุ Message ID ของโพล หรือ ชื่อรอบ..."
               value={discordMessageId}
               onChange={(e) => setDiscordMessageId(e.target.value)}
-              className="flex-1 bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-500 font-mono transition-all"
+              className="flex-1 bg-white dark:bg-zinc-800/80 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-500 font-mono transition-all shadow-sm"
             />
             <button
               onClick={handleImportDiscordPoll}
               disabled={busy}
-              className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100 text-xs font-semibold border border-zinc-700 transition-all cursor-pointer whitespace-nowrap shadow-sm disabled:opacity-50 text-center"
+              className="px-4 py-2 rounded-lg bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-100 text-xs font-semibold border border-zinc-300 dark:border-zinc-700 transition-all cursor-pointer whitespace-nowrap shadow-sm disabled:opacity-50 text-center"
             >
               {busy ? "กำลังโหลด..." : "Import Discord Poll"}
             </button>
