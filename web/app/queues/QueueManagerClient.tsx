@@ -662,17 +662,47 @@ export default function QueueManagerClient({
     adjustCreditMutation.mutate({ userId, itemType, next })
   }
 
-  const handleSlotStatus = async (slotIds: string[], status: "allocated" | "awarded" | "skipped") => {
+  // TanStack Query Mutation: Update Slot Status (Instant 0ms Optimistic UI, zero freeze, super snappy "ติดมือ")
+  const slotStatusMutation = useMutation({
+    mutationFn: async ({
+      slotIds,
+      status,
+    }: {
+      slotIds: string[]
+      status: "allocated" | "awarded" | "skipped"
+    }) => {
+      const res = await fetch("/api/queues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_slot_status", slot_ids: slotIds, status }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "เกิดข้อผิดพลาดในการอัปเดตสล็อต")
+      }
+      return res.json()
+    },
+    onMutate: async ({ slotIds, status }) => {
+      // 1. Instant 0ms optimistic update in local state
+      setSlots((prev) =>
+        prev.map((s) => (slotIds.includes(s.id) ? { ...s, status } : s))
+      )
+      // 2. Clear selections if any
+      setSelectedSlotIds((prev) => {
+        const next = new Set(prev)
+        slotIds.forEach((id) => next.delete(id))
+        return next
+      })
+    },
+    onError: (err) => {
+      setToast({ type: "err", text: `เกิดข้อผิดพลาด: ${err.message}` })
+      refreshData()
+    },
+  })
+
+  const handleSlotStatus = (slotIds: string[], status: "allocated" | "awarded" | "skipped") => {
     if (!isAdmin || slotIds.length === 0) return
-    // Optimistic update
-    setSlots((prev) =>
-      prev.map((s) => (slotIds.includes(s.id) ? { ...s, status } : s))
-    )
-    setSelectedSlotIds(new Set())
-    await callApi(
-      { action: "update_slot_status", slot_ids: slotIds, status },
-      `อัปเดตสถานะ ${slotIds.length} สล็อตเรียบร้อยแล้ว`
-    )
+    slotStatusMutation.mutate({ slotIds, status })
   }
 
   const handleDeleteAttendance = async (attId: string) => {
@@ -903,13 +933,13 @@ export default function QueueManagerClient({
                   <span className="text-xs text-zinc-400 font-medium">เลือก {selectedSlotIds.size} ช่อง:</span>
                   <button
                     onClick={() => handleSlotStatus(Array.from(selectedSlotIds), "awarded")}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 active:scale-95 text-white text-xs font-medium cursor-pointer transition-transform duration-75 touch-manipulation select-none"
                   >
                     มอบของที่เลือก
                   </button>
                   <button
                     onClick={() => handleSlotStatus(Array.from(selectedSlotIds), "skipped")}
-                    className="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 text-white text-xs font-medium cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 active:scale-95 text-white text-xs font-medium cursor-pointer transition-transform duration-75 touch-manipulation select-none"
                   >
                     ข้ามคิว
                   </button>
@@ -1062,12 +1092,11 @@ export default function QueueManagerClient({
                         </span>
 
                         {isAdmin && (
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5">
                             {slotData.status !== "awarded" && (
                               <button
                                 onClick={() => handleSlotStatus([slotData.id], "awarded")}
-                                disabled={busy}
-                                className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer"
+                                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-90 active:brightness-110 text-white text-xs font-bold transition-transform duration-75 cursor-pointer shadow-sm touch-manipulation select-none"
                                 title="บันทึกว่าได้รับของแล้ว"
                               >
                                 ได้ของ
@@ -1076,8 +1105,7 @@ export default function QueueManagerClient({
                             {slotData.status !== "allocated" && (
                               <button
                                 onClick={() => handleSlotStatus([slotData.id], "allocated")}
-                                disabled={busy}
-                                className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs cursor-pointer border border-zinc-700"
+                                className="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 active:scale-90 text-zinc-300 text-xs font-medium cursor-pointer border border-zinc-700 transition-transform duration-75 touch-manipulation select-none"
                                 title="รีเซ็ตสถานะ"
                               >
                                 รีเซ็ต
