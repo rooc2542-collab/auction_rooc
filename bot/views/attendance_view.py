@@ -38,6 +38,15 @@ def close_poll_in_db_sync(event_name: str, event_date: str) -> None:
         .execute()
 
 
+def open_poll_in_db_sync(event_name: str, event_date: str) -> None:
+    """บันทึกสถานะเปิดโหวตลงตาราง event_sessions"""
+    supabase.table('event_sessions') \
+        .update({'status': 'active'}) \
+        .eq('event_name', event_name) \
+        .eq('session_date', event_date) \
+        .execute()
+
+
 def build_attendance_embed(
     event_name: str,
     event_date: str,
@@ -232,7 +241,7 @@ async def handle_attendance_action(interaction: discord.Interaction, status: str
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         else:
             msg_id = str(interaction.message.id) if interaction.message else None
-            chan_id = str(interaction.channel_id) if interaction.channel_id else None
+            chan_id = str(interaction.channel_id or (interaction.channel.id if interaction.channel else '')) or None
             await asyncio.to_thread(
                 lambda: supabase.table('event_attendance').upsert({
                     'event_name': event_name,

@@ -1,10 +1,11 @@
 from __future__ import annotations
+import os
 import re
 import asyncio
 from datetime import date
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 from services import auction_service
 from services import allocation_service
 from services.supabase_client import supabase
@@ -13,6 +14,7 @@ from views.attendance_view import (
     build_attendance_embed,
     ITEM_LABELS,
     close_poll_in_db_sync,
+    open_poll_in_db_sync,
     is_poll_closed_sync,
 )
 
@@ -28,6 +30,130 @@ ITEM_CHOICES = [
 # In-memory cache เพื่อให้ /set_items เปิด Modal ได้ทันทีใน 0ms โดยไม่ต้องรอ DB
 _EVENTS_CACHE: list[tuple[str, str]] = []
 _SESSIONS_CACHE: dict[tuple[str, str], dict[str, dict]] = {}
+_POLL_MESSAGES_CACHE: dict[tuple[str, str], tuple[int, int]] = {}
+
+
+async def find_poll_message(
+    bot: commands.Bot,
+    event_name: str,
+    event_date: str,
+) -> tuple[discord.TextChannel | None, discord.Message | None]:
+    """ค้นหาข้อความโพลใน Discord จาก Cache, Database หรือค้นหาจากประวัติช่องแชท"""
+    global _POLL_MESSAGES_CACHE
+
+    # 1. ตรวจสอบใน In-memory Cache
+    if (event_name, event_date) in _POLL_MESSAGES_CACHE:
+        chan_id, msg_id = _POLL_MESSAGES_CACHE[(event_name, event_date)]
+        try:
+            ch = bot.get_channel(chan_id) or await bot.fetch_channel(chan_id)
+            if isinstance(ch, discord.TextChannel):
+                msg = await ch.fetch_message(msg_id)
+                return ch, msg
+        except Exception:
+            pass
+
+    # 2. ตรวจสอบในตาราง event_attendance ใน Supabase
+    try:
+        res = await asyncio.to_thread(
+            lambda: supabase.table("event_attendance")
+            .select("channel_id, message_id")
+            .eq("event_name", event_name)
+            .eq("event_date", event_date)
+            .not_.is_("message_id", "null")
+            .limit(1)
+            .execute()
+        )
+        if res.data and res.data[0].get("message_id"):
+            row = res.data[0]
+            msg_id = int(row["message_id"])
+            chan_id = int(row["channel_id"]) if row.get("channel_id") else None
+
+            if chan_id:
+                try:
+                    ch = bot.get_channel(chan_id) or await bot.fetch_channel(chan_id)
+                    if isinstance(ch, discord.TextChannel):
+                        msg = await ch.fetch_message(msg_id)
+                        _POLL_MESSAGES_CACHE[(event_name, event_date)] = (chan_id, msg_id)
+                        return ch, msg
+                except Exception:
+                    pass
+
+            for guild in bot.guilds:
+                for ch in guild.text_channels:
+                    try:
+                        msg = await ch.fetch_message(msg_id)
+                        _POLL_MESSAGES_CACHE[(event_name, event_date)] = (ch.id, msg_id)
+                        return ch, msg
+                    except Exception:
+                        continue
+    except Exception as e:
+        print(f"[find_poll_message] DB lookup warning: {e}")
+
+    # 3. Fallback: สแกนข้อความล่าสุดของบอทในช่องแชททั้งหมด
+    try:
+        for guild in bot.guilds:
+            for ch in guild.text_channels:
+                if not ch.permissions_for(guild.me).read_message_history:
+                    continue
+                try:
+                    async for m in ch.history(limit=35):
+                        if bot.user and m.author.id == bot.user.id and m.embeds:
+                            emb = m.embeds[0]
+                            title = (emb.title or "").removeprefix("⚔️ ").strip()
+                            desc = (emb.description or "").removeprefix("📅 ").removeprefix("วันที่: ").strip()
+                            if title == event_name and desc == event_date:
+                                _POLL_MESSAGES_CACHE[(event_name, event_date)] = (ch.id, m.id)
+                                return ch, m
+                except Exception:
+                    continue
+    except Exception as e:
+        print(f"[find_poll_message] Channel scan fallback error: {e}")
+
+    return None, None
+
+
+async def update_poll_message_status(
+    bot: commands.Bot,
+    event_name: str,
+    event_date: str,
+    is_closed: bool,
+    closed_by: str | None = None,
+) -> bool:
+    """แก้ไขข้อความโพลใน Discord: เปิดหรือปิดปุ่ม พร้อมอัปเดต Embed Footer"""
+    try:
+        channel, message = await find_poll_message(bot, event_name, event_date)
+        if not message:
+            print(f"[PollSync] Could not find message for {event_name} ({event_date})")
+            return False
+
+        res = await asyncio.to_thread(
+            lambda: supabase.table("event_attendance")
+            .select("status")
+            .eq("event_name", event_name)
+            .eq("event_date", event_date)
+            .execute()
+        )
+        counts = {"want_bid": 0, "no_bid": 0, "absent": 0}
+        for row in (res.data or []):
+            s = row.get("status", "")
+            if s in counts:
+                counts[s] += 1
+
+        embed = build_attendance_embed(
+            event_name,
+            event_date,
+            counts,
+            is_closed=is_closed,
+            closed_by=closed_by if is_closed else None,
+        )
+        view = EventPollView(event_name, event_date, disabled=is_closed)
+        await message.edit(embed=embed, view=view)
+        print(f"[PollSync] Successfully updated Discord poll message for {event_name} ({event_date}) -> is_closed={is_closed}")
+        return True
+    except Exception as e:
+        print(f"[PollSync] Failed to update Discord poll message: {e}")
+        return False
+
 
 
 async def check_admin_defer(interaction: discord.Interaction) -> bool:
@@ -492,6 +618,72 @@ class SetItemsStepView(discord.ui.View):
 class AuctionCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
+        self._last_poll_status: dict[tuple[str, str], str] = {}
+        try:
+            self.poll_status_sync_loop.start()
+        except Exception:
+            pass
+
+    def cog_unload(self) -> None:
+        try:
+            self.poll_status_sync_loop.cancel()
+        except Exception:
+            pass
+
+    @tasks.loop(seconds=5)
+    async def poll_status_sync_loop(self) -> None:
+        """ตรวจจับการเปลี่ยนแปลงสถานะเปิด/ปิดโหวตจาก Web App แบบ Real-time และอัปเดตข้อความใน Discord อัตโนมัติ"""
+        if not self.bot.is_ready():
+            return
+        try:
+            res = await asyncio.to_thread(
+                lambda: supabase.table("event_sessions")
+                .select("event_name, session_date, status")
+                .order("created_at", desc=True)
+                .limit(20)
+                .execute()
+            )
+            rows = res.data or []
+            if not rows:
+                return
+
+            grouped: dict[tuple[str, str], list[str]] = {}
+            for r in rows:
+                en = r.get("event_name", "")
+                ed = r.get("session_date", "")
+                if en and ed:
+                    grouped.setdefault((en, ed), []).append(r.get("status", "active"))
+
+            for (en, ed), statuses in grouped.items():
+                is_closed_in_db = all(s == "closed" for s in statuses)
+                current_state = "closed" if is_closed_in_db else "active"
+
+                last_state = self._last_poll_status.get((en, ed))
+                if last_state is None:
+                    self._last_poll_status[(en, ed)] = current_state
+                    # หากใน DB เปิดอยู่ ให้ตรวจสอบและปลดล็อกปุ่มโพล
+                    if not is_closed_in_db:
+                        try:
+                            ch, msg = await find_poll_message(self.bot, en, ed)
+                            if msg and msg.components:
+                                first_row = msg.components[0]
+                                if first_row.children and getattr(first_row.children[0], "disabled", False):
+                                    print(f"[PollSync] Re-enabling buttons on startup for active poll {en} ({ed})")
+                                    await update_poll_message_status(self.bot, en, ed, is_closed=False)
+                        except Exception as err:
+                            print(f"[PollSync] Startup check error: {err}")
+                    continue
+
+                if last_state != current_state:
+                    print(f"[PollSync] Detected status change for {en} ({ed}): {last_state} -> {current_state}")
+                    self._last_poll_status[(en, ed)] = current_state
+
+                    if is_closed_in_db:
+                        await update_poll_message_status(self.bot, en, ed, is_closed=True, closed_by="Web Admin")
+                    else:
+                        await update_poll_message_status(self.bot, en, ed, is_closed=False)
+        except Exception as e:
+            pass
 
     # ─── /event_poll ─────────────────────────────────────────────────────
     @app_commands.command(name='event_poll', description='[Admin] เปิดโพลนับคนเข้าร่วมกิจกรรม/วอร์ และสร้างรอบในระบบทันที')
@@ -539,7 +731,10 @@ class AuctionCog(commands.Cog):
 
         embed = build_attendance_embed(clean_name, today, is_closed=False)
         view = EventPollView(clean_name, today)
-        await channel.send(embed=embed, view=view)
+        sent_msg = await channel.send(embed=embed, view=view)
+
+        _POLL_MESSAGES_CACHE[(clean_name, today)] = (channel.id, sent_msg.id)
+        self._last_poll_status[(clean_name, today)] = 'active'
 
         await interaction.followup.send(
             f'เปิดโพลและบันทึกรอบลงระบบเรียบร้อยที่ {channel.mention}\n'
@@ -574,9 +769,47 @@ class AuctionCog(commands.Cog):
         if (event_name, event_date) in _SESSIONS_CACHE:
             for row in _SESSIONS_CACHE[(event_name, event_date)].values():
                 row['status'] = 'closed'
+        self._last_poll_status[(event_name, event_date)] = 'closed'
+
+        await update_poll_message_status(self.bot, event_name, event_date, is_closed=True, closed_by=interaction.user.display_name)
 
         await interaction.followup.send(
             f'ปิดโหวตรอบกิจกรรม **{event_name}** ({event_date}) เรียบร้อยแล้ว ตอนนี้สามารถใช้คำสั่ง `/announce_allocation` เพื่อแจ้งผลให้สมาชิกได้เลยครับ',
+            ephemeral=True
+        )
+
+    # ─── /reopen_poll (เปิดโหวตอีกครั้ง) ──────────────────────────────────
+    @app_commands.command(name='reopen_poll', description='[Admin] เปิดรับโหวตอีกครั้ง ปลดล็อกปุ่มให้สมาชิกกดได้')
+    @app_commands.describe(
+        event='เลือกรอบกิจกรรมจากฐานข้อมูล (หากไม่เลือกจะใช้รอบล่าสุดอัตโนมัติ)',
+    )
+    @app_commands.autocomplete(event=event_autocomplete)
+    async def reopen_poll(
+        self,
+        interaction: discord.Interaction,
+        event: str | None = None,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        if not await check_admin_defer(interaction):
+            return
+
+        resolved = resolve_event_key(event)
+        if not resolved:
+            await interaction.followup.send('ยังไม่มีรอบกิจกรรมในระบบ', ephemeral=True)
+            return
+
+        event_name, event_date = resolved
+        await asyncio.to_thread(open_poll_in_db_sync, event_name, event_date)
+
+        if (event_name, event_date) in _SESSIONS_CACHE:
+            for row in _SESSIONS_CACHE[(event_name, event_date)].values():
+                row['status'] = 'active'
+        self._last_poll_status[(event_name, event_date)] = 'active'
+
+        ok = await update_poll_message_status(self.bot, event_name, event_date, is_closed=False)
+        msg_extra = " และปลดล็อกปุ่มโพลในดิสคอร์ดเรียบร้อยแล้ว" if ok else ""
+        await interaction.followup.send(
+            f'เปิดรับโหวตรอบกิจกรรม **{event_name}** ({event_date}) อีกครั้งเรียบร้อยแล้ว{msg_extra} สมาชิกสามารถกดโหวตได้ตามปกติครับ',
             ephemeral=True
         )
 
