@@ -122,7 +122,6 @@ export default function QueueManagerClient({
     }
   }, [paramEvent, paramDate])
   const [activeTab, setActiveTab] = useState<"board" | "queue" | "config">("board")
-  const [boardLayoutMode, setBoardLayoutMode] = useState<"list" | "grid">("list")
   const [filterItem, setFilterItem] = useState<"ALL" | ItemKey>("ALL")
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedSlotIds, setSelectedSlotIds] = useState<Set<string>>(new Set())
@@ -916,31 +915,13 @@ export default function QueueManagerClient({
           </div>
 
           <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-center gap-2 w-full lg:w-auto">
-            {isAdmin && (
+            {isAdmin && !isPollClosed && (
               <button
                 onClick={handleTogglePollStatus}
                 disabled={busy}
-                className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold border transition-all disabled:opacity-50 cursor-pointer text-center ${
-                  isPollClosed
-                    ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700"
-                    : "bg-amber-950 hover:bg-amber-900/60 text-amber-300 border-amber-800/60"
-                }`}
+                className="px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold border transition-all disabled:opacity-50 cursor-pointer text-center bg-amber-950 hover:bg-amber-900/60 text-amber-300 border-amber-800/60"
               >
-                {isPollClosed ? "เปิดโหวตอีกครั้ง" : "ปิดโหวตรอบนี้"}
-              </button>
-            )}
-            {isAdmin && (
-              <button
-                onClick={handleRunAllocation}
-                disabled={busy || !isBenchReady}
-                title={!isBenchReady ? "กรุณาปิดโหวตและจัดผัง Bench ให้เรียบร้อยก่อน" : "คำนวณสล็อตใหม่"}
-                className={`px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm border transition-all cursor-pointer text-center ${
-                  !isBenchReady
-                    ? "bg-zinc-800/60 text-zinc-500 border-zinc-700/50 cursor-not-allowed opacity-60"
-                    : "bg-zinc-700 hover:bg-zinc-600 text-zinc-100 border-zinc-600 disabled:opacity-50"
-                }`}
-              >
-                {busy ? "กำลังคำนวณ..." : !isBenchReady ? "🔒 ล็อค (รอปิดโหวต & Bench)" : "คำนวณสล็อตใหม่"}
+                ปิดโหวตรอบนี้
               </button>
             )}
             {isAdmin && currentSlots.length > 0 && (
@@ -1120,39 +1101,41 @@ export default function QueueManagerClient({
                       Page {activePageObj?.pageNumber || currentPage} / {activePageObj?.slots[0]?.total_pages || totalBoardPages}
                     </span>
                   </span>
+                  {/* Batch Select Buttons (moved from Batch Award bar) */}
+                  {isAdmin && currentSlots.length > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleSelectCurrentPageSlots}
+                        className="px-3 py-1.5 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                      >
+                        <span>📄</span>
+                        <span>เลือกหน้านี้ (Page {activePageObj?.pageNumber || currentPage})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSelectAllSlots}
+                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-xl text-xs font-black transition shadow-sm shadow-blue-500/25 cursor-pointer flex items-center gap-1.5"
+                      >
+                        <span>⚡</span>
+                        <span>
+                          เลือกทั้งหมดทุกหน้า ({currentSlots.filter((s) => s.status !== "awarded").length} ช่อง)
+                        </span>
+                      </button>
+                      {selectedSlotIds.size > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSlotIds(new Set())}
+                          className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition cursor-pointer"
+                        >
+                          ยกเลิกที่เลือก ({selectedSlotIds.size})
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  {/* View Mode Toggle Switcher */}
-                  <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 p-0.5 rounded-xl border border-zinc-200 dark:border-zinc-700">
-                    <button
-                      type="button"
-                      onClick={() => setBoardLayoutMode("list")}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                        boardLayoutMode === "list"
-                          ? "bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs"
-                          : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
-                      }`}
-                      title="มุมมองแถวรายการแบบเกม RoOC"
-                    >
-                      <span>📋</span>
-                      <span>แถวรายการ</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBoardLayoutMode("grid")}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                        boardLayoutMode === "grid"
-                          ? "bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs"
-                          : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
-                      }`}
-                      title="มุมมองกระดาน 4 ช่องต่อหน้า"
-                    >
-                      <span>🔲</span>
-                      <span>กระดาน 4 ช่อง</span>
-                    </button>
-                  </div>
-
                   {/* Top Pagination Controls */}
                   <div className="flex items-center gap-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-1 rounded-xl">
                     <button
@@ -1198,57 +1181,12 @@ export default function QueueManagerClient({
                 </div>
               </div>
 
-              {/* Batch Award Bar */}
-              {isAdmin && currentSlots.length > 0 && (
-                <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-zinc-50/90 dark:bg-zinc-900/80 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
-                    <span className="text-xs font-black text-zinc-700 dark:text-zinc-200">
-                      เลือกประมูลแบบกลุ่ม (Batch Award):
-                    </span>
-                  </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleSelectCurrentPageSlots}
-                      className="px-3 py-1.5 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5"
-                    >
-                      <span>📄</span>
-                      <span>เลือกหน้านี้ (Page {activePageObj?.pageNumber || currentPage})</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleSelectAllSlots}
-                      className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white rounded-xl text-xs font-black transition shadow-sm shadow-blue-500/25 cursor-pointer flex items-center gap-1.5"
-                    >
-                      <span>⚡</span>
-                      <span>
-                        เลือกทั้งหมดทุกหน้า ({currentSlots.filter((s) => s.status !== "awarded").length} ช่อง)
-                      </span>
-                    </button>
-
-                    {selectedSlotIds.size > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSlotIds(new Set())}
-                        className="px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition cursor-pointer"
-                      >
-                        ยกเลิกที่เลือก ({selectedSlotIds.size})
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* SLOTS DISPLAY: List View vs Grid View */}
-              {boardLayoutMode === "list" ? (
-                /* List View (Matching RoOC In-Game Auction Rows) */
-                <div className="flex flex-col gap-4">
-                  {[1, 2, 3, 4].map((slotNum) => {
-                    const slotData = activePageObj?.slots.find((s: any) => Number(s.slot_number) === slotNum)
-                    if (!slotData) {
+              {/* SLOTS DISPLAY: List View */}
+              <div className="flex flex-col gap-4">
+                {[1, 2, 3, 4].map((slotNum) => {
+                  const slotData = activePageObj?.slots.find((s: any) => Number(s.slot_number) === slotNum)
+                  if (!slotData) {
                       return (
                         <div
                           key={`empty-${slotNum}`}
@@ -1454,138 +1392,8 @@ export default function QueueManagerClient({
                         </div>
                       </div>
                     )
-                  })}
-                </div>
-              ) : (
-                /* Grid View (4 Slots per row) */
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[1, 2, 3, 4].map((slotNum) => {
-                    const slotData = activePageObj?.slots.find((s: any) => Number(s.slot_number) === slotNum)
-                    if (!slotData) {
-                      return (
-                        <div
-                          key={`grid-empty-${slotNum}`}
-                          className="rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40 p-5 flex flex-col items-center justify-center min-h-56 text-zinc-400"
-                        >
-                          <div className="text-xs font-mono mb-1 text-zinc-400">
-                            Page {activePageObj?.pageNumber || currentPage} • ช่องที่ {slotNum}
-                          </div>
-                          <div className="text-sm font-bold text-zinc-400 dark:text-zinc-600">--- ช่องว่าง ---</div>
-                        </div>
-                      )
-                    }
-
-                    const meta = ITEMS_META[slotData.item_type as ItemKey] || ITEMS_META.Album
-                    const isSelected = selectedSlotIds.has(slotData.id)
-
-                    return (
-                      <div
-                        key={slotData.id}
-                        className={`rounded-2xl border p-5 bg-white dark:bg-zinc-900 flex flex-col justify-between shadow-md transition-all ${
-                          isSelected
-                            ? "border-blue-500 ring-2 ring-blue-500/30 bg-blue-50/50 dark:bg-blue-950/30"
-                            : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
-                        }`}
-                      >
-                        <div>
-                          {/* Top badge row */}
-                          <div className="flex items-center justify-between gap-2 mb-3">
-                            <span className="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 font-mono text-xs font-medium">
-                              Page {slotData.page_number}/{slotData.total_pages} · ช่อง {slotData.slot_number}
-                            </span>
-                            {isAdmin && (
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  const next = new Set(selectedSlotIds)
-                                  if (e.target.checked) next.add(slotData.id)
-                                  else next.delete(slotData.id)
-                                  setSelectedSlotIds(next)
-                                }}
-                                className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
-                              />
-                            )}
-                          </div>
-
-                          {/* Item Badge + 3D Icon */}
-                          <div className="flex items-center gap-3 mb-4">
-                            <div
-                              className={`w-12 h-12 bg-linear-to-b ${meta.color} ${meta.border} rounded-xl border flex items-center justify-center shrink-0 p-1`}
-                            >
-                              <img
-                                src={encodeURI(meta.icon)}
-                                alt={meta.label}
-                                className="w-full h-full object-contain filter drop-shadow-sm select-none"
-                                loading="lazy"
-                              />
-                            </div>
-                            <div>
-                              <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100">{meta.label}</div>
-                              <div className="text-[11px] text-zinc-500">ONLY BID ตามช่องที่กำหนด</div>
-                            </div>
-                          </div>
-
-                          {/* Assigned Member */}
-                          <div className="bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/50 rounded-xl p-3 mb-4">
-                            <div className="text-[11px] text-zinc-500 uppercase tracking-wider mb-0.5">
-                              ผู้ได้รับสิทธิ์ประมูล:
-                            </div>
-                            <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
-                              {slotData.profiles?.display_name || "ไม่ทราบชื่อ"}
-                            </div>
-                            <div className="text-xs text-zinc-500 mt-0.5">
-                              {slotData.profiles?.job_class || "ไม่ระบุอาชีพ"}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Status & Quick Actions */}
-                        <div className="flex items-center justify-between pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                          <span
-                            className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
-                              slotData.status === "awarded"
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800/60"
-                                : slotData.status === "skipped"
-                                ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border-rose-300 dark:border-rose-800/60"
-                                : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700"
-                            }`}
-                          >
-                            {slotData.status === "awarded"
-                              ? "ประมูลสำเร็จ"
-                              : slotData.status === "skipped"
-                              ? "ข้ามคิว"
-                              : "รอประมูล"}
-                          </span>
-
-                          {isAdmin && (
-                            <div className="flex items-center gap-1.5">
-                              {slotData.status !== "awarded" && (
-                                <button
-                                  onClick={() => handleSlotStatus([slotData.id], "awarded")}
-                                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:scale-90 active:brightness-110 text-white text-xs font-bold transition-transform duration-75 cursor-pointer shadow-sm touch-manipulation select-none"
-                                  title="บันทึกว่าได้รับของแล้ว"
-                                >
-                                  ได้ของ
-                                </button>
-                              )}
-                              {slotData.status !== "allocated" && (
-                                <button
-                                  onClick={() => handleSlotStatus([slotData.id], "allocated")}
-                                  className="px-2.5 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 active:scale-90 text-zinc-700 dark:text-zinc-300 text-xs font-medium cursor-pointer border border-zinc-200 dark:border-zinc-700 transition-transform duration-75 touch-manipulation select-none"
-                                  title="รีเซ็ตสถานะ"
-                                >
-                                  รีเซ็ต
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                })}
+              </div>
 
               {/* Bottom Page Navigation Bar */}
               <div className="flex flex-col sm:flex-row justify-between items-center gap-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl px-5 py-3 shadow-xs">
@@ -1990,6 +1798,20 @@ export default function QueueManagerClient({
               >
                 จัดเรียงใหม่เดี๋ยวนี้
               </button>
+              {isAdmin && (
+                <button
+                  onClick={handleRunAllocation}
+                  disabled={busy || !isBenchReady}
+                  title={!isBenchReady ? "กรุณาปิดโหวตและจัดผัง Bench ให้เรียบร้อยก่อน" : "คำนวณสล็อตใหม่"}
+                  className={`px-4 py-1.5 rounded-lg font-bold text-xs border transition-all cursor-pointer ${
+                    !isBenchReady
+                      ? "bg-zinc-800/60 text-zinc-500 border-zinc-700/50 cursor-not-allowed opacity-60"
+                      : "bg-zinc-100 hover:bg-white text-zinc-900 border-zinc-200"
+                  }`}
+                >
+                  {busy ? "กำลังคำนวณ..." : !isBenchReady ? "🔒 รอปิดโหวต & Bench" : "คำนวณสล็อตใหม่"}
+                </button>
+              )}
             </div>
           </div>
 
@@ -2117,30 +1939,8 @@ export default function QueueManagerClient({
             })}
           </div>
 
-          {isAdmin && (
-            <div className="flex justify-end gap-3 items-center">
-              <button
-                onClick={handleSaveSessions}
-                disabled={busy}
-                className="px-6 py-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-semibold text-sm border border-zinc-700 transition-all cursor-pointer disabled:opacity-50"
-              >
-                บันทึกเฉพาะค่าไอเทม
-              </button>
-              <button
-                onClick={handleRunAllocation}
-                disabled={busy || !isBenchReady}
-                title={!isBenchReady ? "กรุณาปิดโหวตและจัดผัง Bench ให้เรียบร้อยก่อน" : "บันทึกและคำนวณจัดสรรสล็อตทันที"}
-                className={`px-6 py-3 rounded-lg font-bold text-sm transition-all cursor-pointer ${
-                  !isBenchReady
-                    ? "bg-zinc-800/60 text-zinc-500 border border-zinc-700/50 cursor-not-allowed opacity-60"
-                    : "bg-zinc-100 hover:bg-white text-zinc-900"
-                }`}
-              >
-                {!isBenchReady ? "🔒 ล็อคการคำนวณ (กรุณาปิดโหวต & จัด Bench ให้ลงตัว)" : "บันทึกและคำนวณจัดสรรสล็อตทันที"}
-              </button>
-            </div>
-          )}
         </div>
+
       )}
 
       {/* Modal: ยืนยันบันทึกเป็นประวัติการประมูล */}
