@@ -34,6 +34,13 @@ export default async function AdminPage() {
     .select("id, display_name, discord_id")
     .order("display_name", { ascending: true })
 
+  const existingUserIds = Array.from(
+    new Set([
+      ...(recentAttendance || []).map((a: any) => a.user_id).filter(Boolean),
+      ...(allocatedSlots || []).map((s: any) => s.user_id).filter(Boolean),
+    ])
+  )
+
   return (
     <div className="min-h-screen bg-zinc-950">
       <NavBar isAdmin />
@@ -50,7 +57,7 @@ export default async function AdminPage() {
             <h2 className="font-semibold text-zinc-100 text-sm">Award ไอเทม</h2>
           </div>
           <div className="p-5">
-            <AdminAwardForm members={members || []} />
+            <AdminAwardForm members={members || []} existingUserIds={existingUserIds} />
           </div>
         </div>
 

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo, useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 const ITEM_CHOICES = [
   { value: "Album", label: "สมุดการ์ด" },
@@ -11,12 +12,32 @@ const ITEM_CHOICES = [
 
 interface Member { id: string; display_name: string; discord_id: string }
 
-export default function AdminAwardForm({ members }: { members: Member[] }) {
+interface AdminAwardFormProps {
+  members: Member[]
+  existingUserIds?: string[]
+}
+
+export default function AdminAwardForm({ members, existingUserIds = [] }: AdminAwardFormProps) {
+  const router = useRouter()
   const [memberId, setMemberId] = useState("")
   const [itemType, setItemType] = useState("Album")
   const [note, setNote] = useState("")
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [hideExisting, setHideExisting] = useState(true)
+
+  const existingSet = useMemo(() => new Set(existingUserIds), [existingUserIds])
+
+  const availableMembers = useMemo(() => {
+    if (!hideExisting) return members
+    return members.filter((m) => !existingSet.has(m.id))
+  }, [members, hideExisting, existingSet])
+
+  useEffect(() => {
+    if (memberId && !availableMembers.some((m) => m.id === memberId)) {
+      setMemberId("")
+    }
+  }, [availableMembers, memberId])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -35,6 +56,7 @@ export default function AdminAwardForm({ members }: { members: Member[] }) {
       setResult({ type: "success", text: `Award สำเร็จ` })
       setMemberId("")
       setNote("")
+      router.refresh()
     } catch (e: any) {
       setResult({ type: "error", text: `${e.message}` })
     } finally {
@@ -45,15 +67,30 @@ export default function AdminAwardForm({ members }: { members: Member[] }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap gap-3 items-end">
       <div className="flex-1 min-w-48">
-        <label className="block text-xs text-zinc-500 mb-1.5">สมาชิก</label>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-xs text-zinc-500">สมาชิก</label>
+          {existingUserIds.length > 0 && (
+            <label className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={hideExisting}
+                onChange={(e) => setHideExisting(e.target.checked)}
+                className="rounded border-zinc-700 bg-zinc-800 text-indigo-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+              />
+              <span>ซ่อนคนที่มีชื่อแล้ว ({existingUserIds.length})</span>
+            </label>
+          )}
+        </div>
         <select
           value={memberId}
           onChange={(e) => setMemberId(e.target.value)}
           required
           className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
         >
-          <option value="">เลือกสมาชิก...</option>
-          {members.map((m) => (
+          <option value="">
+            {availableMembers.length === 0 ? "-- สมาชิกทุกคนมีชื่อในรอบนี้แล้ว --" : "เลือกสมาชิก..."}
+          </option>
+          {availableMembers.map((m) => (
             <option key={m.id} value={m.id}>{m.display_name}</option>
           ))}
         </select>

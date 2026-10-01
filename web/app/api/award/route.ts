@@ -4,16 +4,72 @@ import { createAdminClient } from "@/lib/supabase/server"
 
 export async function POST(req: Request) {
   const session = await auth()
-  if (!session || session.user.role !== "admin") {
+  if (!session || (session.user as any)?.role !== "admin") {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 })
   }
 
-  const { queueId, roundId } = await req.json()
-  if (!queueId || !roundId) {
-    return NextResponse.json({ success: false, error: "Missing queueId or roundId" }, { status: 400 })
+  const body = await req.json()
+  const { queueId, roundId, userId, itemType, note } = body
+  const supabase = createAdminClient()
+
+  // 1) Direct Manual Award from Admin Panel (userId + itemType)
+  if (userId && itemType) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, display_name")
+      .eq("id", userId)
+      .maybeSingle()
+
+    if (!profile) {
+      return NextResponse.json({ success: false, error: "ไม่พบข้อมูลสมาชิก" }, { status: 404 })
+    }
+
+    // Try finding open or latest round for itemType
+    const { data: latestRound } = await supabase
+      .from("auction_rounds")
+      .select("id")
+      .eq("item_type", itemType)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    // Insert history
+    const { error: histErr } = await supabase.from("auction_history").insert({
+      round_id: latestRound?.id || null,
+      user_id: userId,
+      item_type: itemType,
+      qty_awarded: 1,
+      awarded_by: null,
+      note: note || `Award ผ่าน Admin Panel โดย ${session.user.name || "Admin"}`,
+      awarded_at: new Date().toISOString(),
+    })
+
+    if (histErr) {
+      return NextResponse.json({ success: false, error: histErr.message }, { status: 500 })
+    }
+
+    // Deduct carry_credit if available
+    const { data: creditRow } = await supabase
+      .from("carry_credits")
+      .select("id, credit")
+      .eq("user_id", userId)
+      .eq("item_type", itemType)
+      .maybeSingle()
+
+    if (creditRow && creditRow.credit > 0) {
+      await supabase
+        .from("carry_credits")
+        .update({ credit: creditRow.credit - 1, last_updated: new Date().toISOString() })
+        .eq("id", creditRow.id)
+    }
+
+    return NextResponse.json({ success: true, message: `Award ${itemType} ให้ ${profile.display_name} สำเร็จ` })
   }
 
-  const supabase = createAdminClient()
+  // 2) Queue-based Award (queueId + roundId)
+  if (!queueId || !roundId) {
+    return NextResponse.json({ success: false, error: "Missing queueId/roundId or userId/itemType" }, { status: 400 })
+  }
 
   // ดึงคิว
   const { data: queue, error: qErr } = await supabase

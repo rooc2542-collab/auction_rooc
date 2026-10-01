@@ -353,6 +353,12 @@ export default function QueueManagerClient({
     })
   }, [currentAttendance, creditMap])
 
+  // รายชื่อสมาชิกที่ยังไม่ได้ลงชื่อในอีเวนต์นี้ (สำหรับดึงเข้าคิวแทน)
+  const availableMembersForProxy = useMemo(() => {
+    const attendedUserIds = new Set((currentAttendance || []).map((a) => a.user_id))
+    return members.filter((m) => !attendedUserIds.has(m.id))
+  }, [members, currentAttendance])
+
   const currentSlots = useMemo(() => {
     return slots.filter(
       (s) =>
@@ -1567,8 +1573,10 @@ export default function QueueManagerClient({
                     onChange={(e) => setProxyUserId(e.target.value)}
                     className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
                   >
-                    <option value="">-- เลือกสมาชิกในกิลด์ --</option>
-                    {members.map((m) => (
+                    <option value="">
+                      {availableMembersForProxy.length === 0 ? "-- สมาชิกทุกคนลงชื่อแล้ว --" : "-- เลือกสมาชิกในกิลด์ --"}
+                    </option>
+                    {availableMembersForProxy.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.display_name} ({m.job_class || "ไม่ระบุอาชีพ"})
                       </option>
