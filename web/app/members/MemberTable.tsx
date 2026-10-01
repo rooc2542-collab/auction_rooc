@@ -135,7 +135,7 @@ export default function MemberTable({
       }
     }
 
-    // 2. Calculate Skipped count from carry_credits / attendance
+    // 2. Calculate Skipped count from carry_credits
     for (const c of credits) {
       if (!c.user_id || !map.has(c.user_id)) continue
       const userStat = map.get(c.user_id)!
@@ -145,25 +145,8 @@ export default function MemberTable({
       }
     }
 
-    // Count no_bid / absent attendance as skipped
-    for (const a of attendance) {
-      if (!a.user_id || !map.has(a.user_id)) continue
-      if (a.status === "no_bid" || a.status === "absent") {
-        const userStat = map.get(a.user_id)!
-        const items =
-          Array.isArray(a.interested_items) && a.interested_items.length > 0
-            ? (a.interested_items as ItemKey[])
-            : (["Album", "Puppet", "White", "RedBlack"] as ItemKey[])
-        for (const it of items) {
-          if (userStat[it]) {
-            userStat[it].skip += 1
-          }
-        }
-      }
-    }
-
     return map
-  }, [members, slots, credits, attendance])
+  }, [members, slots, credits])
 
   // Total allocated per item type for column headers
   const columnTotals = useMemo(() => {

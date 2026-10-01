@@ -31,43 +31,12 @@ export async function POST(req: NextRequest) {
 
   const todayStr = new Date().toISOString().split("T")[0]
 
-  // ดึง attendance เพื่อหักลบยอด skip ที่มาจาก event_attendance
-  const { data: userAttendance } = await supabase
-    .from("event_attendance")
-    .select("status, interested_items")
-    .eq("user_id", user_id)
-
-  const attendanceSkipMap: Record<ItemKey, number> = {
-    Album: 0,
-    Puppet: 0,
-    White: 0,
-    RedBlack: 0,
-  }
-
-  if (userAttendance) {
-    for (const a of userAttendance) {
-      if (a.status === "no_bid" || a.status === "absent") {
-        const interested =
-          Array.isArray(a.interested_items) && a.interested_items.length > 0
-            ? (a.interested_items as ItemKey[])
-            : VALID_ITEMS
-        for (const it of interested) {
-          if (attendanceSkipMap[it] !== undefined) {
-            attendanceSkipMap[it] += 1
-          }
-        }
-      }
-    }
-  }
-
   for (const it of VALID_ITEMS) {
     const itemData = items[it]
     if (!itemData) continue
 
     const targetAlloc = Math.max(0, Number(itemData.alloc) || 0)
-    const rawTargetCredit = Math.max(0, Number(itemData.credit ?? itemData.skip) || 0)
-    const attSkip = attendanceSkipMap[it] || 0
-    const finalCredit = Math.max(0, rawTargetCredit - attSkip)
+    const finalCredit = Math.max(0, Number(itemData.credit ?? itemData.skip) || 0)
 
     // A. ปรับยอด Carry Credits (แต้มสะสม / ข้าม)
     const { data: existingCredit } = await supabase
