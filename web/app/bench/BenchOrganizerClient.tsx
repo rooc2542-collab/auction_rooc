@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 
 interface Member {
@@ -239,13 +239,49 @@ export default function BenchOrganizerClient({
     return { wantBidList: wantBid, noBidList: noBid, absentList: absent }
   }, [initialMembers, statusMap, searchTerm, memberIdMap])
 
-  // Set member status directly
-  const handleSetStatus = (id: string, status: AttendanceStatus) => {
+  // Auto-save feedback state
+  const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Set member status directly with real-time Auto-Save
+  const handleSetStatus = async (id: string, status: AttendanceStatus) => {
+    // 1. Instant 0ms UI update
     setStatusMap((prev) => {
       const next = new Map(prev)
       next.set(id, status)
       return next
     })
+
+    // 2. Real-time Auto-Save to DB
+    if (!isAdmin || !eventName.trim()) return
+
+    const member = initialMembers.find((m) => m.id === id)
+    if (!member) return
+
+    setAutoSaveState("saving")
+    try {
+      const res = await fetch("/api/queues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "upsert_attendance",
+          event_name: eventName.trim(),
+          event_date: eventDate,
+          user_id: member.id,
+          discord_id: member.discord_id,
+          status: status,
+          interested_items: status === "want_bid" ? ["Album", "Puppet", "White", "RedBlack"] : [],
+        }),
+      })
+      if (!res.ok) throw new Error("Auto-save failed")
+      setAutoSaveState("saved")
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = setTimeout(() => {
+        setAutoSaveState("idle")
+      }, 3000)
+    } catch {
+      setAutoSaveState("error")
+    }
   }
 
   // Import from Discord Poll
@@ -377,7 +413,7 @@ export default function BenchOrganizerClient({
     }
   }
 
-  // Proceed to Queue Manager (Upsert attendance for all members and close poll to prevent missing members)
+  // Proceed to Queue Manager (Quick Navigation to /queues)
   const handleProceedToQueues = async () => {
     if (!eventName.trim()) {
       setToast({ type: "err", text: "กรุณาเลือกรอบกิจกรรมที่ผ่านการโหวตจากสมาชิกก่อนดำเนินการ" })
@@ -387,23 +423,6 @@ export default function BenchOrganizerClient({
     try {
       if (isAdmin) {
         const cleanName = eventName.trim()
-        for (const m of initialMembers) {
-          const st = statusMap.get(m.id) || "no_bid"
-          await fetch("/api/queues", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "upsert_attendance",
-              event_name: cleanName,
-              event_date: eventDate,
-              user_id: m.id,
-              discord_id: m.discord_id,
-              status: st,
-              interested_items: st === "want_bid" ? ["Album", "Puppet", "White", "RedBlack"] : [],
-            }),
-          }).catch(() => {})
-        }
-
         // Lock poll if still active, so queues page is ready and unlocked without left-behind votes
         if (!isPollClosed) {
           await fetch("/api/queues", {
@@ -442,6 +461,21 @@ export default function BenchOrganizerClient({
             >
               {isPollClosed ? "สถานะ: ปิดโหวตแล้ว (พร้อมจัดคิว)" : "สถานะ: กำลังเปิดโหวต"}
             </span>
+            {autoSaveState === "saving" && (
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-950 text-amber-400 border border-amber-800/60 flex items-center gap-1.5 font-medium animate-pulse">
+                <span>⚡</span> กำลังบันทึกอัตโนมัติ...
+              </span>
+            )}
+            {autoSaveState === "saved" && (
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800/60 flex items-center gap-1.5 font-medium transition-all">
+                <span>✓</span> บันทึกอัตโนมัติแล้ว
+              </span>
+            )}
+            {autoSaveState === "error" && (
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-950 text-rose-400 border border-rose-800/60 flex items-center gap-1.5 font-medium">
+                <span>⚠️</span> บันทึกไม่สำเร็จ
+              </span>
+            )}
           </div>
           <p className="text-xs text-zinc-500 mt-1">
             จัดคนเข้าร่วมวอร์ 3 กลุ่มตามโพล Discord: ต้องการประมูล, ไม่ต้องการประมูล (สำรอง/สะสมแต้ม), และไม่ประสงค์เข้าร่วม
@@ -474,7 +508,7 @@ export default function BenchOrganizerClient({
             disabled={busy}
             className="col-span-2 sm:col-span-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer shadow-md text-center border border-emerald-500 disabled:opacity-50"
           >
-            {busy ? "กำลังบันทึก..." : "✅ ยืนยันผัง & ส่งไปจัดคิวและสล็อต →"}
+            {busy ? "กำลังไป..." : "ไปหน้าจัดคิวและสล็อต →"}
           </button>
         </div>
       </div>
