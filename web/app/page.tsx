@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/server"
 import { ITEM_CONFIG } from "@/lib/constants"
 import type { ItemType } from "@/lib/constants"
 import NavBar from "@/components/NavBar"
+import UserSlotsPreview from "@/components/UserSlotsPreview"
 
 export default async function HomePage() {
   const session = await auth()
@@ -13,6 +14,24 @@ export default async function HomePage() {
 
   const supabase = createAdminClient()
   const today = new Date().toISOString().split("T")[0]
+
+  // Resolve current profile of logged-in user
+  let currentProfile: any = null
+  if (session?.user) {
+    if (session.user.id && session.user.id !== "admin") {
+      const { data } = await supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle()
+      currentProfile = data
+    }
+    if (!currentProfile) {
+      if ((session.user as any).role === "admin") {
+        const { data } = await supabase.from("profiles").select("*").eq("role", "admin").limit(1).maybeSingle()
+        currentProfile = data
+      } else if (session.user.name) {
+        const { data } = await supabase.from("profiles").select("*").ilike("display_name", session.user.name).maybeSingle()
+        currentProfile = data
+      }
+    }
+  }
 
   const [
     { data: attendanceSummary },
@@ -234,69 +253,13 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* Allocated Slots Preview */}
+        {/* Allocated Slots (Showing personal slots by default) */}
         {allocatedSlots && allocatedSlots.length > 0 && (
-          <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
-              <h2 className="font-semibold text-zinc-100 text-sm">พิกัดสล็อตที่จัดสรรล่าสุด</h2>
-              <Link href="/queues" className="text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
-                เปิดกระดาน 4 ช่องเต็ม →
-              </Link>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-800 bg-zinc-900/50 text-zinc-500 text-left">
-                    <th className="px-5 py-3 font-medium">สมาชิก</th>
-                    <th className="px-5 py-3 font-medium">ไอเทม</th>
-                    <th className="px-5 py-3 text-center font-medium">Page</th>
-                    <th className="px-5 py-3 text-center font-medium">ช่องที่</th>
-                    <th className="px-5 py-3 text-center font-medium">สถานะ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800/60">
-                  {(allocatedSlots as any[]).slice(0, 12).map((slot) => {
-                    const cfg = ITEM_CONFIG[slot.item_type as ItemType]
-                    return (
-                      <tr key={slot.id} className="hover:bg-zinc-800/30 transition-colors">
-                        <td className="px-5 py-3 font-semibold text-zinc-100">
-                          {slot.profiles?.display_name || "Unknown"}
-                        </td>
-                        <td className="px-5 py-3">
-                          <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
-                            {cfg?.label || slot.item_type}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3 text-center text-zinc-300 font-mono font-semibold">
-                          Page {slot.page_number}/{slot.total_pages}
-                        </td>
-                        <td className="px-5 py-3 text-center text-zinc-100 font-mono font-semibold">
-                          ช่องที่ {slot.slot_number}
-                        </td>
-                        <td className="px-5 py-3 text-center">
-                          <span
-                            className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                              slot.status === "awarded"
-                                ? "bg-emerald-950 text-emerald-400 border border-emerald-800/60"
-                                : slot.status === "skipped"
-                                ? "bg-rose-950 text-rose-400 border border-rose-800/60"
-                                : "bg-zinc-800 text-zinc-400 border border-zinc-700"
-                            }`}
-                          >
-                            {slot.status === "awarded"
-                              ? "ได้รับแล้ว"
-                              : slot.status === "skipped"
-                              ? "ข้ามคิว"
-                              : "รอประมูล"}
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <UserSlotsPreview
+            currentProfile={currentProfile}
+            slots={(allocatedSlots as any[]) || []}
+            isAdmin={isAdmin}
+          />
         )}
 
         {/* Recent Members */}
