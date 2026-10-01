@@ -27,10 +27,10 @@ const ITEM_CONFIG: Array<{
   color: string
   badgeBg: string
 }> = [
-  { key: "Album", nameEn: "Card Fragments", nameTh: "เศษสมุดการ์ด", color: "text-blue-400", badgeBg: "bg-blue-950/60 border-blue-800/60" },
-  { key: "Puppet", nameEn: "Illusion Cards", nameTh: "การ์ดหุ่น", color: "text-purple-400", badgeBg: "bg-purple-950/60 border-purple-800/60" },
-  { key: "White", nameEn: "Light-Dark Feathers", nameTh: "ขนนก ขาว-ดำ", color: "text-emerald-400", badgeBg: "bg-emerald-950/60 border-emerald-800/60" },
-  { key: "RedBlack", nameEn: "Time-Space Feathers", nameTh: "ขนนก กาลเวลา-อวกาศ", color: "text-rose-400", badgeBg: "bg-rose-950/60 border-rose-800/60" },
+  { key: "Album", nameEn: "Card Fragments", nameTh: "เศษสมุดการ์ด", color: "text-blue-700 dark:text-blue-400", badgeBg: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800/60" },
+  { key: "Puppet", nameEn: "Illusion Cards", nameTh: "การ์ดหุ่น", color: "text-purple-700 dark:text-purple-400", badgeBg: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800/60" },
+  { key: "White", nameEn: "Light-Dark Feathers", nameTh: "ขนนก ขาว-ดำ", color: "text-emerald-700 dark:text-emerald-400", badgeBg: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60" },
+  { key: "RedBlack", nameEn: "Time-Space Feathers", nameTh: "ขนนก กาลเวลา-อวกาศ", color: "text-rose-700 dark:text-rose-400", badgeBg: "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/60" },
 ]
 
 interface Member {
@@ -850,14 +850,14 @@ export default function MemberTable({
       {/* ─── Edit Member Item Quotas Modal ──────────────── */}
       {editItemMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 sm:p-6 w-full max-w-lg shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-5 sm:p-6 w-full max-w-lg shadow-2xl space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                   <span>แก้ไขยอดไอเทมที่ควรได้รับ</span>
                 </h3>
-                <div className="text-xs text-zinc-400 mt-1 flex flex-wrap items-center gap-2">
-                  <span className="font-semibold text-zinc-200">{editItemMember.display_name}</span>
+                <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-zinc-800 dark:text-zinc-200">{editItemMember.display_name}</span>
                   {editItemMember.job_class && (
                     <span className="text-zinc-500 font-normal">({editItemMember.job_class})</span>
                   )}
@@ -869,7 +869,7 @@ export default function MemberTable({
               <button
                 type="button"
                 onClick={() => { setEditItemMember(null); setMessage(null) }}
-                className="text-zinc-400 hover:text-zinc-200 text-lg leading-none p-1 cursor-pointer"
+                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-lg leading-none p-1 cursor-pointer"
               >
                 ✕
               </button>
@@ -881,21 +881,21 @@ export default function MemberTable({
                 return (
                   <div
                     key={key}
-                    className="p-3.5 bg-zinc-800/50 rounded-xl border border-zinc-700/60 space-y-2.5"
+                    className="p-3.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700/60 space-y-2.5"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${badgeBg} ${color}`}>
+                        <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${badgeBg}`}>
                           {nameEn}
                         </span>
-                        <span className="text-xs text-zinc-400">({nameTh})</span>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400">({nameTh})</span>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       {/* Allocated */}
-                      <div className="bg-zinc-900/80 rounded-lg p-2.5 border border-zinc-700/50">
-                        <label className="block text-[11px] font-medium text-zinc-300 mb-1">
+                      <div className="bg-white dark:bg-zinc-900 rounded-lg p-2.5 border border-zinc-200 dark:border-zinc-700/50 shadow-sm">
+                        <label className="block text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                           สล็อตที่ได้รับ (Allocated)
                         </label>
                         <div className="flex items-center gap-1.5">
@@ -910,7 +910,7 @@ export default function MemberTable({
                                 },
                               }))
                             }
-                            className="w-7 h-7 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-sm border border-zinc-700 flex items-center justify-center cursor-pointer select-none"
+                            className="w-7 h-7 rounded bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-bold text-sm border border-zinc-300 dark:border-zinc-700 flex items-center justify-center cursor-pointer select-none"
                           >
                             -
                           </button>
@@ -925,7 +925,7 @@ export default function MemberTable({
                                 [key]: { ...prev[key], alloc: val },
                               }))
                             }}
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1 text-center font-mono font-bold text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
+                            className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1 text-center font-mono font-bold text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-500"
                           />
                           <button
                             type="button"
@@ -938,7 +938,7 @@ export default function MemberTable({
                                 },
                               }))
                             }
-                            className="w-7 h-7 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-sm border border-zinc-700 flex items-center justify-center cursor-pointer select-none"
+                            className="w-7 h-7 rounded bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-bold text-sm border border-zinc-300 dark:border-zinc-700 flex items-center justify-center cursor-pointer select-none"
                           >
                             +
                           </button>
@@ -946,8 +946,8 @@ export default function MemberTable({
                       </div>
 
                       {/* Skipped / Credits */}
-                      <div className="bg-zinc-900/80 rounded-lg p-2.5 border border-zinc-700/50">
-                        <label className="block text-[11px] font-medium text-amber-400/90 mb-1">
+                      <div className="bg-white dark:bg-zinc-900 rounded-lg p-2.5 border border-zinc-200 dark:border-zinc-700/50 shadow-sm">
+                        <label className="block text-[11px] font-semibold text-amber-700 dark:text-amber-400 mb-1">
                           แต้มข้าม/สะสม (Skipped)
                         </label>
                         <div className="flex items-center gap-1.5">
@@ -962,7 +962,7 @@ export default function MemberTable({
                                 },
                               }))
                             }
-                            className="w-7 h-7 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-sm border border-zinc-700 flex items-center justify-center cursor-pointer select-none"
+                            className="w-7 h-7 rounded bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-bold text-sm border border-zinc-300 dark:border-zinc-700 flex items-center justify-center cursor-pointer select-none"
                           >
                             -
                           </button>
@@ -977,7 +977,7 @@ export default function MemberTable({
                                 [key]: { ...prev[key], skip: val },
                               }))
                             }}
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1 text-center font-mono font-bold text-sm text-amber-400 focus:outline-none focus:border-zinc-500"
+                            className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md px-2 py-1 text-center font-mono font-bold text-sm text-amber-700 dark:text-amber-400 focus:outline-none focus:border-zinc-500"
                           />
                           <button
                             type="button"
@@ -990,7 +990,7 @@ export default function MemberTable({
                                 },
                               }))
                             }
-                            className="w-7 h-7 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-sm border border-zinc-700 flex items-center justify-center cursor-pointer select-none"
+                            className="w-7 h-7 rounded bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-bold text-sm border border-zinc-300 dark:border-zinc-700 flex items-center justify-center cursor-pointer select-none"
                           >
                             +
                           </button>
@@ -1001,8 +1001,8 @@ export default function MemberTable({
                 )
               })}
 
-              <div className="text-[11px] text-zinc-400 bg-zinc-950/60 border border-zinc-800 rounded-lg p-2.5">
-                💡 <span className="font-semibold text-zinc-300">หมายเหตุ:</span> สล็อตที่ได้รับ (Allocated) จะปรับปรุงประวัติสล็อตของสมาชิก และยอด Skipped จะอัปเดต Carry Credits สะสมให้อัตโนมัติ
+              <div className="text-[11px] text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 rounded-lg p-2.5">
+                💡 <span className="font-semibold text-zinc-800 dark:text-zinc-300">หมายเหตุ:</span> สล็อตที่ได้รับ (Allocated) จะปรับปรุงประวัติสล็อตของสมาชิก และยอด Skipped จะอัปเดต Carry Credits สะสมให้อัตโนมัติ
               </div>
             </div>
 
@@ -1010,8 +1010,8 @@ export default function MemberTable({
               <div
                 className={`px-3 py-2 rounded-lg text-xs font-medium border ${
                   message.type === "success"
-                    ? "bg-emerald-950/40 border-emerald-800/60 text-emerald-300"
-                    : "bg-rose-950/40 border-rose-800/60 text-rose-300"
+                    ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300"
+                    : "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-300"
                 }`}
               >
                 {message.text}
@@ -1022,7 +1022,7 @@ export default function MemberTable({
               <button
                 type="button"
                 onClick={() => { setEditItemMember(null); setMessage(null) }}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold border border-zinc-700 cursor-pointer"
+                className="flex-1 px-4 py-2.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-semibold border border-zinc-300 dark:border-zinc-700 cursor-pointer transition-colors"
               >
                 ยกเลิก
               </button>
@@ -1030,7 +1030,7 @@ export default function MemberTable({
                 type="button"
                 onClick={handleSaveItems}
                 disabled={savingItems}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold disabled:opacity-40 cursor-pointer shadow"
+                className="flex-1 px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold disabled:opacity-40 cursor-pointer shadow transition-colors"
               >
                 {savingItems ? "กำลังบันทึก..." : "บันทึกยอดไอเทม"}
               </button>

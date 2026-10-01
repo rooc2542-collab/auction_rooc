@@ -12,29 +12,29 @@ export const ITEM_CONFIG: Record<
   Album: {
     label: "สมุดการ์ด",
     subLabel: "Card Fragment",
-    color: "text-blue-400",
-    badge: "bg-blue-950/60 border-blue-800/60 text-blue-300",
+    color: "text-blue-700 dark:text-blue-400",
+    badge: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950/60 dark:border-blue-800/60 dark:text-blue-300",
     bg: "bg-blue-500/10",
   },
   Puppet: {
     label: "การ์ดหุ่น",
     subLabel: "Illusion Card",
-    color: "text-purple-400",
-    badge: "bg-purple-950/60 border-purple-800/60 text-purple-300",
+    color: "text-purple-700 dark:text-purple-400",
+    badge: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/60 dark:border-purple-800/60 dark:text-purple-300",
     bg: "bg-purple-500/10",
   },
   White: {
     label: "ขนนกขาว",
     subLabel: "Light-Dark",
-    color: "text-emerald-400",
-    badge: "bg-emerald-950/60 border-emerald-800/60 text-emerald-300",
+    color: "text-emerald-700 dark:text-emerald-400",
+    badge: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:border-emerald-800/60 dark:text-emerald-300",
     bg: "bg-emerald-500/10",
   },
   RedBlack: {
     label: "ขนนกดำแดง",
     subLabel: "Time-Space",
-    color: "text-rose-400",
-    badge: "bg-rose-950/60 border-rose-800/60 text-rose-300",
+    color: "text-rose-700 dark:text-rose-400",
+    badge: "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/60 dark:border-rose-800/60 dark:text-rose-300",
     bg: "bg-rose-500/10",
   },
 }
@@ -638,19 +638,19 @@ export default function HistoryView({
                     const statusConfig = {
                       want_bid: {
                         label: "🟢 ต้องการประมูล",
-                        badge: "bg-emerald-950/60 border-emerald-800/60 text-emerald-300",
+                        badge: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:border-emerald-800/60 dark:text-emerald-300",
                       },
                       no_bid: {
                         label: "🟡 สละสิทธิ์ / ข้าม",
-                        badge: "bg-amber-950/60 border-amber-800/60 text-amber-300",
+                        badge: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:border-amber-800/60 dark:text-amber-300",
                       },
                       absent: {
                         label: "🔴 ไม่เข้าร่วม",
-                        badge: "bg-rose-950/60 border-rose-800/60 text-rose-300",
+                        badge: "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/60 dark:border-rose-800/60 dark:text-rose-300",
                       },
                     }[v.status] || {
                       label: v.status,
-                      badge: "bg-zinc-800 border-zinc-700 text-zinc-400",
+                      badge: "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400",
                     }
 
                     const interested = Array.isArray(v.interested_items) ? v.interested_items : []
