@@ -742,13 +742,32 @@ export default function MemberTable({
               </div>
 
               <div>
-                <label className="block text-xs text-zinc-400 mb-1">Discord ID (ตัวเลข)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs text-zinc-400">Discord ID (ตัวเลข)</label>
+                  {editMember && (
+                    <span className="text-[10px] text-amber-500/80 font-medium">
+                      (ไม่สามารถแก้ไขได้)
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={editForm.discord_id}
+                  disabled={Boolean(editMember)}
+                  readOnly={Boolean(editMember)}
                   onChange={(e) => setEditForm((p) => ({ ...p, discord_id: e.target.value }))}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-100 font-mono focus:outline-none focus:border-zinc-500"
+                  className={`w-full border rounded-lg px-3.5 py-2 text-xs font-mono focus:outline-none ${
+                    editMember
+                      ? "bg-zinc-800/40 border-zinc-800 text-zinc-400 cursor-not-allowed select-none"
+                      : "bg-zinc-800 border-zinc-700 text-zinc-100 focus:border-zinc-500"
+                  }`}
+                  placeholder={editMember ? "-" : "เช่น 123456789012345678"}
                 />
+                {editMember && (
+                  <p className="text-[10px] text-zinc-500 mt-1">
+                    Discord ID ผูกกับบัญชี Discord และไม่สามารถเปลี่ยนแปลงได้
+                  </p>
+                )}
               </div>
 
               {/* Job Class & Role side by side */}
