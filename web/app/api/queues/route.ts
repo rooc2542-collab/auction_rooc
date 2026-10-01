@@ -83,10 +83,10 @@ export async function POST(req: NextRequest) {
       for (const it of items) {
         const total = Math.max(0, Number(it.total_quantity) || 0)
         const limit = Math.max(1, Number(it.personal_limit) || 1)
-        const sp = Math.max(1, Number(it.start_page) || 1)
-        const ss = Math.min(4, Math.max(1, Number(it.start_slot) || 1))
-        const ep = Math.max(sp, Number(it.end_page) || Math.ceil((total || 1) / 4))
-        const es = Math.min(4, Math.max(1, Number(it.end_slot) || (((total || 1) - 1) % 4) + 1))
+        const sp = total === 0 ? 0 : Math.max(0, Number(it.start_page) || 0)
+        const ss = total === 0 ? 1 : Math.min(4, Math.max(1, Number(it.start_slot) || 1))
+        const ep = total === 0 ? 0 : Math.max(sp, Number(it.end_page) || Math.ceil((total || 1) / 4))
+        const es = total === 0 ? 1 : Math.min(4, Math.max(1, Number(it.end_slot) || (((total || 1) - 1) % 4) + 1))
 
         await supabase.from("event_sessions").upsert(
           {

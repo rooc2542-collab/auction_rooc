@@ -141,12 +141,13 @@ export default function QueueManagerClient({
       const found = sessions.find(
         (s) => s.event_name === evName && s.session_date === evDate && s.item_type === k
       )
+      const tot = found?.total_quantity ?? 0
       result[k] = {
-        start_page: String(found?.start_page ?? 1),
-        start_slot: String(found?.start_slot ?? 1),
-        end_page: String(found?.end_page ?? 1),
-        end_slot: String(found?.end_slot ?? 4),
-        total_quantity: String(found?.total_quantity ?? 0),
+        start_page: String(tot === 0 ? 0 : found?.start_page ?? 1),
+        start_slot: String(tot === 0 ? 0 : found?.start_slot ?? 1),
+        end_page: String(tot === 0 ? 0 : found?.end_page ?? 1),
+        end_slot: String(tot === 0 ? 0 : found?.end_slot ?? 4),
+        total_quantity: String(tot),
         personal_limit: String(found?.personal_limit ?? 1),
       }
     }
@@ -167,10 +168,10 @@ export default function QueueManagerClient({
     startSlot: number,
     totalQty: number
   ): { page: number; slot: number } => {
+    const tot = Math.max(0, totalQty || 0)
+    if (tot <= 0 || startPage <= 0) return { page: 0, slot: 0 }
     const sp = Math.max(1, startPage || 1)
     const ss = Math.min(4, Math.max(1, startSlot || 1))
-    const tot = Math.max(0, totalQty || 0)
-    if (tot <= 0) return { page: sp, slot: ss }
     const offset = ss - 1 + tot - 1
     return {
       page: sp + Math.floor(offset / 4),
@@ -184,6 +185,7 @@ export default function QueueManagerClient({
     endPage: number,
     endSlot: number
   ): number => {
+    if (startPage <= 0 || endPage <= 0) return 0
     if (endPage < startPage || (endPage === startPage && endSlot < startSlot)) return 0
     return (endPage - startPage) * 4 + (endSlot - startSlot) + 1
   }
@@ -192,17 +194,22 @@ export default function QueueManagerClient({
     forms: Record<ItemKey, ItemFormEntry>
   ): Record<ItemKey, ItemFormEntry> => {
     const nextForms = { ...forms }
-    let curStartPage = Math.max(1, parseInt(nextForms.Album?.start_page) || 1)
-    let curStartSlot = Math.min(4, Math.max(1, parseInt(nextForms.Album?.start_slot) || 1))
+    let curStartPage = 1
+    let curStartSlot = 1
+
+    const firstNonZero = ITEM_KEYS.find((k) => (parseInt(nextForms[k]?.total_quantity) || 0) > 0)
+    if (firstNonZero) {
+      curStartPage = Math.max(1, parseInt(nextForms[firstNonZero]?.start_page) || 1)
+      curStartSlot = Math.min(4, Math.max(1, parseInt(nextForms[firstNonZero]?.start_slot) || 1))
+    }
 
     for (const k of ITEM_KEYS) {
       const cur = { ...nextForms[k] }
       const tot = Math.max(0, parseInt(cur.total_quantity) || 0)
 
-      cur.start_page = String(curStartPage)
-      cur.start_slot = String(curStartSlot)
-
       if (tot > 0) {
+        cur.start_page = String(curStartPage)
+        cur.start_slot = String(curStartSlot)
         const end = computeEndSlot(curStartPage, curStartSlot, tot)
         cur.end_page = String(end.page)
         cur.end_slot = String(end.slot)
@@ -211,8 +218,10 @@ export default function QueueManagerClient({
         curStartPage = next.page
         curStartSlot = next.slot
       } else {
-        cur.end_page = String(curStartPage)
-        cur.end_slot = String(curStartSlot)
+        cur.start_page = "0"
+        cur.start_slot = "0"
+        cur.end_page = "0"
+        cur.end_slot = "0"
       }
 
       nextForms[k] = cur
@@ -247,25 +256,48 @@ export default function QueueManagerClient({
 
       if (field === "total_quantity") {
         const tot = Math.max(0, parseInt(val) || 0)
-        const sp = Math.max(1, parseInt(updated[key].start_page) || 1)
-        const ss = Math.min(4, Math.max(1, parseInt(updated[key].start_slot) || 1))
-        const end = computeEndSlot(sp, ss, tot)
-        updated[key].end_page = String(end.page)
-        updated[key].end_slot = String(end.slot)
+        if (tot === 0) {
+          updated[key].start_page = "0"
+          updated[key].start_slot = "0"
+          updated[key].end_page = "0"
+          updated[key].end_slot = "0"
+        } else {
+          let sp = parseInt(updated[key].start_page) || 1
+          if (sp === 0) sp = 1
+          let ss = parseInt(updated[key].start_slot) || 1
+          if (ss === 0) ss = 1
+          const end = computeEndSlot(sp, ss, tot)
+          updated[key].start_page = String(sp)
+          updated[key].start_slot = String(ss)
+          updated[key].end_page = String(end.page)
+          updated[key].end_slot = String(end.slot)
+        }
       } else if (field === "end_page" || field === "end_slot") {
-        const sp = Math.max(1, parseInt(updated[key].start_page) || 1)
-        const ss = Math.min(4, Math.max(1, parseInt(updated[key].start_slot) || 1))
-        const ep = Math.max(1, parseInt(field === "end_page" ? val : updated[key].end_page) || 1)
-        const es = Math.min(4, Math.max(1, parseInt(field === "end_slot" ? val : updated[key].end_slot) || 1))
-        const tot = computeQty(sp, ss, ep, es)
-        updated[key].total_quantity = String(tot)
+        const sp = parseInt(updated[key].start_page) || 0
+        const ss = parseInt(updated[key].start_slot) || 0
+        const ep = parseInt(field === "end_page" ? val : updated[key].end_page) || 0
+        const es = parseInt(field === "end_slot" ? val : updated[key].end_slot) || 0
+        if (sp <= 0 || ep <= 0) {
+          updated[key].total_quantity = "0"
+        } else {
+          const tot = computeQty(sp, ss, ep, es)
+          updated[key].total_quantity = String(tot)
+        }
       } else if (field === "start_page" || field === "start_slot") {
-        const sp = Math.max(1, parseInt(field === "start_page" ? val : updated[key].start_page) || 1)
-        const ss = Math.min(4, Math.max(1, parseInt(field === "start_slot" ? val : updated[key].start_slot) || 1))
-        const tot = Math.max(0, parseInt(updated[key].total_quantity) || 0)
-        const end = computeEndSlot(sp, ss, tot)
-        updated[key].end_page = String(end.page)
-        updated[key].end_slot = String(end.slot)
+        const sp = parseInt(field === "start_page" ? val : updated[key].start_page) || 0
+        const ss = parseInt(field === "start_slot" ? val : updated[key].start_slot) || 0
+        if (sp <= 0) {
+          updated[key].start_page = "0"
+          updated[key].start_slot = "0"
+          updated[key].end_page = "0"
+          updated[key].end_slot = "0"
+          updated[key].total_quantity = "0"
+        } else {
+          const tot = Math.max(0, parseInt(updated[key].total_quantity) || 0)
+          const end = computeEndSlot(sp, ss, tot)
+          updated[key].end_page = String(end.page)
+          updated[key].end_slot = String(end.slot)
+        }
       }
 
       if (autoLinkCoords) {
@@ -1857,7 +1889,7 @@ export default function QueueManagerClient({
                         <div className="flex items-center gap-1.5">
                           <input
                             type="number"
-                            min={1}
+                            min={0}
                             disabled={!isAdmin}
                             value={form.start_page}
                             onChange={(e) => handleCoordChange(key, "start_page", e.target.value)}
@@ -1867,7 +1899,7 @@ export default function QueueManagerClient({
                           <span className="text-zinc-600">:</span>
                           <input
                             type="number"
-                            min={1}
+                            min={0}
                             max={4}
                             disabled={!isAdmin}
                             value={form.start_slot}
@@ -1882,7 +1914,7 @@ export default function QueueManagerClient({
                         <div className="flex items-center gap-1.5">
                           <input
                             type="number"
-                            min={1}
+                            min={0}
                             disabled={!isAdmin}
                             value={form.end_page}
                             onChange={(e) => handleCoordChange(key, "end_page", e.target.value)}
@@ -1892,7 +1924,7 @@ export default function QueueManagerClient({
                           <span className="text-zinc-600">:</span>
                           <input
                             type="number"
-                            min={1}
+                            min={0}
                             max={4}
                             disabled={!isAdmin}
                             value={form.end_slot}
