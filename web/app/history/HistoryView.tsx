@@ -100,6 +100,29 @@ export interface GroupedAwardItem {
   }>
 }
 
+function parseSlotCoordinates(slotStr: string): { page: number; slot: number } {
+  const pageMatch = slotStr.match(/(?:Page|หน้า)\s*(\d+)/i)
+  const slotMatch = slotStr.match(/(?:Slot|ช่องที่|ช่อง)\s*(\d+)/i)
+
+  const page = pageMatch ? parseInt(pageMatch[1], 10) : 0
+  const slot = slotMatch ? parseInt(slotMatch[1], 10) : 0
+
+  return { page, slot }
+}
+
+function compareSlots(aStr: string, bStr: string): number {
+  const coordA = parseSlotCoordinates(aStr)
+  const coordB = parseSlotCoordinates(bStr)
+
+  if (coordA.page !== coordB.page) {
+    return coordA.page - coordB.page
+  }
+  if (coordA.slot !== coordB.slot) {
+    return coordA.slot - coordB.slot
+  }
+  return aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: "base" })
+}
+
 interface HistoryViewProps {
   history: RawHistoryItem[]
   attendance: RawAttendanceItem[]
@@ -176,6 +199,11 @@ export default function HistoryView({
       if (new Date(h.awarded_at) > new Date(g.latest_awarded_at)) {
         g.latest_awarded_at = h.awarded_at
       }
+    }
+
+    // Sort slots inside each group in ascending order (Page ASC, Slot ASC)
+    for (const g of map.values()) {
+      g.slots.sort((a, b) => compareSlots(a.slot || a.rawNote || "", b.slot || b.rawNote || ""))
     }
 
     // Sort by latest_awarded_at descending
