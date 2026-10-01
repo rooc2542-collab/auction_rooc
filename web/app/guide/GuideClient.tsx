@@ -22,32 +22,32 @@ export default function GuideClient({ isAdmin }: Props) {
   return (
     <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-900 via-zinc-900 to-zinc-950 border border-teal-800/40 p-6 sm:p-8 text-white shadow-xl">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-teal-50 via-emerald-50/50 to-white dark:from-teal-950/80 dark:via-zinc-900 dark:to-zinc-950 border border-teal-200/80 dark:border-teal-800/40 p-6 sm:p-8 shadow-sm dark:shadow-xl">
         <div className="relative z-10 space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 text-xs font-semibold border border-teal-500/30">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-500/20 text-teal-800 dark:text-teal-300 text-xs font-semibold border border-teal-300/60 dark:border-teal-500/30">
             <span>📚 ศูนย์การเรียนรู้และคู่มือการใช้งาน</span>
             <span>•</span>
             <span>RoOC Geffen</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
             คู่มือการใช้งานระบบประมูลและจัดสรรไอเทมกิลด์
           </h1>
-          <p className="text-zinc-300 text-sm sm:text-base max-w-3xl leading-relaxed">
+          <p className="text-zinc-600 dark:text-zinc-300 text-sm sm:text-base max-w-3xl leading-relaxed">
             คู่มือฉบับสมบูรณ์สำหรับสมาชิกและแอดมิน เพื่อความเข้าใจตรงกัน โปร่งใส ตรวจสอบได้ 100% 
             ตั้งแต่ขั้นตอนการลงทะเบียนผ่าน Discord จนถึงการคุมกระดานสล็อต 4 ช่องและการรับของในเกม
           </p>
 
           <div className="flex flex-wrap gap-2 pt-2">
-            <span className="px-2.5 py-1 rounded-md bg-zinc-800/80 text-zinc-300 text-xs font-mono border border-zinc-700">
+            <span className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 text-xs font-mono border border-zinc-200 dark:border-zinc-700 shadow-xs">
               🤖 Discord Bot Integration
             </span>
-            <span className="px-2.5 py-1 rounded-md bg-zinc-800/80 text-zinc-300 text-xs font-mono border border-zinc-700">
+            <span className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 text-xs font-mono border border-zinc-200 dark:border-zinc-700 shadow-xs">
               📊 4-Slots Grid System
             </span>
-            <span className="px-2.5 py-1 rounded-md bg-zinc-800/80 text-zinc-300 text-xs font-mono border border-zinc-700">
+            <span className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 text-xs font-mono border border-zinc-200 dark:border-zinc-700 shadow-xs">
               ⭐ Carry Credits System
             </span>
-            <span className="px-2.5 py-1 rounded-md bg-zinc-800/80 text-zinc-300 text-xs font-mono border border-zinc-700">
+            <span className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 text-xs font-mono border border-zinc-200 dark:border-zinc-700 shadow-xs">
               🔍 100% Audit History
             </span>
           </div>
@@ -136,7 +136,7 @@ export default function GuideClient({ isAdmin }: Props) {
                   ตามด้วยชื่อตัวละครของคุณในเกม
                 </p>
                 <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <div className="flex items-center gap-2 bg-zinc-900 text-zinc-200 px-3 py-1.5 rounded-lg font-mono text-xs border border-zinc-700">
+                  <div className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 px-3 py-1.5 rounded-lg font-mono text-xs border border-zinc-300 dark:border-zinc-700">
                     <span>/register display_name:ชื่อตัวละครของคุณ</span>
                   </div>
                   <button
@@ -276,7 +276,7 @@ export default function GuideClient({ isAdmin }: Props) {
               {/* Phase 1 */}
               <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-900 text-teal-200 border border-teal-700">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-700">
                     Phase 1: ก่อนเริ่มวอร์
                   </span>
                   <span className="text-xs text-zinc-500">Discord</span>
@@ -287,11 +287,11 @@ export default function GuideClient({ isAdmin }: Props) {
                 <p className="text-xs text-zinc-600 dark:text-zinc-300">
                   พิมพ์คำสั่งในห้องนัดหมาย Discord:
                 </p>
-                <div className="flex items-center justify-between bg-zinc-900 text-zinc-200 px-3 py-1.5 rounded-lg font-mono text-xs">
+                <div className="flex items-center justify-between bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 px-3 py-1.5 rounded-lg font-mono text-xs border border-zinc-300 dark:border-zinc-700">
                   <span>/start_vote</span>
                   <button
                     onClick={() => copyToClipboard("/start_vote")}
-                    className="text-teal-400 hover:text-teal-300"
+                    className="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-bold"
                   >
                     {copiedCmd === "/start_vote" ? "✓" : "Copy"}
                   </button>
@@ -304,7 +304,7 @@ export default function GuideClient({ isAdmin }: Props) {
               {/* Phase 2 */}
               <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-900 text-blue-200 border border-blue-700">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
                     Phase 2: จัดผังคน
                   </span>
                   <span className="text-xs text-zinc-500">Web Dashboard</span>
@@ -324,7 +324,7 @@ export default function GuideClient({ isAdmin }: Props) {
               {/* Phase 3 */}
               <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-900 text-purple-200 border border-purple-700">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700">
                     Phase 3: ตั้งค่าไอเทม
                   </span>
                   <span className="text-xs text-zinc-500">Web Dashboard</span>
@@ -349,7 +349,7 @@ export default function GuideClient({ isAdmin }: Props) {
               {/* Phase 4 */}
               <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-900 text-amber-200 border border-amber-700">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
                     Phase 4: ระหว่างประมูล
                   </span>
                   <span className="text-xs text-zinc-500">กระดานสด 4 ช่อง</span>
