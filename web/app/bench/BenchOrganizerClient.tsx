@@ -507,49 +507,48 @@ export default function BenchOrganizerClient({
       )}
 
       {/* Event Selector Banner (Auto-loads Discord votes) */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-base">⚔️</span>
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200">
-                เลือกรอบกิจกรรม (ผลโหวตจาก Discord บันทึกเข้าระบบอัตโนมัติ)
-              </label>
-            </div>
-            <div>
-              <select
-                value={selectedEventKey}
-                onChange={(e) => handleSelectEvent(e.target.value)}
-                disabled={existingEvents.length === 0}
-                className="w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-emerald-500 font-medium cursor-pointer shadow-sm disabled:opacity-50"
-              >
-                {existingEvents.length === 0 ? (
-                  <option value="" disabled>
-                    ไม่มีรอบกิจกรรมที่ผ่านการโหวตจากสมาชิก
-                  </option>
-                ) : (
-                  existingEvents.map((ev) => {
-                    const [en, ed] = ev.split("|")
-                    return (
-                      <option key={ev} value={ev}>
-                        {en} ({ed})
-                      </option>
-                    )
-                  })
-                )}
-              </select>
-            </div>
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3.5 sm:p-4 shadow-sm space-y-2.5">
+        <div className="flex items-center gap-2">
+          <span className="text-base">⚔️</span>
+          <label className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-200">
+            เลือกรอบกิจกรรม (ผลโหวตจาก Discord บันทึกเข้าระบบอัตโนมัติ)
+          </label>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          <div className="flex-1 min-w-0">
+            <select
+              value={selectedEventKey}
+              onChange={(e) => handleSelectEvent(e.target.value)}
+              disabled={existingEvents.length === 0}
+              className="w-full h-10 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3.5 text-xs sm:text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-emerald-500 font-medium cursor-pointer shadow-sm disabled:opacity-50"
+            >
+              {existingEvents.length === 0 ? (
+                <option value="" disabled>
+                  ไม่มีรอบกิจกรรมที่ผ่านการโหวตจากสมาชิก
+                </option>
+              ) : (
+                existingEvents.map((ev) => {
+                  const [en, ed] = ev.split("|")
+                  return (
+                    <option key={ev} value={ev}>
+                      {en} ({ed})
+                    </option>
+                  )
+                })
+              )}
+            </select>
           </div>
 
           {/* Live Sync Controls */}
-          <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-zinc-200 dark:border-zinc-800">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Live Indicator */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-zinc-800 border border-emerald-200 dark:border-zinc-700 text-xs shadow-sm">
+            <div className="h-10 flex items-center gap-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-zinc-800 border border-emerald-200 dark:border-zinc-700 text-xs shadow-sm">
               <span className="relative flex h-2 w-2">
                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${autoSync ? "bg-emerald-500 opacity-75" : "bg-zinc-400 opacity-0"}`}></span>
                 <span className={`relative inline-flex rounded-full h-2 w-2 ${autoSync ? "bg-emerald-500" : "bg-zinc-400"}`}></span>
               </span>
-              <span className="text-[11px] font-semibold text-emerald-800 dark:text-zinc-300">Live 5s</span>
+              <span className="text-[11px] sm:text-xs font-semibold text-emerald-800 dark:text-zinc-300 whitespace-nowrap">Live 5s</span>
             </div>
 
             {/* Manual Sync Button */}
@@ -557,11 +556,11 @@ export default function BenchOrganizerClient({
               type="button"
               onClick={() => handleSyncLatest(false)}
               disabled={isSyncing}
-              className="px-3 py-1.5 rounded-lg bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold border border-zinc-300 dark:border-zinc-700 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 shadow-sm"
+              className="h-10 px-3.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs sm:text-sm font-semibold border border-zinc-300 dark:border-zinc-700 transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 shadow-sm whitespace-nowrap"
               title="ดึงผลโหวตล่าสุดจากระบบทันที"
             >
               <span className={isSyncing ? "animate-spin inline-block" : ""}>🔄</span>
-              <span>{isSyncing ? "กำลังซิงค์..." : "ซิงค์สด"}</span>
+              <span>{isSyncing ? "กำลังซิงค์..." : "ซิงค์ข้อมูล"}</span>
             </button>
           </div>
         </div>
