@@ -107,19 +107,18 @@ export default async function HomePage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: "สมาชิกในกิลด์", value: totalMembers ?? 0, href: "/members" },
-            { label: "ลงชื่อวันนี้", value: todayAttendees ?? 0, href: "/queues" },
-            { label: "สล็อตจัดสรรแล้ว", value: totalAllocated ?? 0, href: "/queues" },
-            { label: "อีเวนต์ที่เปิดรับ", value: events.length, href: "/queues" },
+            { label: "สมาชิกในกิลด์", value: totalMembers ?? 0 },
+            { label: "ลงชื่อวันนี้", value: todayAttendees ?? 0 },
+            { label: "สล็อตจัดสรรแล้ว", value: totalAllocated ?? 0 },
+            { label: "อีเวนต์ที่เปิดรับ", value: events.length },
           ].map((stat) => (
-            <Link
+            <div
               key={stat.label}
-              href={stat.href}
-              className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 hover:bg-zinc-800/60 transition-all"
+              className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 select-none"
             >
               <div className="text-xs text-zinc-500 font-medium mb-2">{stat.label}</div>
               <div className="text-3xl font-bold text-zinc-100 font-mono">{stat.value}</div>
-            </Link>
+            </div>
           ))}
         </div>
 
