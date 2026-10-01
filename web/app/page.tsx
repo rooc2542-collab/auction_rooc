@@ -37,7 +37,6 @@ export default async function HomePage() {
     { data: attendanceSummary },
     { data: allocatedSlots },
     { data: eventSessions },
-    { data: recentMembers },
     { count: totalMembers },
     { count: todayAttendees },
     { count: totalAllocated },
@@ -58,11 +57,6 @@ export default async function HomePage() {
       .select("*")
       .order("session_date", { ascending: false })
       .limit(12),
-    supabase
-      .from("profiles")
-      .select("id, display_name, discord_id, job_class, role, created_at")
-      .order("created_at", { ascending: false })
-      .limit(6),
     supabase.from("profiles").select("*", { count: "exact", head: true }),
     supabase.from("event_attendance").select("*", { count: "exact", head: true }).eq("event_date", today),
     supabase.from("allocated_slots").select("*", { count: "exact", head: true }),
@@ -261,38 +255,6 @@ export default async function HomePage() {
             isAdmin={isAdmin}
           />
         )}
-
-        {/* Recent Members */}
-        <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
-          <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
-            <h2 className="font-semibold text-zinc-100 text-sm">สมาชิกล่าสุด</h2>
-            <Link href="/members" className="text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
-              จัดการสมาชิกทั้งหมด →
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-y divide-zinc-800 md:divide-y-0 md:divide-x">
-            {(recentMembers || []).map((m: any) => (
-              <div key={m.id} className="p-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-zinc-700 flex items-center justify-center text-zinc-100 font-bold text-sm flex-shrink-0">
-                  {m.display_name?.charAt(0)?.toUpperCase() || "?"}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-zinc-100 text-sm truncate">{m.display_name}</div>
-                  <div className="text-xs text-zinc-500 truncate">{m.job_class || "ไม่ระบุอาชีพ"}</div>
-                </div>
-                <span
-                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    m.role === "admin"
-                      ? "bg-zinc-700 text-zinc-200 border border-zinc-600"
-                      : "bg-zinc-800 text-zinc-500"
-                  }`}
-                >
-                  {m.role === "admin" ? "Admin" : "Member"}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
       </main>
     </div>
   )
