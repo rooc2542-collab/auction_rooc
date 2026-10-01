@@ -22,6 +22,7 @@ interface Attendance {
 interface Session {
   event_name: string
   session_date: string
+  status?: string
 }
 
 interface Props {
@@ -80,6 +81,18 @@ export default function BenchOrganizerClient({
   const [selectedEventKey, setSelectedEventKey] = useState(existingEvents[0] || "")
   const [eventName, setEventName] = useState(defaultPair[0] || "")
   const [eventDate, setEventDate] = useState(defaultPair[1] || todayStr)
+
+  const [sessionStatusOverrides, setSessionStatusOverrides] = useState<Record<string, string>>({})
+
+  const isPollClosed = useMemo(() => {
+    const overrideKey = `${eventName}|${eventDate}`
+    if (sessionStatusOverrides[overrideKey]) {
+      return sessionStatusOverrides[overrideKey] === "closed"
+    }
+    const rows = initialSessions.filter((s) => s.event_name === eventName && s.session_date === eventDate)
+    if (rows.length === 0) return false
+    return rows.every((r) => r.status === "closed")
+  }, [sessionStatusOverrides, initialSessions, eventName, eventDate])
 
   const [searchTerm, setSearchTerm] = useState("")
   const [discordMessageId, setDiscordMessageId] = useState("")
@@ -343,7 +356,36 @@ export default function BenchOrganizerClient({
     })
   }
 
-  // Proceed to Queue Manager (Upsert attendance for all members)
+  const handleTogglePollStatus = async () => {
+    if (!isAdmin || !eventName.trim()) return
+    setBusy(true)
+    const nextStatus = isPollClosed ? "active" : "closed"
+    const msg = nextStatus === "closed" ? "ปิดโหวตรอบนี้เรียบร้อยแล้ว ล็อคคะแนนเพื่อเตรียมจัดคิว" : "เปิดรับโหวตอีกครั้งเรียบร้อยแล้ว"
+    try {
+      const res = await fetch("/api/queues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "set_poll_status",
+          event_name: eventName.trim(),
+          session_date: eventDate,
+          status: nextStatus,
+        }),
+      })
+      if (!res.ok) throw new Error("ไม่สามารถเปลี่ยนสถานะโหวตได้")
+      setSessionStatusOverrides((prev) => ({
+        ...prev,
+        [`${eventName}|${eventDate}`]: nextStatus,
+      }))
+      setToast({ type: "ok", text: msg })
+    } catch (e: any) {
+      setToast({ type: "err", text: e.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Proceed to Queue Manager (Upsert attendance for all members and close poll to prevent missing members)
   const handleProceedToQueues = async () => {
     if (!eventName.trim()) {
       setToast({ type: "err", text: "กรุณาเลือกรอบกิจกรรมที่ผ่านการโหวตจากสมาชิกก่อนดำเนินการ" })
@@ -369,6 +411,20 @@ export default function BenchOrganizerClient({
             }),
           }).catch(() => {})
         }
+
+        // Lock poll if still active, so queues page is ready and unlocked without left-behind votes
+        if (!isPollClosed) {
+          await fetch("/api/queues", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "set_poll_status",
+              event_name: cleanName,
+              session_date: eventDate,
+              status: "closed",
+            }),
+          }).catch(() => {})
+        }
       }
       router.push(`/queues?event=${encodeURIComponent(eventName.trim())}&date=${encodeURIComponent(eventDate)}`)
     } finally {
@@ -381,9 +437,20 @@ export default function BenchOrganizerClient({
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-            Bench Organizer
-          </h1>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+              Bench Organizer
+            </h1>
+            <span
+              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+                isPollClosed
+                  ? "bg-emerald-950 text-emerald-400 border-emerald-800/60"
+                  : "bg-amber-950 text-amber-400 border-amber-800/60"
+              }`}
+            >
+              {isPollClosed ? "สถานะ: ปิดโหวตแล้ว (พร้อมจัดคิว)" : "สถานะ: กำลังเปิดโหวต"}
+            </span>
+          </div>
           <p className="text-xs text-zinc-500 mt-1">
             จัดคนเข้าร่วมวอร์ 3 กลุ่มตามโพล Discord: ต้องการประมูล, ไม่ต้องการประมูล (สำรอง/สะสมแต้ม), และไม่ประสงค์เข้าร่วม
           </p>
@@ -391,6 +458,19 @@ export default function BenchOrganizerClient({
 
         {/* Action Buttons */}
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={handleTogglePollStatus}
+              disabled={busy}
+              className={`px-3.5 py-2 rounded-lg text-xs font-semibold border transition-all disabled:opacity-50 cursor-pointer shadow-sm text-center ${
+                isPollClosed
+                  ? "bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700"
+                  : "bg-amber-950 hover:bg-amber-900/60 text-amber-300 border-amber-800/60"
+              }`}
+            >
+              {isPollClosed ? "เปิดโหวตอีกครั้ง" : "🔒 ปิดโหวตรอบนี้"}
+            </button>
+          )}
           <button
             onClick={handleResetToNoBid}
             className="px-3.5 py-2 rounded-lg bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold border border-zinc-300 dark:border-zinc-700 transition-all cursor-pointer shadow-sm text-center"
@@ -408,7 +488,7 @@ export default function BenchOrganizerClient({
             disabled={busy}
             className="col-span-2 sm:col-span-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer shadow-md text-center border border-emerald-500 disabled:opacity-50"
           >
-            {busy ? "กำลังบันทึก..." : "ส่งไป จัดคิวและสล็อต →"}
+            {busy ? "กำลังบันทึก..." : "✅ ยืนยันผัง & ส่งไปจัดคิวและสล็อต →"}
           </button>
         </div>
       </div>

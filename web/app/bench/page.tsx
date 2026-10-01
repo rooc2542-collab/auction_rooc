@@ -29,7 +29,7 @@ export default async function BenchPage() {
       .order("created_at", { ascending: false }),
     supabase
       .from("event_sessions")
-      .select("event_name, session_date")
+      .select("event_name, session_date, status")
       .order("session_date", { ascending: false }),
   ])
 

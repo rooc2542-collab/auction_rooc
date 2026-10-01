@@ -267,6 +267,16 @@ export default function QueueManagerClient({
     [attendance, eventName, eventDate]
   )
 
+  const wantBidMembers = useMemo(
+    () => currentAttendance.filter((a) => a.status === "want_bid"),
+    [currentAttendance]
+  )
+
+  // ตรวจสอบความพร้อม: การโหวตสิ้นสุดแล้ว (isPollClosed) และโหมด Bench ลงตัวแล้ว (มีคนต้องการประมูล)
+  const isBenchReady = useMemo(() => {
+    return isPollClosed && currentAttendance.length > 0 && wantBidMembers.length > 0
+  }, [isPollClosed, currentAttendance, wantBidMembers])
+
   const creditMap = useMemo(() => {
     const map: Record<string, number> = {}
     for (const c of credits) {
@@ -434,7 +444,14 @@ export default function QueueManagerClient({
     if (!isPollClosed) {
       setToast({
         type: "err",
-        text: "ไม่สามารถคำนวณจัดสรรสล็อตได้: กรุณากดปุ่ม 'ปิดโหวต' ก่อน จึงจะสามารถจัดสรรและแจ้งผลให้สมาชิกได้",
+        text: "ไม่สามารถจัดคิวหรือจัดสล็อตได้: การโหวตยังไม่สิ้นสุด กรุณาไปที่ Bench Organizer เพื่อตรวจเช็กผังคนและปิดโหวตก่อน",
+      })
+      return
+    }
+    if (currentAttendance.length === 0 || wantBidMembers.length === 0) {
+      setToast({
+        type: "err",
+        text: "ไม่สามารถจัดคิวหรือจัดสล็อตได้: โหมด Bench ยังไม่ลงตัว กรุณาจัดผังคนใน Bench Organizer ให้เรียบร้อยก่อน",
       })
       return
     }
@@ -804,6 +821,37 @@ export default function QueueManagerClient({
         </div>
       )}
 
+        {/* Guard Warning Banner if Poll not closed or Bench not ready */}
+        {!isBenchReady && (
+          <div className="mt-4 p-4 rounded-xl border border-amber-500/40 bg-amber-950/20 text-amber-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <span className="text-xl">⚠️</span>
+              <div className="text-xs sm:text-sm">
+                <p className="font-bold text-amber-100">
+                  ระบบระงับการจัดคิวและคำนวณสล็อตชั่วคราว (กันคนตกหล่น)
+                </p>
+                <div className="text-amber-300/80 mt-0.5 space-y-0.5">
+                  {!isPollClosed && (
+                    <p>• <b>การโหวตรอบนี้ยังไม่สิ้นสุด</b>: ต้องปิดโหวตก่อนเพื่อป้องกันสมาชิกโหวตแทรกแล้วตกหล่น</p>
+                  )}
+                  {currentAttendance.length === 0 ? (
+                    <p>• <b>ยังไม่มีข้อมูลลงชื่อสมาชิก</b>: กรุณาไปที่ผัง Bench เพื่อจัดผังรายชื่อ</p>
+                  ) : wantBidMembers.length === 0 ? (
+                    <p>• <b>โหมด Bench ยังไม่ลงตัว</b>: ยังไม่มีสมาชิกที่ต้องการประมูล (Want Bid) ในรอบนี้</p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+            <Link
+              href={`/bench?event=${encodeURIComponent(eventName)}&date=${encodeURIComponent(eventDate)}`}
+              className="px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs whitespace-nowrap transition-colors flex items-center gap-1.5 self-end md:self-auto cursor-pointer shadow-sm"
+            >
+              <span>ไปที่ Bench Organizer</span>
+              <span>→</span>
+            </Link>
+          </div>
+        )}
+
         {/* Sub-navigation Tabs */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mt-5 pt-5 border-t border-zinc-800">
           <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 w-full lg:w-auto">
@@ -843,10 +891,15 @@ export default function QueueManagerClient({
             {isAdmin && (
               <button
                 onClick={handleRunAllocation}
-                disabled={busy}
-                className="px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-100 font-semibold text-xs sm:text-sm border border-zinc-600 transition-all disabled:opacity-50 cursor-pointer text-center"
+                disabled={busy || !isBenchReady}
+                title={!isBenchReady ? "กรุณาปิดโหวตและจัดผัง Bench ให้เรียบร้อยก่อน" : "คำนวณสล็อตใหม่"}
+                className={`px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm border transition-all cursor-pointer text-center ${
+                  !isBenchReady
+                    ? "bg-zinc-800/60 text-zinc-500 border-zinc-700/50 cursor-not-allowed opacity-60"
+                    : "bg-zinc-700 hover:bg-zinc-600 text-zinc-100 border-zinc-600 disabled:opacity-50"
+                }`}
               >
-                {busy ? "กำลังคำนวณ..." : "คำนวณสล็อตใหม่"}
+                {busy ? "กำลังคำนวณ..." : !isBenchReady ? "🔒 ล็อค (รอปิดโหวต & Bench)" : "คำนวณสล็อตใหม่"}
               </button>
             )}
             {isAdmin && currentSlots.length > 0 && (
@@ -972,13 +1025,45 @@ export default function QueueManagerClient({
 
           {/* 4-Slot In-Game Page View */}
           {pagesList.length === 0 ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-16 text-center space-y-3">
-              <div className="text-base font-semibold text-zinc-100">ยังไม่มีสล็อตที่ถูกจัดสรรสำหรับอีเวนต์นี้</div>
-              <p className="text-zinc-500 text-sm max-w-md mx-auto">
-                ไปที่แท็บ <b className="text-zinc-300">ตั้งค่าพิกัดไอเทม &amp; ลิมิต</b> เพื่อระบุจำนวนและลิมิต กด{" "}
-                <b className="text-zinc-300">ปิดโหวตรอบนี้</b> จากนั้นกด{" "}
-                <b className="text-zinc-300">คำนวณและจัดสรรสล็อตใหม่</b>
-              </p>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-16 text-center space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-zinc-800/80 border border-zinc-700 mx-auto flex items-center justify-center text-2xl">
+                {!isBenchReady ? "🔒" : "📋"}
+              </div>
+              <div className="space-y-1">
+                <div className="text-base font-semibold text-zinc-100">
+                  {!isBenchReady ? "ยังไม่สามารถจัดคิวหรือจัดสรรสล็อตได้" : "ยังไม่มีสล็อตที่ถูกจัดสรรสำหรับอีเวนต์นี้"}
+                </div>
+                <p className="text-zinc-400 text-sm max-w-md mx-auto">
+                  {!isBenchReady ? (
+                    <>
+                      เพื่อป้องกันสมาชิกตกหล่น กรุณาจัดการใน{" "}
+                      <Link
+                        href={`/bench?event=${encodeURIComponent(eventName)}&date=${encodeURIComponent(eventDate)}`}
+                        className="text-amber-400 hover:text-amber-300 underline font-semibold"
+                      >
+                        Bench Organizer
+                      </Link>{" "}
+                      ให้เรียบร้อยและปิดโหวตก่อนเริ่มการจัดคิวและสล็อต
+                    </>
+                  ) : (
+                    <>
+                      ไปที่แท็บ <b className="text-zinc-200">ตั้งค่าพิกัด &amp; ลิมิต</b> เพื่อระบุจำนวนและลิมิต จากนั้นกด{" "}
+                      <b className="text-zinc-200">คำนวณสล็อตใหม่</b>
+                    </>
+                  )}
+                </p>
+              </div>
+              {!isBenchReady && (
+                <div className="pt-2">
+                  <Link
+                    href={`/bench?event=${encodeURIComponent(eventName)}&date=${encodeURIComponent(eventDate)}`}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-sm transition-all"
+                  >
+                    <span>ไปที่ Bench Organizer</span>
+                    <span>→</span>
+                  </Link>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-5">
@@ -1561,20 +1646,25 @@ export default function QueueManagerClient({
           </div>
 
           {isAdmin && (
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-3 items-center">
               <button
                 onClick={handleSaveSessions}
                 disabled={busy}
-                className="px-6 py-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-semibold text-sm border border-zinc-700 transition-all cursor-pointer"
+                className="px-6 py-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-semibold text-sm border border-zinc-700 transition-all cursor-pointer disabled:opacity-50"
               >
                 บันทึกเฉพาะค่าไอเทม
               </button>
               <button
                 onClick={handleRunAllocation}
-                disabled={busy}
-                className="px-6 py-3 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 font-bold text-sm transition-all cursor-pointer"
+                disabled={busy || !isBenchReady}
+                title={!isBenchReady ? "กรุณาปิดโหวตและจัดผัง Bench ให้เรียบร้อยก่อน" : "บันทึกและคำนวณจัดสรรสล็อตทันที"}
+                className={`px-6 py-3 rounded-lg font-bold text-sm transition-all cursor-pointer ${
+                  !isBenchReady
+                    ? "bg-zinc-800/60 text-zinc-500 border border-zinc-700/50 cursor-not-allowed opacity-60"
+                    : "bg-zinc-100 hover:bg-white text-zinc-900"
+                }`}
               >
-                บันทึกและคำนวณจัดสรรสล็อตทันที
+                {!isBenchReady ? "🔒 ล็อคการคำนวณ (กรุณาปิดโหวต & จัด Bench ให้ลงตัว)" : "บันทึกและคำนวณจัดสรรสล็อตทันที"}
               </button>
             </div>
           )}
@@ -1600,7 +1690,7 @@ export default function QueueManagerClient({
                 ระบบจะทำการ:
               </p>
               <ul className="list-disc list-inside space-y-1 text-zinc-400">
-                <li>ปรับสถานะสล็อตทั้งหมด ({currentSlots.length} ช่อง) เป็น <b className="text-emerald-400">"ประมูลสำเร็จ"</b></li>
+                <li>ปรับสถานะสล็อตทั้งหมด ({currentSlots.length} ช่อง) เป็น <b className="text-emerald-400">&quot;ประมูลสำเร็จ&quot;</b></li>
                 <li>บันทึกประวัติการรับไอเทมของสมาชิกทุกคนลงใน <b className="text-zinc-200">ประวัติการประมูล (Auction History)</b></li>
                 <li>รายการที่เคยบันทึกไปแล้วจะไม่ถูกบันทึกซ้ำซ้อน</li>
               </ul>

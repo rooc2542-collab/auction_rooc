@@ -103,10 +103,16 @@ export default async function HomePage() {
               <span>คู่มือการใช้งาน</span>
             </Link>
             <Link
-              href="/queues"
+              href="/bench"
               className="px-4 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-900 font-semibold text-sm transition-all"
             >
-              จัดคิว &amp; สล็อต →
+              Bench Organizer →
+            </Link>
+            <Link
+              href="/queues"
+              className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-semibold text-sm border border-zinc-700 transition-all"
+            >
+              จัดคิว &amp; สล็อต
             </Link>
             <Link
               href="/members"
