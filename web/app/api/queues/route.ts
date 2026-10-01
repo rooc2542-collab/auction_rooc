@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     .from("event_attendance")
     .select("*, profiles:user_id(display_name, discord_id, job_class)")
     .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
 
   if (event_name && session_date) {
     sessionsQuery = sessionsQuery.eq("event_name", event_name).eq("session_date", session_date)

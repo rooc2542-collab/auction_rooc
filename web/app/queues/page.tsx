@@ -26,7 +26,8 @@ export default async function QueuesPage() {
     supabase
       .from("event_attendance")
       .select("*, profiles:user_id(display_name, discord_id, job_class)")
-      .order("created_at", { ascending: true }),
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true }),
     supabase
       .from("event_sessions")
       .select("*")

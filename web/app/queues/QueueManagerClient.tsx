@@ -349,7 +349,9 @@ export default function QueueManagerClient({
       const totalCredA = ITEM_KEYS.reduce((acc, k) => acc + (creditMap[`${a.user_id}|${k}`] || 0), 0)
       const totalCredB = ITEM_KEYS.reduce((acc, k) => acc + (creditMap[`${b.user_id}|${k}`] || 0), 0)
       if (totalCredB !== totalCredA) return totalCredB - totalCredA
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      const timeDiff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      if (timeDiff !== 0) return timeDiff
+      return (a.id || "").localeCompare(b.id || "")
     })
   }, [currentAttendance, creditMap])
 
