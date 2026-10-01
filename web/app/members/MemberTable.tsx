@@ -20,6 +20,19 @@ const ITEM_DISPLAY_NAMES: Record<ItemKey, string> = {
   RedBlack: "Time-Space",
 }
 
+const ITEM_CONFIG: Array<{
+  key: ItemKey
+  nameEn: string
+  nameTh: string
+  color: string
+  badgeBg: string
+}> = [
+  { key: "Album", nameEn: "Card Fragments", nameTh: "เศษสมุดการ์ด", color: "text-blue-400", badgeBg: "bg-blue-950/60 border-blue-800/60" },
+  { key: "Puppet", nameEn: "Illusion Cards", nameTh: "การ์ดหุ่น", color: "text-purple-400", badgeBg: "bg-purple-950/60 border-purple-800/60" },
+  { key: "White", nameEn: "Light-Dark Feathers", nameTh: "ขนนก ขาว-ดำ", color: "text-emerald-400", badgeBg: "bg-emerald-950/60 border-emerald-800/60" },
+  { key: "RedBlack", nameEn: "Time-Space Feathers", nameTh: "ขนนก กาลเวลา-อวกาศ", color: "text-rose-400", badgeBg: "bg-rose-950/60 border-rose-800/60" },
+]
+
 interface Member {
   id: string
   display_name: string
@@ -51,29 +64,39 @@ export default function MemberTable({
   const [filterJob, setFilterJob] = useState("")
   const [filterRole, setFilterRole] = useState("")
   const [editMember, setEditMember] = useState<Member | null>(null)
+  const [editItemMember, setEditItemMember] = useState<Member | null>(null)
+  const [editItemForm, setEditItemForm] = useState<Record<ItemKey, { alloc: number; skip: number }>>({
+    Album: { alloc: 0, skip: 0 },
+    Puppet: { alloc: 0, skip: 0 },
+    White: { alloc: 0, skip: 0 },
+    RedBlack: { alloc: 0, skip: 0 },
+  })
+  const [savingItems, setSavingItems] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [editForm, setEditForm] = useState({ display_name: "", discord_id: "", job_class: "", role: "member" })
   const [saving, setSaving] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const [lastSyncedTime, setLastSyncedTime] = useState<string>("")
+  const [lastSyncedTime, setLastSyncedTime] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("rooc_members_last_synced")
+        if (saved) return saved
+      } catch {}
+    }
+    return ""
+  })
 
-  // Load last synced time from localStorage or current time on mount
+  // Set initial sync time once after mount if not already present
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("rooc_members_last_synced")
-      if (saved) {
-        setLastSyncedTime(saved)
-      } else {
-        const timeStr = new Date().toTimeString().split(" ")[0]
-        setLastSyncedTime(timeStr)
-        localStorage.setItem("rooc_members_last_synced", timeStr)
-      }
-    } catch {
+    if (!lastSyncedTime && typeof window !== "undefined") {
       const timeStr = new Date().toTimeString().split(" ")[0]
       setLastSyncedTime(timeStr)
+      try {
+        localStorage.setItem("rooc_members_last_synced", timeStr)
+      } catch {}
     }
-  }, [])
+  }, [lastSyncedTime])
 
   // Filter members by search query and dropdowns
   const filtered = useMemo(() => {
@@ -174,6 +197,27 @@ export default function MemberTable({
   }
 
   function openEdit(m: Member) {
+    if (viewMode === "items") {
+      const stats = memberItemStats.get(m.id) || {
+        Album: { alloc: 0, skip: 0 },
+        Puppet: { alloc: 0, skip: 0 },
+        White: { alloc: 0, skip: 0 },
+        RedBlack: { alloc: 0, skip: 0 },
+      }
+      setEditMember(null)
+      setIsAddModalOpen(false)
+      setEditItemMember(m)
+      setEditItemForm({
+        Album: { alloc: stats.Album.alloc, skip: stats.Album.skip },
+        Puppet: { alloc: stats.Puppet.alloc, skip: stats.Puppet.skip },
+        White: { alloc: stats.White.alloc, skip: stats.White.skip },
+        RedBlack: { alloc: stats.RedBlack.alloc, skip: stats.RedBlack.skip },
+      })
+      setMessage(null)
+      return
+    }
+
+    setEditItemMember(null)
     setIsAddModalOpen(false)
     setEditMember(m)
     setEditForm({
@@ -183,6 +227,34 @@ export default function MemberTable({
       role: m.role || "member",
     })
     setMessage(null)
+  }
+
+  async function handleSaveItems() {
+    if (!editItemMember) return
+    setSavingItems(true)
+    setMessage(null)
+    try {
+      const res = await fetch("/api/members/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: editItemMember.id,
+          items: editItemForm,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "เกิดข้อผิดพลาดในการบันทึกยอดไอเทม")
+      setMessage({ type: "success", text: `อัปเดตยอดไอเทมของ ${editItemMember.display_name || "สมาชิก"} เรียบร้อยแล้ว` })
+      router.refresh()
+      setTimeout(() => {
+        setEditItemMember(null)
+        setMessage(null)
+      }, 700)
+    } catch (e: any) {
+      setMessage({ type: "error", text: `${e.message}` })
+    } finally {
+      setSavingItems(false)
+    }
   }
 
   async function handleSave() {
@@ -750,6 +822,198 @@ export default function MemberTable({
                 className="flex-1 px-4 py-2.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-bold disabled:opacity-40 cursor-pointer"
               >
                 {saving ? "กำลังบันทึก..." : "บันทึกข้อมูล"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Edit Member Item Quotas Modal ──────────────── */}
+      {editItemMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 sm:p-6 w-full max-w-lg shadow-2xl space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-zinc-100 flex items-center gap-2">
+                  <span>แก้ไขยอดไอเทมที่ควรได้รับ</span>
+                </h3>
+                <div className="text-xs text-zinc-400 mt-1 flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-zinc-200">{editItemMember.display_name}</span>
+                  {editItemMember.job_class && (
+                    <span className="text-zinc-500 font-normal">({editItemMember.job_class})</span>
+                  )}
+                  {editItemMember.discord_id && (
+                    <span className="font-mono text-zinc-500 text-[11px]">ID: {editItemMember.discord_id}</span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setEditItemMember(null); setMessage(null) }}
+                className="text-zinc-400 hover:text-zinc-200 text-lg leading-none p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              {ITEM_CONFIG.map(({ key, nameEn, nameTh, color, badgeBg }) => {
+                const current = editItemForm[key] || { alloc: 0, skip: 0 }
+                return (
+                  <div
+                    key={key}
+                    className="p-3.5 bg-zinc-800/50 rounded-xl border border-zinc-700/60 space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${badgeBg} ${color}`}>
+                          {nameEn}
+                        </span>
+                        <span className="text-xs text-zinc-400">({nameTh})</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Allocated */}
+                      <div className="bg-zinc-900/80 rounded-lg p-2.5 border border-zinc-700/50">
+                        <label className="block text-[11px] font-medium text-zinc-300 mb-1">
+                          สล็อตที่ได้รับ (Allocated)
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditItemForm((prev) => ({
+                                ...prev,
+                                [key]: {
+                                  ...prev[key],
+                                  alloc: Math.max(0, (prev[key]?.alloc || 0) - 1),
+                                },
+                              }))
+                            }
+                            className="w-7 h-7 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-sm border border-zinc-700 flex items-center justify-center cursor-pointer select-none"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min="0"
+                            value={current.alloc}
+                            onChange={(e) => {
+                              const val = Math.max(0, parseInt(e.target.value) || 0)
+                              setEditItemForm((prev) => ({
+                                ...prev,
+                                [key]: { ...prev[key], alloc: val },
+                              }))
+                            }}
+                            className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1 text-center font-mono font-bold text-sm text-zinc-100 focus:outline-none focus:border-zinc-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditItemForm((prev) => ({
+                                ...prev,
+                                [key]: {
+                                  ...prev[key],
+                                  alloc: (prev[key]?.alloc || 0) + 1,
+                                },
+                              }))
+                            }
+                            className="w-7 h-7 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-sm border border-zinc-700 flex items-center justify-center cursor-pointer select-none"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Skipped / Credits */}
+                      <div className="bg-zinc-900/80 rounded-lg p-2.5 border border-zinc-700/50">
+                        <label className="block text-[11px] font-medium text-amber-400/90 mb-1">
+                          แต้มข้าม/สะสม (Skipped)
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditItemForm((prev) => ({
+                                ...prev,
+                                [key]: {
+                                  ...prev[key],
+                                  skip: Math.max(0, (prev[key]?.skip || 0) - 1),
+                                },
+                              }))
+                            }
+                            className="w-7 h-7 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-sm border border-zinc-700 flex items-center justify-center cursor-pointer select-none"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            min="0"
+                            value={current.skip}
+                            onChange={(e) => {
+                              const val = Math.max(0, parseInt(e.target.value) || 0)
+                              setEditItemForm((prev) => ({
+                                ...prev,
+                                [key]: { ...prev[key], skip: val },
+                              }))
+                            }}
+                            className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1 text-center font-mono font-bold text-sm text-amber-400 focus:outline-none focus:border-zinc-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditItemForm((prev) => ({
+                                ...prev,
+                                [key]: {
+                                  ...prev[key],
+                                  skip: (prev[key]?.skip || 0) + 1,
+                                },
+                              }))
+                            }
+                            className="w-7 h-7 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-sm border border-zinc-700 flex items-center justify-center cursor-pointer select-none"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+
+              <div className="text-[11px] text-zinc-400 bg-zinc-950/60 border border-zinc-800 rounded-lg p-2.5">
+                💡 <span className="font-semibold text-zinc-300">หมายเหตุ:</span> สล็อตที่ได้รับ (Allocated) จะปรับปรุงประวัติสล็อตของสมาชิก และยอด Skipped จะอัปเดต Carry Credits สะสมให้อัตโนมัติ
+              </div>
+            </div>
+
+            {message && (
+              <div
+                className={`px-3 py-2 rounded-lg text-xs font-medium border ${
+                  message.type === "success"
+                    ? "bg-emerald-950/40 border-emerald-800/60 text-emerald-300"
+                    : "bg-rose-950/40 border-rose-800/60 text-rose-300"
+                }`}
+              >
+                {message.text}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => { setEditItemMember(null); setMessage(null) }}
+                className="flex-1 px-4 py-2.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold border border-zinc-700 cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveItems}
+                disabled={savingItems}
+                className="flex-1 px-4 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold disabled:opacity-40 cursor-pointer shadow"
+              >
+                {savingItems ? "กำลังบันทึก..." : "บันทึกยอดไอเทม"}
               </button>
             </div>
           </div>
