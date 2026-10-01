@@ -79,7 +79,7 @@ export default async function AdminPage() {
                     <th className="px-5 py-3 text-center font-medium">สถานะ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60">
+                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60">
                   {(allocatedSlots as any[]).map((slot) => (
                     <tr key={slot.id} className="hover:bg-zinc-800/30 transition-colors">
                       <td className="px-5 py-3 text-zinc-100">{slot.profiles?.display_name || "-"}</td>
@@ -125,7 +125,7 @@ export default async function AdminPage() {
                     <th className="px-5 py-3 font-medium">ไอเทมที่ต้องการ</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60">
+                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60">
                   {(recentAttendance as any[]).map((a) => (
                     <tr key={a.id} className="hover:bg-zinc-800/30 transition-colors">
                       <td className="px-5 py-3 text-zinc-100">{a.profiles?.display_name || "-"}</td>
@@ -169,7 +169,7 @@ export default async function AdminPage() {
                   <th className="px-5 py-3 font-medium">พิกัด</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60">
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60">
                 {(!recentSessions || recentSessions.length === 0) ? (
                   <tr><td colSpan={6} className="text-center text-zinc-600 py-8">ยังไม่มี session</td></tr>
                 ) : (recentSessions as any[]).map((s) => (

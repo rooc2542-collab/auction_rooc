@@ -59,7 +59,7 @@ export default async function CreditsPage() {
                     <th className="px-4 py-3 font-medium text-center">รวม</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60">
+                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60">
                   {users.map((u) => {
                     const total = Object.values(u.items).reduce((a, b) => a + b, 0)
                     return (

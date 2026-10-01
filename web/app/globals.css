@@ -96,7 +96,13 @@ html:not(.dark) .border-emerald-800\/60 { border-color: #a7f3d0 !important; }
 html:not(.dark) .border-rose-700\/60 { border-color: #fecdd3 !important; }
 html:not(.dark) .border-rose-800\/50 { border-color: #fecdd3 !important; }
 html:not(.dark) .border-rose-800\/60 { border-color: #fecdd3 !important; }
-html:not(.dark) .divide-zinc-800\/60 > * + * { border-color: #e4e4e7 !important; }
+html:not(.dark) .divide-zinc-800\/60 > *,
+html:not(.dark) .divide-zinc-800 > *,
+html:not(.dark) :where(.divide-zinc-800\/60 > *),
+html:not(.dark) :where(.divide-zinc-800 > *),
+html:not(.dark) .divide-zinc-800\/60 > :not(:last-child),
+html:not(.dark) .divide-zinc-800 > :not(:last-child),
+html:not(.dark) .divide-zinc-800\/60 > * + *,
 html:not(.dark) .divide-zinc-800 > * + * { border-color: #e4e4e7 !important; }
 
 /* Text contrast in Light Mode */

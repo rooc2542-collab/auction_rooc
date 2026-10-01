@@ -520,7 +520,7 @@ export default function MemberTable({
                     {isAdmin && <th className="px-4 py-3.5 text-right">จัดการ</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60">
+                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60">
                   {filtered.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-center text-zinc-600 py-12 text-xs">
@@ -635,7 +635,7 @@ export default function MemberTable({
                   {isAdmin && <th className="px-4 py-3.5 text-right">จัดการ</th>}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60">
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60">
                 {filtered.map((m) => (
                   <tr key={m.id} className="hover:bg-zinc-800/30 transition-colors">
                     <td className="px-4 py-3.5 font-semibold text-zinc-100 whitespace-nowrap">

@@ -1660,7 +1660,7 @@ export default function QueueManagerClient({
                     {isAdmin && <th className="px-4 py-3 font-medium text-right">จัดการ</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60">
+                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60">
                   {sortedAttendance.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="text-center text-zinc-600 py-12 text-sm">

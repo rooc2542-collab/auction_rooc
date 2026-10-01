@@ -249,7 +249,7 @@ export default function UserSlotsPreview({ currentProfile, slots, isAdmin }: Pro
                   <th className="px-5 py-3 text-center font-medium">สถานะ</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60">
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60">
                 {paginatedSlots.map((slot) => {
                   const cfg = ITEM_CONFIG[slot.item_type as ItemType]
                   return (
