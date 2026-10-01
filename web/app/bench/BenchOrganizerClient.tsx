@@ -248,18 +248,6 @@ export default function BenchOrganizerClient({
     })
   }
 
-  // Reset all members to "no_bid"
-  const handleResetToNoBid = () => {
-    setStatusMap(() => {
-      const next = new Map<string, AttendanceStatus>()
-      for (const m of initialMembers) {
-        next.set(m.id, "no_bid")
-      }
-      return next
-    })
-    setToast({ type: "ok", text: "รีเซ็ตทุกคนกลับสู่กลุ่ม 'เข้าร่วม / ไม่ต้องการประมูล' แล้ว" })
-  }
-
   // Import from Discord Poll
   const handleImportDiscordPoll = async () => {
     if (!discordMessageId.trim()) {
@@ -475,12 +463,6 @@ export default function BenchOrganizerClient({
               {isPollClosed ? "เปิดโหวตอีกครั้ง" : "🔒 ปิดโหวตรอบนี้"}
             </button>
           )}
-          <button
-            onClick={handleResetToNoBid}
-            className="px-3.5 py-2 rounded-lg bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold border border-zinc-300 dark:border-zinc-700 transition-all cursor-pointer shadow-sm text-center"
-          >
-            รีเซ็ตเป็นไม่ประมูล
-          </button>
           <button
             onClick={handleCapturePNG}
             className="px-3.5 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 dark:bg-teal-700 dark:hover:bg-teal-600 text-white text-xs font-bold transition-all cursor-pointer shadow-sm text-center"
