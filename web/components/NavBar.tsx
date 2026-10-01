@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: "/members", label: "สมาชิก" },
   { href: "/credits", label: "เครดิตสะสม" },
   { href: "/history", label: "ประวัติ" },
+  { href: "/guide", label: "คู่มือ" },
   { href: "/admin", label: "แอดมิน" },
 ]
 

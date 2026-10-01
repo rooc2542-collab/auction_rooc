@@ -81,7 +81,14 @@ export default async function HomePage() {
               {new Date().toLocaleDateString("th-TH", { dateStyle: "full" })}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/guide"
+              className="px-4 py-2 rounded-xl bg-teal-800/80 hover:bg-teal-700 text-teal-100 font-semibold text-sm border border-teal-600/40 transition-all flex items-center gap-1.5"
+            >
+              <span>📖</span>
+              <span>คู่มือการใช้งาน</span>
+            </Link>
             <Link
               href="/queues"
               className="px-4 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-900 font-semibold text-sm transition-all"
