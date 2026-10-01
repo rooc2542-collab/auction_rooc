@@ -102,6 +102,10 @@ export default function BenchOrganizerClient({
   // Mobile column view mode
   const [mobileTab, setMobileTab] = useState<"want_bid" | "no_bid" | "absent" | "all">("want_bid")
 
+  // Desktop Drag & Drop state
+  const [draggedMemberId, setDraggedMemberId] = useState<string | null>(null)
+  const [dragOverColumn, setDragOverColumn] = useState<"want_bid" | "no_bid" | "absent" | null>(null)
+
   // Map each member to an integer sequence ID based on DB sorting
   const memberIdMap = useMemo(() => {
     const map = new Map<string, number>()
@@ -657,7 +661,29 @@ export default function BenchOrganizerClient({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
         {/* COLUMN 1: เข้าร่วม / ต้องการประมูล (want_bid) */}
         <div
-          className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 sm:space-y-4 ${
+          onDragOver={(e) => {
+            e.preventDefault()
+            e.dataTransfer.dropEffect = "move"
+            if (dragOverColumn !== "want_bid") setDragOverColumn("want_bid")
+          }}
+          onDragLeave={(e) => {
+            if (e.currentTarget.contains(e.relatedTarget as Node)) return
+            setDragOverColumn(null)
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            const targetId = e.dataTransfer.getData("text/plain") || draggedMemberId
+            if (targetId) {
+              handleSetStatus(targetId, "want_bid")
+            }
+            setDraggedMemberId(null)
+            setDragOverColumn(null)
+          }}
+          className={`bg-zinc-900 border rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 sm:space-y-4 transition-all ${
+            dragOverColumn === "want_bid"
+              ? "border-emerald-500 ring-2 ring-emerald-500/40 bg-emerald-950/20"
+              : "border-zinc-800"
+          } ${
             mobileTab !== "all" && mobileTab !== "want_bid" ? "hidden lg:block" : "block"
           }`}
         >
@@ -670,12 +696,20 @@ export default function BenchOrganizerClient({
                 <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-xs font-mono font-bold border border-emerald-300 dark:border-emerald-800/60">
                   {wantBidList.length}
                 </span>
+                <span className="hidden lg:inline-flex items-center gap-1 text-[10px] font-normal text-emerald-400/80 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40 ml-1">
+                  🖐️ ลากวางได้
+                </span>
               </div>
               <p className="text-[10px] text-zinc-500 mt-0.5">สมาชิกที่ต้องการขอรับไอเทมในการประมูล</p>
             </div>
           </div>
 
           <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+            {dragOverColumn === "want_bid" && (
+              <div className="hidden lg:flex items-center justify-center p-3 border-2 border-dashed border-emerald-500/60 rounded-xl bg-emerald-500/10 text-emerald-400 text-xs font-semibold animate-pulse">
+                ⬇️ ปล่อยเพื่อย้ายมาที่ &quot;ต้องการประมูล&quot;
+              </div>
+            )}
             {wantBidList.length === 0 ? (
               <div className="text-center py-10 text-zinc-500 dark:text-zinc-600 text-xs">
                 ยังไม่มีสมาชิกในกลุ่มต้องการประมูล
@@ -683,10 +717,25 @@ export default function BenchOrganizerClient({
             ) : (
               wantBidList.map((m) => {
                 const idNum = memberIdMap.get(m.id) || "-"
+                const isDragging = draggedMemberId === m.id
                 return (
                   <div
                     key={m.id}
-                    className="bg-emerald-50/80 dark:bg-zinc-800/90 border border-emerald-300 dark:border-emerald-700/60 rounded-xl p-3 transition-all shadow-sm flex flex-col justify-between gap-2"
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggedMemberId(m.id)
+                      e.dataTransfer.setData("text/plain", m.id)
+                      e.dataTransfer.effectAllowed = "move"
+                    }}
+                    onDragEnd={() => {
+                      setDraggedMemberId(null)
+                      setDragOverColumn(null)
+                    }}
+                    className={`bg-emerald-50/80 dark:bg-zinc-800/90 border border-emerald-300 dark:border-emerald-700/60 rounded-xl p-3 transition-all shadow-sm flex flex-col justify-between gap-2 select-none ${
+                      isDragging
+                        ? "opacity-30 scale-95 border-dashed border-emerald-500"
+                        : "cursor-grab active:cursor-grabbing hover:border-emerald-500/70"
+                    }`}
                   >
                     <div className="flex items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5 min-w-0">
@@ -707,7 +756,9 @@ export default function BenchOrganizerClient({
 
                     <div className="flex items-center justify-between pt-1 border-t border-emerald-200/60 dark:border-zinc-700/60 text-[11px]">
                       <span className="font-mono text-zinc-500 dark:text-zinc-400">Id: {idNum}</span>
-                      <div className="flex items-center gap-1.5">
+                      
+                      {/* Mobile Buttons */}
+                      <div className="flex items-center gap-1.5 lg:hidden">
                         <button
                           type="button"
                           onClick={() => handleSetStatus(m.id, "no_bid")}
@@ -725,6 +776,12 @@ export default function BenchOrganizerClient({
                           ⛔ ไม่มา
                         </button>
                       </div>
+
+                      {/* Desktop Drag Handle */}
+                      <div className="hidden lg:flex items-center gap-1 text-[10px] text-zinc-400 dark:text-zinc-500 pointer-events-none">
+                        <span className="font-mono">⋮⋮</span>
+                        <span>ลากย้าย</span>
+                      </div>
                     </div>
                   </div>
                 )
@@ -735,7 +792,29 @@ export default function BenchOrganizerClient({
 
         {/* COLUMN 2: เข้าร่วม / ไม่ต้องการประมูล (no_bid) */}
         <div
-          className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 sm:space-y-4 ${
+          onDragOver={(e) => {
+            e.preventDefault()
+            e.dataTransfer.dropEffect = "move"
+            if (dragOverColumn !== "no_bid") setDragOverColumn("no_bid")
+          }}
+          onDragLeave={(e) => {
+            if (e.currentTarget.contains(e.relatedTarget as Node)) return
+            setDragOverColumn(null)
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            const targetId = e.dataTransfer.getData("text/plain") || draggedMemberId
+            if (targetId) {
+              handleSetStatus(targetId, "no_bid")
+            }
+            setDraggedMemberId(null)
+            setDragOverColumn(null)
+          }}
+          className={`bg-zinc-900 border rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 sm:space-y-4 transition-all ${
+            dragOverColumn === "no_bid"
+              ? "border-amber-500 ring-2 ring-amber-500/40 bg-amber-950/20"
+              : "border-zinc-800"
+          } ${
             mobileTab !== "all" && mobileTab !== "no_bid" ? "hidden lg:block" : "block"
           }`}
         >
@@ -748,12 +827,20 @@ export default function BenchOrganizerClient({
                 <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-xs font-mono font-bold border border-amber-300 dark:border-amber-800/60">
                   {noBidList.length}
                 </span>
+                <span className="hidden lg:inline-flex items-center gap-1 text-[10px] font-normal text-amber-400/80 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-800/40 ml-1">
+                  🖐️ ลากวางได้
+                </span>
               </div>
               <p className="text-[10px] text-zinc-500 mt-0.5">สมาชิกสำรอง / ช่วยวอร์ (สะสม Carry Credit)</p>
             </div>
           </div>
 
           <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+            {dragOverColumn === "no_bid" && (
+              <div className="hidden lg:flex items-center justify-center p-3 border-2 border-dashed border-amber-500/60 rounded-xl bg-amber-500/10 text-amber-400 text-xs font-semibold animate-pulse">
+                ⬇️ ปล่อยเพื่อย้ายมาที่ &quot;ไม่ต้องการประมูล&quot;
+              </div>
+            )}
             {noBidList.length === 0 ? (
               <div className="text-center py-10 text-zinc-500 dark:text-zinc-600 text-xs">
                 ไม่มีสมาชิกในกลุ่มนี้
@@ -761,10 +848,25 @@ export default function BenchOrganizerClient({
             ) : (
               noBidList.map((m) => {
                 const idNum = memberIdMap.get(m.id) || "-"
+                const isDragging = draggedMemberId === m.id
                 return (
                   <div
                     key={m.id}
-                    className="bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/80 rounded-xl p-3 transition-all shadow-sm flex flex-col justify-between gap-2"
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggedMemberId(m.id)
+                      e.dataTransfer.setData("text/plain", m.id)
+                      e.dataTransfer.effectAllowed = "move"
+                    }}
+                    onDragEnd={() => {
+                      setDraggedMemberId(null)
+                      setDragOverColumn(null)
+                    }}
+                    className={`bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/80 rounded-xl p-3 transition-all shadow-sm flex flex-col justify-between gap-2 select-none ${
+                      isDragging
+                        ? "opacity-30 scale-95 border-dashed border-amber-500"
+                        : "cursor-grab active:cursor-grabbing hover:border-amber-500/70"
+                    }`}
                   >
                     <div className="flex items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5 min-w-0">
@@ -785,7 +887,9 @@ export default function BenchOrganizerClient({
 
                     <div className="flex items-center justify-between pt-1 border-t border-zinc-200 dark:border-zinc-700/60 text-[11px]">
                       <span className="font-mono text-zinc-500 dark:text-zinc-400">Id: {idNum}</span>
-                      <div className="flex items-center gap-1.5">
+                      
+                      {/* Mobile Buttons */}
+                      <div className="flex items-center gap-1.5 lg:hidden">
                         <button
                           type="button"
                           onClick={() => handleSetStatus(m.id, "want_bid")}
@@ -803,6 +907,12 @@ export default function BenchOrganizerClient({
                           ⛔ ไม่มา
                         </button>
                       </div>
+
+                      {/* Desktop Drag Handle */}
+                      <div className="hidden lg:flex items-center gap-1 text-[10px] text-zinc-400 dark:text-zinc-500 pointer-events-none">
+                        <span className="font-mono">⋮⋮</span>
+                        <span>ลากย้าย</span>
+                      </div>
                     </div>
                   </div>
                 )
@@ -813,7 +923,29 @@ export default function BenchOrganizerClient({
 
         {/* COLUMN 3: ไม่ประสงค์เข้าร่วม (absent) */}
         <div
-          className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 sm:space-y-4 ${
+          onDragOver={(e) => {
+            e.preventDefault()
+            e.dataTransfer.dropEffect = "move"
+            if (dragOverColumn !== "absent") setDragOverColumn("absent")
+          }}
+          onDragLeave={(e) => {
+            if (e.currentTarget.contains(e.relatedTarget as Node)) return
+            setDragOverColumn(null)
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            const targetId = e.dataTransfer.getData("text/plain") || draggedMemberId
+            if (targetId) {
+              handleSetStatus(targetId, "absent")
+            }
+            setDraggedMemberId(null)
+            setDragOverColumn(null)
+          }}
+          className={`bg-zinc-900 border rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 sm:space-y-4 transition-all ${
+            dragOverColumn === "absent"
+              ? "border-rose-500 ring-2 ring-rose-500/40 bg-rose-950/20"
+              : "border-zinc-800"
+          } ${
             mobileTab !== "all" && mobileTab !== "absent" ? "hidden lg:block" : "block"
           }`}
         >
@@ -826,12 +958,20 @@ export default function BenchOrganizerClient({
                 <span className="px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 text-xs font-mono font-bold border border-rose-300 dark:border-rose-800/60">
                   {absentList.length}
                 </span>
+                <span className="hidden lg:inline-flex items-center gap-1 text-[10px] font-normal text-rose-400/80 bg-rose-950/40 px-2 py-0.5 rounded border border-rose-800/40 ml-1">
+                  🖐️ ลากวางได้
+                </span>
               </div>
               <p className="text-[10px] text-zinc-500 mt-0.5">สมาชิกที่ไม่สะดวกเข้าร่วมกิลด์วอร์รอบนี้</p>
             </div>
           </div>
 
           <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
+            {dragOverColumn === "absent" && (
+              <div className="hidden lg:flex items-center justify-center p-3 border-2 border-dashed border-rose-500/60 rounded-xl bg-rose-500/10 text-rose-400 text-xs font-semibold animate-pulse">
+                ⬇️ ปล่อยเพื่อย้ายมาที่ &quot;ไม่ประสงค์เข้าร่วม&quot;
+              </div>
+            )}
             {absentList.length === 0 ? (
               <div className="text-center py-10 text-zinc-500 dark:text-zinc-600 text-xs">
                 ไม่มีสมาชิกในกลุ่มไม่เข้าร่วม
@@ -839,10 +979,25 @@ export default function BenchOrganizerClient({
             ) : (
               absentList.map((m) => {
                 const idNum = memberIdMap.get(m.id) || "-"
+                const isDragging = draggedMemberId === m.id
                 return (
                   <div
                     key={m.id}
-                    className="bg-rose-50/70 dark:bg-zinc-800/80 border border-rose-200 dark:border-rose-900/60 rounded-xl p-3 transition-all shadow-sm flex flex-col justify-between gap-2"
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggedMemberId(m.id)
+                      e.dataTransfer.setData("text/plain", m.id)
+                      e.dataTransfer.effectAllowed = "move"
+                    }}
+                    onDragEnd={() => {
+                      setDraggedMemberId(null)
+                      setDragOverColumn(null)
+                    }}
+                    className={`bg-rose-50/70 dark:bg-zinc-800/80 border border-rose-200 dark:border-rose-900/60 rounded-xl p-3 transition-all shadow-sm flex flex-col justify-between gap-2 select-none ${
+                      isDragging
+                        ? "opacity-30 scale-95 border-dashed border-rose-500"
+                        : "cursor-grab active:cursor-grabbing hover:border-rose-500/70"
+                    }`}
                   >
                     <div className="flex items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5 min-w-0">
@@ -863,7 +1018,9 @@ export default function BenchOrganizerClient({
 
                     <div className="flex items-center justify-between pt-1 border-t border-rose-200/60 dark:border-zinc-700/60 text-[11px]">
                       <span className="font-mono text-zinc-500 dark:text-zinc-400">Id: {idNum}</span>
-                      <div className="flex items-center gap-1.5">
+                      
+                      {/* Mobile Buttons */}
+                      <div className="flex items-center gap-1.5 lg:hidden">
                         <button
                           type="button"
                           onClick={() => handleSetStatus(m.id, "want_bid")}
@@ -880,6 +1037,12 @@ export default function BenchOrganizerClient({
                         >
                           📦 ไม่ประมูล
                         </button>
+                      </div>
+
+                      {/* Desktop Drag Handle */}
+                      <div className="hidden lg:flex items-center gap-1 text-[10px] text-zinc-400 dark:text-zinc-500 pointer-events-none">
+                        <span className="font-mono">⋮⋮</span>
+                        <span>ลากย้าย</span>
                       </div>
                     </div>
                   </div>
