@@ -450,9 +450,20 @@ export async function POST(req: NextRequest) {
           .limit(1)
           .maybeSingle()
 
+        const firstSlot = targetSlots[0]
+        const { data: sessionRows } = await supabase
+          .from("event_sessions")
+          .select("id, item_type")
+          .eq("event_name", firstSlot.event_name)
+          .eq("session_date", firstSlot.session_date)
+
+        const sessionMap = new Map((sessionRows || []).map((r: any) => [r.item_type, r.id]))
+        const defaultRoundId = sessionRows?.[0]?.id || null
+
         const historyRows = targetSlots
           .filter((s: any) => s.status !== "awarded" && s.user_id)
           .map((s: any) => ({
+            round_id: sessionMap.get(s.item_type) || defaultRoundId,
             user_id: s.user_id,
             item_type: s.item_type,
             qty_awarded: 1,
@@ -521,8 +532,19 @@ export async function POST(req: NextRequest) {
 
       const existingNotes = new Set((existingHistories || []).map((h: any) => h.note))
 
+      // ดึง event_sessions เพื่อจับคู่ round_id ให้แต่ละไอเทม
+      const { data: sessionRows } = await supabase
+        .from("event_sessions")
+        .select("id, item_type")
+        .eq("event_name", event_name)
+        .eq("session_date", session_date)
+
+      const sessionMap = new Map((sessionRows || []).map((r: any) => [r.item_type, r.id]))
+      const defaultRoundId = sessionRows?.[0]?.id || null
+
       const historyRows = eligibleSlots
         .map((s: any) => ({
+          round_id: sessionMap.get(s.item_type) || defaultRoundId,
           user_id: s.user_id,
           item_type: s.item_type,
           qty_awarded: 1,

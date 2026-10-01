@@ -1162,8 +1162,19 @@ class AuctionCog(commands.Cog):
             return
 
         admin_profile = await auction_service.get_profile_by_discord_id(str(interaction.user.id))
+        session_res = await asyncio.to_thread(
+            lambda: supabase.table('event_sessions')
+            .select('id')
+            .eq('item_type', item_type.value)
+            .order('session_date', desc=True)
+            .limit(1)
+            .execute()
+        )
+        found_round_id = session_res.data[0]['id'] if (session_res.data and len(session_res.data) > 0) else None
+
         await asyncio.to_thread(
             lambda: supabase.table('auction_history').insert({
+                'round_id': found_round_id,
                 'user_id': target_profile['id'],
                 'item_type': item_type.value,
                 'qty_awarded': 1,
