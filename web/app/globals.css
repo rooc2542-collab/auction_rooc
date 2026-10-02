@@ -199,3 +199,19 @@ html:not(.dark) .border-violet-800\/60 { border-color: #ddd6fe !important; }
 * { scrollbar-width: thin; }
 .dark * { scrollbar-color: #52525b #18181b; }
 html:not(.dark) * { scrollbar-color: #a1a1aa #e4e4e7; }
+
+/* ── Mobile PWA & iOS Viewport Optimization ───────────────── */
+@media screen and (max-width: 1024px) {
+  /* Prevent iOS Safari auto-zoom on input focus */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Safe bottom padding for pages so fixed BottomNav never obscures content */
+  main {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5.5rem) !important;
+  }
+}
+

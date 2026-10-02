@@ -987,7 +987,7 @@ export default function QueueManagerClient({
       {/* Toast Notification - Floating to prevent Layout Shift */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl text-sm font-semibold border shadow-2xl flex items-center gap-3 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 ${
+          className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] lg:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-50 px-4 py-3 rounded-xl text-sm font-semibold border shadow-2xl flex items-center justify-between sm:justify-start gap-3 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 ${
             toast.type === "ok"
               ? "bg-zinc-900/95 border-emerald-500/60 text-emerald-300 shadow-emerald-950/50 backdrop-blur-md"
               : "bg-zinc-900/95 border-rose-500/60 text-rose-300 shadow-rose-950/50 backdrop-blur-md"
@@ -1620,7 +1620,7 @@ export default function QueueManagerClient({
 
           {/* Floating Sticky Batch Action Bar */}
           {isAdmin && selectedSlotIds.size > 0 && (
-            <div className="fixed bottom-6 inset-x-0 z-40 max-w-xl mx-auto px-4 animate-in slide-in-from-bottom duration-200">
+            <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] lg:bottom-6 inset-x-0 z-40 max-w-xl mx-auto px-4 animate-in slide-in-from-bottom duration-200">
               <div className="bg-zinc-900/95 dark:bg-zinc-800/95 backdrop-blur-md text-white p-3.5 sm:p-4 rounded-2xl shadow-2xl border border-zinc-700/80 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center shrink-0 text-blue-400 font-black font-mono text-base">

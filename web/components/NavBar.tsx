@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import { ThemeToggle } from "@/components/ThemeToggle"
+import BottomNavBar from "@/components/BottomNavBar"
 
 const NAV_ITEMS = [
   { href: "/", label: "ภาพรวม" },
@@ -19,7 +19,6 @@ const NAV_ITEMS = [
 
 export default function NavBar({ isAdmin }: { isAdmin?: boolean }) {
   const pathname = usePathname()
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const visibleNavItems = NAV_ITEMS.filter((item) => isAdmin || item.href !== "/admin")
 
@@ -73,62 +72,21 @@ export default function NavBar({ isAdmin }: { isAdmin?: boolean }) {
         {/* Mobile Header Controls */}
         <div className="flex lg:hidden items-center gap-2">
           <ThemeToggle />
-
-          {/* Mobile Hamburger Toggle Button */}
           <button
-            onClick={() => setMobileMenuOpen((p) => !p)}
-            className="p-2 rounded-lg bg-zinc-200/80 hover:bg-zinc-300/80 text-zinc-800 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 dark:text-zinc-200 transition-colors cursor-pointer border border-zinc-300 dark:border-zinc-700/60"
-            aria-label="Toggle Menu"
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="p-1.5 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+            title="ออกจากระบบ"
+            aria-label="ออกจากระบบ"
           >
-            {mobileMenuOpen ? (
-              // Close icon
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              // Hamburger icon
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
           </button>
         </div>
       </div>
 
-      {/* Mobile Dropdown Drawer */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md px-4 py-3 space-y-1.5 shadow-xl animate-in slide-in-from-top-2 duration-200">
-          <div className="grid grid-cols-2 gap-1.5 pb-2">
-            {visibleNavItems.map((item) => {
-              const active = pathname === item.href
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`px-3 py-2.5 rounded-lg text-xs font-semibold text-center transition-all ${
-                    active
-                      ? "bg-teal-700 hover:bg-teal-600 text-white border border-teal-600 shadow-sm"
-                      : "bg-zinc-200/70 hover:bg-zinc-300/70 dark:bg-zinc-900 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-800"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              )
-            })}
-          </div>
-
-          <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between">
-            <span className="text-[11px] text-zinc-500 dark:text-zinc-400">ระบบประมูล ROOC Geffen</span>
-            <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-            >
-              ออกจากระบบ
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Modern Thumb-Friendly Mobile Bottom Navigation Bar */}
+      <BottomNavBar isAdmin={isAdmin} />
     </header>
   )
 }

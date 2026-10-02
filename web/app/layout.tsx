@@ -1,8 +1,10 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/ThemeProvider"
 import QueryProvider from "@/components/QueryProvider"
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister"
+import PWAInstallPrompt from "@/components/PWAInstallPrompt"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,9 +16,34 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 })
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#0f766e" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+}
+
 export const metadata: Metadata = {
-  title: "Auction_Rooc",
-  description: "ระบบประมูลไอเทมกิลด์",
+  title: "RoOC Guild Auction - ระบบประมูลกิลด์",
+  description: "ระบบจัดคิว สล็อต และประมูลไอเทมกิลด์ Geffen-RoOC",
+  applicationName: "RoOC Auction",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "RoOC Auction",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: "/favicon.png",
+    apple: "/apple-touch-icon.png",
+  },
 }
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -28,9 +55,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
         <ThemeProvider>
-          <QueryProvider>{children}</QueryProvider>
+          <QueryProvider>
+            <ServiceWorkerRegister />
+            <PWAInstallPrompt />
+            {children}
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>
   )
 }
+
