@@ -630,9 +630,9 @@ class AuctionCog(commands.Cog):
         except Exception:
             pass
 
-    @tasks.loop(seconds=5)
+    @tasks.loop(minutes=10)
     async def poll_status_sync_loop(self) -> None:
-        """ตรวจจับการเปลี่ยนแปลงสถานะเปิด/ปิดโหวตจาก Web App แบบ Real-time และอัปเดตข้อความใน Discord อัตโนมัติ"""
+        """ตรวจจับการเปลี่ยนแปลงสถานะเปิด/ปิดโหวตจาก Web App ทุก 10 นาที และอัปเดตข้อความใน Discord อัตโนมัติ"""
         if not self.bot.is_ready():
             return
         try:
