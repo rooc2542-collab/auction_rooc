@@ -265,6 +265,8 @@ export async function POST(req: NextRequest) {
       const rowsToInsert: any[] = []
       const noBidAttendees = (attendees || []).filter((a: any) => a.status === "no_bid" && a.user_id)
 
+      const rollResults = body.roll_results || {}
+
       for (const sess of sortedSessions) {
         const itemType = sess.item_type
         const totalQty = Number(sess.total_quantity) || 0
@@ -284,11 +286,25 @@ export async function POST(req: NextRequest) {
         )
 
         if (interested.length > 0) {
-          // เรียงตาม Carry Credit มากก่อน -> เวลาลงชื่อก่อน
+          const itemRollMap: Record<string, number> = {}
+          if (Array.isArray(rollResults[itemType])) {
+            for (const r of rollResults[itemType]) {
+              itemRollMap[r.user_id] = Number(r.roll) || 0
+            }
+          }
+
+          // เรียงตาม: 1) Carry Credit มากก่อน -> 2) Roll score สูงก่อน (ถ้ามีผลสุ่ม) -> 3) เวลาลงชื่อก่อน
           const sortedMembers = [...interested].sort((a: any, b: any) => {
             const credA = creditLookup[`${a.user_id}|${itemType}`] || 0
             const credB = creditLookup[`${b.user_id}|${itemType}`] || 0
             if (credB !== credA) return credB - credA
+
+            const rollA = itemRollMap[a.user_id]
+            const rollB = itemRollMap[b.user_id]
+            if (rollA !== undefined && rollB !== undefined && rollB !== rollA) {
+              return rollB - rollA
+            }
+
             return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
           })
 
@@ -536,7 +552,7 @@ export async function POST(req: NextRequest) {
       // ดึง event_sessions เพื่อจับคู่ round_id ให้แต่ละไอเทม
       const { data: sessionRows } = await supabase
         .from("event_sessions")
-        .select("id, item_type")
+        .select("id, item_type, total_quantity")
         .eq("event_name", event_name)
         .eq("session_date", session_date)
 
@@ -560,10 +576,69 @@ export async function POST(req: NextRequest) {
         if (insErr) throw insErr
       }
 
+      // 6.6 ตรวจหาคนที่ขอ want_bid แต่ตกรอบเพราะของไม่พอ (Shortage) -> มอบ Carry Credit +1 ชดเชยสำหรับรอบหน้า
+      const { data: attendees } = await supabase
+        .from("event_attendance")
+        .select("user_id, status, interested_items, profiles:user_id(display_name)")
+        .eq("event_name", event_name)
+        .eq("event_date", session_date)
+
+      const awardedUserItemPairs = new Set(
+        eligibleSlots.map((s: any) => `${s.user_id}|${s.item_type}`)
+      )
+
+      const compensatedMembers: Array<{ display_name: string; item_type: string }> = []
+
+      for (const sess of (sessionRows || [])) {
+        const it = sess.item_type
+        const totalQty = Number(sess.total_quantity) || 0
+        const interested = (attendees || []).filter(
+          (a: any) =>
+            a.status === "want_bid" &&
+            a.user_id &&
+            Array.isArray(a.interested_items) &&
+            a.interested_items.includes(it)
+        )
+
+        // ถ้ามีคนขอมากกว่าของในคลัง แสดงว่ามีคนตกรอบจากการสุ่ม/ของหมด
+        if (interested.length > totalQty) {
+          for (const a of interested) {
+            if (!awardedUserItemPairs.has(`${a.user_id}|${it}`)) {
+              const dname = (a.profiles as any)?.display_name || "สมาชิก"
+              compensatedMembers.push({ display_name: dname, item_type: it })
+
+              const { data: existingCred } = await supabase
+                .from("carry_credits")
+                .select("id, credit")
+                .eq("user_id", a.user_id)
+                .eq("item_type", it)
+                .maybeSingle()
+
+              const now = new Date().toISOString()
+              if (existingCred) {
+                await supabase
+                  .from("carry_credits")
+                  .update({ credit: existingCred.credit + 1, last_updated: now })
+                  .eq("id", existingCred.id)
+              } else {
+                await supabase.from("carry_credits").insert({
+                  user_id: a.user_id,
+                  item_type: it,
+                  credit: 1,
+                  last_updated: now,
+                })
+              }
+            }
+          }
+        }
+      }
+
       return NextResponse.json({
         success: true,
         saved_count: historyRows.length,
         total_awarded: eligibleSlots.length,
+        compensated_count: compensatedMembers.length,
+        compensated_members: compensatedMembers,
       })
     }
 

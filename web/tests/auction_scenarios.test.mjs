@@ -342,3 +342,83 @@ test("Scenario 6: แยกช่องกรอก จำนวน และ �
     "ต้องมีการตรวจสอบว่าปิดโหวตแล้ว (status == 'closed') ก่อนประกาศผล"
   )
 })
+
+test("Scenario 7: กรณีไอเทมมีน้อยกว่าคนขอ (เช่น การ์ดหุ่น 6 ชิ้น คนขอ 10 คน) มีการสุ่ม Random Roll และคนที่ตกรอบได้รับแต้มชดเชย +1 Carry Credit สำหรับรอบถัดไป", () => {
+  // สมาชิก 10 คน ขอการ์ดหุ่น (Puppet) มีของแค่ 6 ชิ้น
+  // u1, u2 มี Carry Credit = 1 มาจากรอบก่อน (ได้การันตีก่อน)
+  // u3 - u10 มี Carry Credit = 0 (ต้องสุ่ม Random Roll แย่ง 4 ชิ้นที่เหลือ)
+  const members = Array.from({ length: 10 }, (_, i) => ({
+    user_id: `u${i + 1}`,
+    display_name: `Member${i + 1}`,
+    discord_id: `discord_${i + 1}`,
+  }))
+
+  const creditMap = {
+    u1: 1,
+    u2: 1,
+    u3: 0, u4: 0, u5: 0, u6: 0, u7: 0, u8: 0, u9: 0, u10: 0,
+  }
+
+  // ผลการสุ่มลูกเต๋า (Roll 1-100) ของ u3 - u10
+  const rollMap = {
+    u3: 95, // ชนะ
+    u4: 88, // ชนะ
+    u5: 72, // ชนะ
+    u6: 60, // ชนะ
+    u7: 45, // ตกรอบ
+    u8: 30, // ตกรอบ
+    u9: 22, // ตกรอบ
+    u10: 10, // ตกรอบ
+  }
+
+  // ฟังก์ชันจัดสรรตามตรรกะใหม่
+  const sortedMembers = [...members].sort((a, b) => {
+    const credA = creditMap[a.user_id] || 0
+    const credB = creditMap[b.user_id] || 0
+    if (credB !== credA) return credB - credA
+
+    const rollA = rollMap[a.user_id]
+    const rollB = rollMap[b.user_id]
+    if (rollA !== undefined && rollB !== undefined && rollB !== rollA) {
+      return rollB - rollA
+    }
+    return members.indexOf(a) - members.indexOf(b)
+  })
+
+  // มอบของ 6 ชิ้น (ลิมิต 1 ชิ้น/คน)
+  const awardedUserIds = sortedMembers.slice(0, 6).map((m) => m.user_id)
+  const missedUserIds = sortedMembers.slice(6).map((m) => m.user_id)
+
+  // ตรวจสอบว่า u1 และ u2 ที่มี Carry Credit ได้รับแน่นอน
+  assert.ok(awardedUserIds.includes("u1"), "u1 ต้องได้สิทธิ์เพราะมี Carry Credit")
+  assert.ok(awardedUserIds.includes("u2"), "u2 ต้องได้สิทธิ์เพราะมี Carry Credit")
+
+  // ตรวจสอบว่า u3, u4, u5, u6 ที่ทอยเต๋าได้แต้มสูงสุด 4 อันดับแรก เป็นผู้ได้รับของ
+  assert.deepEqual(awardedUserIds, ["u1", "u2", "u3", "u4", "u5", "u6"])
+
+  // ตรวจสอบว่า u7, u8, u9, u10 ตกรอบและต้องได้รับแต้มชดเชย +1 Carry Credit
+  assert.deepEqual(missedUserIds, ["u7", "u8", "u9", "u10"])
+
+  // จำลองการหักแต้มคนที่ใช้สิทธิ์ทบ (u1, u2) และมอบแต้มชดเชย +1 ให้คนที่ตกรอบ (u7, u8, u9, u10)
+  const updatedCreditsAfterRound = { ...creditMap }
+  updatedCreditsAfterRound.u1 = 0 // ใช้แต้มทบไปแล้วในรอบ 1
+  updatedCreditsAfterRound.u2 = 0 // ใช้แต้มทบไปแล้วในรอบ 1
+  for (const uid of missedUserIds) {
+    updatedCreditsAfterRound[uid] = (updatedCreditsAfterRound[uid] || 0) + 1
+  }
+
+  assert.equal(updatedCreditsAfterRound.u7, 1)
+  assert.equal(updatedCreditsAfterRound.u8, 1)
+  assert.equal(updatedCreditsAfterRound.u9, 1)
+  assert.equal(updatedCreditsAfterRound.u10, 1)
+
+  // ในรอบถัดไป: สมาชิก 4 คนที่ตกรอบ (u7, u8, u9, u10) จะกลายเป็นกลุ่มที่มี Carry Credit = 1 และได้รับสิทธิ์ก่อนใคร!
+  const round2Sorted = [...members].sort((a, b) => {
+    return (updatedCreditsAfterRound[b.user_id] || 0) - (updatedCreditsAfterRound[a.user_id] || 0)
+  })
+  const round2Top4 = round2Sorted.slice(0, 4).map((m) => m.user_id)
+  assert.ok(round2Top4.includes("u7") && round2Top4.includes("u8") && round2Top4.includes("u9") && round2Top4.includes("u10"),
+    "ในรอบถัดไป สมาชิกที่เคยตกรอบจะต้องได้โควตาก่อนคนอื่นอย่างแน่นอน"
+  )
+})
+

@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useMutation } from "@tanstack/react-query"
+import RandomRollModal from "./RandomRollModal"
+import type { ShortageItemData, Candidate } from "./RandomRollModal"
 
 type ItemKey = "Album" | "Puppet" | "White" | "RedBlack"
 
@@ -129,6 +131,10 @@ export default function QueueManagerClient({
   const [toast, setToast] = useState<{ type: "ok" | "err"; text: string } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showSaveHistoryModal, setShowSaveHistoryModal] = useState(false)
+  const [showRollModal, setShowRollModal] = useState(false)
+  const [rollResults, setRollResults] = useState<
+    Record<string, Array<{ user_id: string; roll: number; won: boolean }>>
+  >({})
 
   // Proxy add member state
   const [proxyUserId, setProxyUserId] = useState("")
@@ -339,6 +345,87 @@ export default function QueueManagerClient({
     return map
   }, [credits])
 
+  // คำนวณรายการไอเทมที่มีคนขอมากกว่าจำนวนของ (Shortage Items)
+  const shortageItems = useMemo<ShortageItemData[]>(() => {
+    const list: ShortageItemData[] = []
+    for (const k of ITEM_KEYS) {
+      const totalQty = Number(itemForms[k]?.total_quantity) || 0
+      const personalLimit = Math.max(1, Number(itemForms[k]?.personal_limit) || 1)
+      if (totalQty <= 0) continue
+
+      const interested = wantBidMembers.filter(
+        (a) => Array.isArray(a.interested_items) && a.interested_items.includes(k)
+      )
+
+      if (interested.length > totalQty) {
+        const guaranteed: Candidate[] = []
+        const rollCandidates: Candidate[] = []
+        let remainingSlots = totalQty
+
+        // เรียงคนที่มี Carry Credit ก่อน
+        const sortedInterested = [...interested].sort((a, b) => {
+          const credA = creditMap[`${a.user_id}|${k}`] || 0
+          const credB = creditMap[`${b.user_id}|${k}`] || 0
+          return credB - credA
+        })
+
+        for (const m of sortedInterested) {
+          const cred = creditMap[`${m.user_id}|${k}`] || 0
+          const dname = m.profiles?.display_name || "สมาชิก"
+          if (cred > 0 && remainingSlots > 0) {
+            guaranteed.push({
+              user_id: m.user_id,
+              display_name: dname,
+              discord_id: m.discord_id || "",
+              carry_credit: cred,
+            })
+            remainingSlots--
+          } else {
+            const rollEntry = rollResults[k]?.find((r) => r.user_id === m.user_id)
+            rollCandidates.push({
+              user_id: m.user_id,
+              display_name: dname,
+              discord_id: m.discord_id || "",
+              carry_credit: cred,
+              roll: rollEntry?.roll,
+              won: rollEntry?.won,
+            })
+          }
+        }
+
+        list.push({
+          item_type: k,
+          label: ITEMS_META[k].label,
+          total_quantity: totalQty,
+          personal_limit: personalLimit,
+          guaranteedCandidates: guaranteed,
+          rollCandidates,
+          remainingSlotsToRoll: Math.max(0, remainingSlots),
+        })
+      }
+    }
+    return list
+  }, [itemForms, wantBidMembers, creditMap, rollResults])
+
+  const handleApplyRolls = async (
+    itemType: string,
+    results: Array<{ user_id: string; roll: number; won: boolean }>
+  ) => {
+    const updatedRolls = {
+      ...rollResults,
+      [itemType]: results,
+    }
+    setRollResults(updatedRolls)
+    setShowRollModal(false)
+
+    // เรียกจัดสรรสล็อตใหม่ทันทีด้วยผลการสุ่มที่ได้
+    await handleRunAllocation(updatedRolls)
+    setToast({
+      type: "ok",
+      text: `บันทึกผลการสุ่มของ "${ITEMS_META[itemType as ItemKey]?.label || itemType}" และจัดสรรสล็อตใหม่เรียบร้อยแล้ว`,
+    })
+  }
+
   // เรียงลำดับคิว: want_bid มาก่อน -> แต้มรวม Carry Credit มากก่อน -> เวลาลงชื่อก่อน
   const sortedAttendance = useMemo(() => {
     const statusWeight: Record<string, number> = { want_bid: 0, no_bid: 1, absent: 2 }
@@ -502,7 +589,9 @@ export default function QueueManagerClient({
     )
   }
 
-  const handleRunAllocation = async () => {
+  const handleRunAllocation = async (
+    overrideRolls?: Record<string, Array<{ user_id: string; roll: number; won: boolean }>>
+  ) => {
     if (!isPollClosed) {
       setToast({
         type: "err",
@@ -536,10 +625,16 @@ export default function QueueManagerClient({
         body: JSON.stringify({ action: "save_sessions", event_name: eventName, session_date: eventDate, items }),
       })
 
+      const rollsToSend = overrideRolls || rollResults
       const res = await fetch("/api/queues", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "run_allocation", event_name: eventName, session_date: eventDate }),
+        body: JSON.stringify({
+          action: "run_allocation",
+          event_name: eventName,
+          session_date: eventDate,
+          roll_results: rollsToSend,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "คำนวณไม่สำเร็จ")
@@ -580,9 +675,13 @@ export default function QueueManagerClient({
       )
 
       setShowSaveHistoryModal(false)
+      const compText =
+        data.compensated_count > 0
+          ? ` (พร้อมมอบ Carry Credit +1 ให้ผู้ตกรอบ ${data.compensated_count} คน)`
+          : ""
       setToast({
         type: "ok",
-        text: `บันทึกเป็นประวัติการประมูลเรียบร้อยแล้ว (${data.saved_count} รายการใหม่ จากทั้งหมด ${data.total_awarded} ช่อง)`,
+        text: `บันทึกเป็นประวัติการประมูลเรียบร้อยแล้ว (${data.saved_count} รายการใหม่ จากทั้งหมด ${data.total_awarded} ช่อง)${compText}`,
       })
       await refreshData()
       router.refresh()
@@ -962,6 +1061,15 @@ export default function QueueManagerClient({
                 className="px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold border transition-all disabled:opacity-50 cursor-pointer text-center bg-amber-950 hover:bg-amber-900/60 text-amber-300 border-amber-800/60"
               >
                 ปิดโหวตรอบนี้
+              </button>
+            )}
+            {isAdmin && isPollClosed && shortageItems.length > 0 && (
+              <button
+                onClick={() => setShowRollModal(true)}
+                disabled={busy}
+                className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs sm:text-sm border border-purple-500 transition-all disabled:opacity-50 cursor-pointer text-center flex items-center justify-center gap-1.5 shadow-sm shadow-purple-600/20 active:scale-95"
+              >
+                <span>🎲 สุ่มผู้โชคดี ({shortageItems.length} ไอเทมของไม่พอ)</span>
               </button>
             )}
             {isAdmin && currentSlots.length > 0 && (
@@ -1831,7 +1939,7 @@ export default function QueueManagerClient({
               </button>
               {isAdmin && (
                 <button
-                  onClick={handleRunAllocation}
+                  onClick={() => handleRunAllocation()}
                   disabled={busy || !isBenchReady}
                   title={!isBenchReady ? "กรุณาปิดโหวตและจัดผัง Bench ให้เรียบร้อยก่อน" : "คำนวณสล็อตใหม่"}
                   className={`px-4 py-1.5 rounded-lg font-bold text-xs border transition-all cursor-pointer ${
@@ -2020,6 +2128,14 @@ export default function QueueManagerClient({
           </div>
         </div>
       )}
+
+      {/* ─── Random Roll Modal (สุ่มผู้โชคดี) ─── */}
+      <RandomRollModal
+        isOpen={showRollModal}
+        onClose={() => setShowRollModal(false)}
+        shortageItems={shortageItems}
+        onApplyRolls={handleApplyRolls}
+      />
     </div>
   )
 }

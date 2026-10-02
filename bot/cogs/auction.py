@@ -1037,6 +1037,12 @@ class AuctionCog(commands.Cog):
             for uid in no_bid_users:
                 await credit_service.add_credit(uid, item_type, personal_limit)
 
+            # ตรวจหาสมาชิกที่ขอแต่ตกรอบเพราะของไม่พอ (Shortage) -> มอบ Carry Credit +1 ชดเชยสำหรับรอบถัดไป
+            allocated_uids = set(s['user_id'] for s in slots)
+            shortage_losers = [m for m in members if m['user_id'] not in allocated_uids]
+            for m in shortage_losers:
+                await credit_service.add_credit(m['user_id'], item_type, 1)
+
             for s in slots:
                 did = s['discord_id']
                 if did not in combined_member_slots:
@@ -1048,6 +1054,14 @@ class AuctionCog(commands.Cog):
                 value=f'จำนวน {total_qty} ชิ้น | {len(members)} คนขอ | ลิมิต {personal_limit}/คน',
                 inline=True
             )
+
+            if shortage_losers:
+                loser_names = ', '.join(m.get('display_name', 'สมาชิก') for m in shortage_losers)
+                header_embed.add_field(
+                    name=f'🎟️ ได้รับแต้มชดเชยรอบถัดไป (+1 Credit): {iname}',
+                    value=f'{loser_names} (เนื่องจากมีผู้ขอมากกว่าจำนวนของ)',
+                    inline=False
+                )
 
         await channel.send(embed=header_embed)
 
