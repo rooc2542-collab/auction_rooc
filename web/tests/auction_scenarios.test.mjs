@@ -422,3 +422,48 @@ test("Scenario 7: กรณีไอเทมมีน้อยกว่าค�
   )
 })
 
+test("Scenario 8: การกดคำนวณสล็อต (run_allocation) เป็น Read-Only ต่อ Carry Credit และบันทึก/ตัดแต้มเมื่อกดบันทึกประวัติ (save_round_history) เท่านั้น", () => {
+  // ตรวจสอบ source code ของ route.ts ว่า run_allocation ไม่มีการเขียนลง carry_credits
+  const routePath = path.resolve(process.cwd(), "web/app/api/queues/route.ts")
+  const routeContent = fs.readFileSync(routePath, "utf8")
+
+  const runAllocIndex = routeContent.indexOf('action === "run_allocation"')
+  const saveHistoryIndex = routeContent.indexOf('action === "save_round_history"')
+  assert.ok(runAllocIndex !== -1 && saveHistoryIndex !== -1, "ต้องมี run_allocation และ save_round_history ใน route.ts")
+
+  const runAllocBlock = routeContent.substring(runAllocIndex, saveHistoryIndex)
+  assert.equal(
+    /\.from\("carry_credits"\)\s*\.update/.test(runAllocBlock),
+    false,
+    "run_allocation จะต้องไม่มีการ .update() ลง carry_credits อย่างเด็ดขาด (ห้ามตัดแต้มตอนพรีวิว)"
+  )
+  assert.equal(
+    /\.from\("carry_credits"\)\s*\.insert/.test(runAllocBlock),
+    false,
+    "run_allocation จะต้องไม่มีการ .insert() ลง carry_credits อย่างเด็ดขาด (ห้ามเพิ่มแต้ม no_bid ตอนพรีวิว)"
+  )
+
+  // ตรวจสอบว่า save_round_history มีการตัดแต้มผู้ชนะ, เพิ่มแต้ม no_bid, และชดเชย shortage ภายใต้ isFirstCommit
+  const saveHistoryBlock = routeContent.substring(saveHistoryIndex)
+  assert.ok(
+    saveHistoryBlock.includes("isFirstCommit"),
+    "save_round_history ต้องมี guard isFirstCommit เพื่อป้องกันบันทึกซ้ำซ้อน"
+  )
+  assert.ok(
+    /\.from\("carry_credits"\)\s*\.update/.test(saveHistoryBlock),
+    "save_round_history ต้องมีการ update carry_credits"
+  )
+
+  // จำลองว่ากดคำนวณสล็อต 5 ครั้ง แต้มเครดิตของผู้ใช้ต้องคงเดิมไม่เปลี่ยน
+  const initialCredits = { u_nobid: 2, u_winner: 1, u_normal: 0 }
+  const frozenCopy = JSON.stringify(initialCredits)
+
+  const members = [{ user_id: "u_winner", display_name: "Winner" }, { user_id: "u_normal", display_name: "Normal" }]
+  for (let click = 0; click < 5; click++) {
+    const slots = allocateSlots("Album", 2, 1, 1, 1, members, initialCredits)
+    assert.equal(slots.length, 2)
+    assert.equal(JSON.stringify(initialCredits), frozenCopy, "การกดคำนวณสล็อตหลายครั้งต้องไม่เปลี่ยนแปลงยอด Credit")
+  }
+})
+
+

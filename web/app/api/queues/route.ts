@@ -263,7 +263,6 @@ export async function POST(req: NextRequest) {
       )
 
       const rowsToInsert: any[] = []
-      const noBidAttendees = (attendees || []).filter((a: any) => a.status === "no_bid" && a.user_id)
 
       const rollResults = body.roll_results || {}
 
@@ -356,22 +355,6 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // หักยอดสะสม (Carry Credit) ของสมาชิกที่ใช้สิทธิ์ทบในรอบนี้
-          for (const m of sortedMembers) {
-            const uid = m.user_id
-            const usedAmt = creditUsedMap[uid] || 0
-            if (usedAmt > 0) {
-              const curCred = creditLookup[`${uid}|${itemType}`] || 0
-              const newCred = Math.max(0, curCred - usedAmt)
-              creditLookup[`${uid}|${itemType}`] = newCred
-              await supabase
-                .from("carry_credits")
-                .update({ credit: newCred, last_updated: new Date().toISOString() })
-                .eq("user_id", uid)
-                .eq("item_type", itemType)
-            }
-          }
-
           let curPage = startPage
           let curSlot = startSlot
 
@@ -394,35 +377,6 @@ export async function POST(req: NextRequest) {
                 curPage += 1
               }
             }
-          }
-        }
-
-        // เพิ่มยอดสะสม (Carry Credit) ให้คนที่เข้าร่วมกิลด์วอร์แต่เลือกไม่ประมูลวันนี้ (no_bid)
-        for (const nb of noBidAttendees) {
-          const uid = nb.user_id
-          const curCred = creditLookup[`${uid}|${itemType}`] || 0
-          const nextCred = curCred + personalLimit
-          creditLookup[`${uid}|${itemType}`] = nextCred
-
-          const { data: existingCred } = await supabase
-            .from("carry_credits")
-            .select("id")
-            .eq("user_id", uid)
-            .eq("item_type", itemType)
-            .maybeSingle()
-
-          if (existingCred) {
-            await supabase
-              .from("carry_credits")
-              .update({ credit: nextCred, last_updated: new Date().toISOString() })
-              .eq("id", existingCred.id)
-          } else {
-            await supabase.from("carry_credits").insert({
-              user_id: uid,
-              item_type: itemType,
-              credit: nextCred,
-              last_updated: new Date().toISOString(),
-            })
           }
         }
       }
@@ -548,11 +502,12 @@ export async function POST(req: NextRequest) {
         .like("note", `${event_name} (${session_date})%`)
 
       const existingNotes = new Set((existingHistories || []).map((h: any) => h.note))
+      const isFirstCommit = !existingHistories || existingHistories.length === 0
 
-      // ดึง event_sessions เพื่อจับคู่ round_id ให้แต่ละไอเทม
+      // ดึง event_sessions เพื่อจับคู่ round_id ให้แต่ละไอเทม และนำ personal_limit มาใช้
       const { data: sessionRows } = await supabase
         .from("event_sessions")
-        .select("id, item_type, total_quantity")
+        .select("id, item_type, total_quantity, personal_limit")
         .eq("event_name", event_name)
         .eq("session_date", session_date)
 
@@ -576,57 +531,129 @@ export async function POST(req: NextRequest) {
         if (insErr) throw insErr
       }
 
-      // 6.6 ตรวจหาคนที่ขอ want_bid แต่ตกรอบเพราะของไม่พอ (Shortage) -> มอบ Carry Credit +1 ชดเชยสำหรับรอบหน้า
-      const { data: attendees } = await supabase
-        .from("event_attendance")
-        .select("user_id, status, interested_items, profiles:user_id(display_name)")
-        .eq("event_name", event_name)
-        .eq("event_date", session_date)
-
-      const awardedUserItemPairs = new Set(
-        eligibleSlots.map((s: any) => `${s.user_id}|${s.item_type}`)
-      )
-
       const compensatedMembers: Array<{ display_name: string; item_type: string }> = []
 
-      for (const sess of (sessionRows || [])) {
-        const it = sess.item_type
-        const totalQty = Number(sess.total_quantity) || 0
-        const interested = (attendees || []).filter(
-          (a: any) =>
-            a.status === "want_bid" &&
-            a.user_id &&
-            Array.isArray(a.interested_items) &&
-            a.interested_items.includes(it)
+      // ปรับปรุง Carry Credit: หักสิทธิ์ทบของผู้ชนะ, เพิ่มแต้มให้ no_bid, และมอบแต้มชดเชย +1 ให้คนตกรอบ (Shortage)
+      // กระทำเฉพาะเมื่อบันทึกประวัติครั้งแรกของรอบนี้ เพื่อความ idempotent
+      if (isFirstCommit) {
+        const { data: attendees } = await supabase
+          .from("event_attendance")
+          .select("user_id, status, interested_items, profiles:user_id(display_name)")
+          .eq("event_name", event_name)
+          .eq("event_date", session_date)
+
+        const awardedUserItemPairs = new Set(
+          eligibleSlots.map((s: any) => `${s.user_id}|${s.item_type}`)
         )
 
-        // ถ้ามีคนขอมากกว่าของในคลัง แสดงว่ามีคนตกรอบจากการสุ่ม/ของหมด
-        if (interested.length > totalQty) {
-          for (const a of interested) {
-            if (!awardedUserItemPairs.has(`${a.user_id}|${it}`)) {
-              const dname = (a.profiles as any)?.display_name || "สมาชิก"
-              compensatedMembers.push({ display_name: dname, item_type: it })
+        const { data: allCredits } = await supabase
+          .from("carry_credits")
+          .select("id, user_id, item_type, credit")
 
-              const { data: existingCred } = await supabase
-                .from("carry_credits")
-                .select("id, credit")
-                .eq("user_id", a.user_id)
-                .eq("item_type", it)
-                .maybeSingle()
+        const creditRecordMap = new Map<string, { id?: string; credit: number }>()
+        for (const c of allCredits || []) {
+          creditRecordMap.set(`${c.user_id}|${c.item_type}`, { id: c.id, credit: c.credit || 0 })
+        }
 
-              const now = new Date().toISOString()
-              if (existingCred) {
+        const now = new Date().toISOString()
+
+        for (const sess of (sessionRows || [])) {
+          const it = sess.item_type
+          const totalQty = Number(sess.total_quantity) || 0
+          const personalLimit = Math.max(1, Number(sess.personal_limit) || 1)
+          if (totalQty <= 0) continue
+
+          // 1. หักยอดสะสม (Carry Credit) ของสมาชิกที่ใช้สิทธิ์ทบและได้รับไอเทมในรอบนี้
+          const userAwardedCount: Record<string, number> = {}
+          for (const s of eligibleSlots) {
+            if (s.item_type === it && s.user_id) {
+              userAwardedCount[s.user_id] = (userAwardedCount[s.user_id] || 0) + 1
+            }
+          }
+
+          for (const [uid, count] of Object.entries(userAwardedCount)) {
+            const rec = creditRecordMap.get(`${uid}|${it}`)
+            const curCred = rec ? rec.credit : 0
+            if (curCred > 0) {
+              const usedAmt = Math.min(curCred, count)
+              if (usedAmt > 0) {
+                const nextCred = Math.max(0, curCred - usedAmt)
                 await supabase
                   .from("carry_credits")
-                  .update({ credit: existingCred.credit + 1, last_updated: now })
-                  .eq("id", existingCred.id)
-              } else {
-                await supabase.from("carry_credits").insert({
-                  user_id: a.user_id,
+                  .update({ credit: nextCred, last_updated: now })
+                  .eq("id", rec!.id)
+                creditRecordMap.set(`${uid}|${it}`, { id: rec!.id, credit: nextCred })
+              }
+            }
+          }
+
+          // 2. เพิ่มยอดสะสม (Carry Credit) ให้สมาชิกที่เข้าร่วมกิลด์วอร์แต่เลือกไม่ประมูลวันนี้ (no_bid)
+          const noBidAttendees = (attendees || []).filter((a: any) => a.status === "no_bid" && a.user_id)
+          for (const nb of noBidAttendees) {
+            const uid = nb.user_id
+            const rec = creditRecordMap.get(`${uid}|${it}`)
+            const curCred = rec ? rec.credit : 0
+            const nextCred = curCred + personalLimit
+
+            if (rec?.id) {
+              await supabase
+                .from("carry_credits")
+                .update({ credit: nextCred, last_updated: now })
+                .eq("id", rec.id)
+              creditRecordMap.set(`${uid}|${it}`, { id: rec.id, credit: nextCred })
+            } else {
+              const { data: ins } = await supabase
+                .from("carry_credits")
+                .insert({
+                  user_id: uid,
                   item_type: it,
-                  credit: 1,
+                  credit: nextCred,
                   last_updated: now,
                 })
+                .select("id")
+                .single()
+              creditRecordMap.set(`${uid}|${it}`, { id: ins?.id, credit: nextCred })
+            }
+          }
+
+          // 3. ตรวจหาคนที่ขอ want_bid แต่ตกรอบเพราะของไม่พอ (Shortage) -> มอบ Carry Credit +1 ชดเชยสำหรับรอบหน้า
+          const interested = (attendees || []).filter(
+            (a: any) =>
+              a.status === "want_bid" &&
+              a.user_id &&
+              Array.isArray(a.interested_items) &&
+              a.interested_items.includes(it)
+          )
+
+          if (interested.length > totalQty) {
+            for (const a of interested) {
+              if (!awardedUserItemPairs.has(`${a.user_id}|${it}`)) {
+                const dname = (a.profiles as any)?.display_name || "สมาชิก"
+                compensatedMembers.push({ display_name: dname, item_type: it })
+
+                const rec = creditRecordMap.get(`${a.user_id}|${it}`)
+                const curCred = rec ? rec.credit : 0
+                const nextCred = curCred + 1
+
+                if (rec?.id) {
+                  await supabase
+                    .from("carry_credits")
+                    .update({ credit: nextCred, last_updated: now })
+                    .eq("id", rec.id)
+                  creditRecordMap.set(`${a.user_id}|${it}`, { id: rec.id, credit: nextCred })
+                } else {
+                  const { data: ins } = await supabase
+                    .from("carry_credits")
+                    .insert({
+                      user_id: a.user_id,
+                      item_type: it,
+                      credit: nextCred,
+                      last_updated: now,
+                    })
+                    .select("id")
+                    .single()
+                  creditRecordMap.set(`${a.user_id}|${it}`, { id: ins?.id, credit: nextCred })
+                }
               }
             }
           }
