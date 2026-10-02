@@ -1971,6 +1971,15 @@ export default function QueueManagerClient({
               const meta = ITEMS_META[key]
               const form = itemForms[key]
               const prevKey = idx > 0 ? ITEM_KEYS[idx - 1] : null
+
+              const interestedVoters = wantBidMembers.filter(
+                (a) => Array.isArray(a.interested_items) && a.interested_items.includes(key)
+              )
+              const voterCount = interestedVoters.length
+              const totalQty = Number(form.total_quantity) || 0
+              const fairShare = voterCount > 0 ? Math.floor(totalQty / voterCount) : 0
+              const remainder = voterCount > 0 ? totalQty % voterCount : 0
+              const isPerfectDivide = voterCount > 0 && remainder === 0 && fairShare > 0
               return (
                 <div
                   key={key}
@@ -2054,6 +2063,75 @@ export default function QueueManagerClient({
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Real-time Voter Demand & Fair-Share Analysis */}
+                  <div className="bg-zinc-800/40 border border-zinc-700/50 rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 text-xs text-zinc-300">
+                        <span className="text-sm">🙋‍♂️</span>
+                        <span className="font-semibold text-zinc-400">สมาชิกที่จอง:</span>
+                        <span className="font-bold text-sky-400 font-mono text-sm">
+                          {voterCount} <span className="text-[11px] font-normal text-zinc-500">คน</span>
+                        </span>
+                      </div>
+
+                      {voterCount > 0 && totalQty > 0 ? (
+                        <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                          <span>⚖️ เฉลี่ย:</span>
+                          <span className="font-bold text-emerald-400 font-mono text-sm">
+                            {fairShare}
+                          </span>
+                          <span className="text-[11px] text-zinc-500">ชิ้น/คน</span>
+                          {remainder > 0 ? (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-950/80 text-amber-300 border border-amber-800/50">
+                              เศษ {remainder} ชิ้น
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800/50">
+                              ✓ ลงตัวพอดี
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-zinc-600">
+                          {voterCount === 0 ? "ยังไม่มีคนจองไอเทมนี้" : "ยังไม่ได้ระบุจำนวนของ"}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Quick Auto-Fit Limit Action */}
+                    {isAdmin && voterCount > 0 && fairShare > 0 && (
+                      <div className="pt-2 border-t border-zinc-700/40 flex items-center justify-between gap-2 text-xs flex-wrap">
+                        <span className="text-[11px] text-zinc-500">
+                          {isPerfectDivide
+                            ? "จำนวนของหารลงตัวกับทุกคนพอดี"
+                            : `หากตั้งลิมิต ${fairShare} ทุกคนจะได้เท่ากัน (เศษ ${remainder} ชิ้นเก็บไว้รอบหน้า)`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleCoordChange(key, "personal_limit", String(fairShare))
+                            setToast({
+                              type: "ok",
+                              text: `ตั้งลิมิต "${meta.label}" เป็น ${fairShare} ชิ้น/คน เรียบร้อยแล้ว`,
+                            })
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 border active:scale-95 ${
+                            Number(form.personal_limit) === fairShare
+                              ? "bg-emerald-950/80 border-emerald-600/60 text-emerald-300"
+                              : "bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white shadow-xs"
+                          }`}
+                        >
+                          <span>🎯</span>
+                          <span>
+                            {Number(form.personal_limit) === fairShare
+                              ? `ลิมิตพอดีแล้ว (${fairShare})`
+                              : `ตั้งลิมิตพอดี (${fairShare})`}
+                          </span>
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Quantity & Limit */}

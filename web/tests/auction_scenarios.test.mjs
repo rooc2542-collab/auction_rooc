@@ -517,5 +517,44 @@ test("Scenario 9: กรณีสมุดการ์ด 12 ชิ้น คน
   assert.deepEqual(compensatedUserIds, ["u3", "u4", "u5", "u6", "u7", "u8", "u9", "u10"])
 })
 
+test("Scenario 10: คำนวณยอดสมาชิกที่จอง (Voters Demand), สัดส่วนเฉลี่ย (Fair-Share), และเศษเหลือ (Remainder) เพื่อแสดงผลและปุ่มตั้งลิมิตพอดี (Auto-Fit Limit)", () => {
+  // ฟังก์ชันจำลองตรรกะใน QueueManagerClient.tsx
+  function computeDemandAndFairShare(voterCount, totalQty) {
+    const fairShare = voterCount > 0 ? Math.floor(totalQty / voterCount) : 0
+    const remainder = voterCount > 0 ? totalQty % voterCount : 0
+    const isPerfectDivide = voterCount > 0 && remainder === 0 && fairShare > 0
+    return { fairShare, remainder, isPerfectDivide }
+  }
+
+  // เคสที่ 1: สมุดการ์ด 10 ชิ้น คนจอง 10 คน
+  const case1 = computeDemandAndFairShare(10, 10)
+  assert.equal(case1.fairShare, 1, "หารได้คนละ 1 ชิ้น")
+  assert.equal(case1.remainder, 0, "ไม่มีเศษเหลือ")
+  assert.equal(case1.isPerfectDivide, true, "หารลงตัวพอดี")
+
+  // เคสที่ 2: สมุดการ์ด 12 ชิ้น คนจอง 10 คน
+  const case2 = computeDemandAndFairShare(10, 12)
+  assert.equal(case2.fairShare, 1, "หารได้ฐานคนละ 1 ชิ้น")
+  assert.equal(case2.remainder, 2, "มีเศษเหลือ 2 ชิ้น")
+  assert.equal(case2.isPerfectDivide, false, "มีเศษ")
+
+  // เคสที่ 3: ขนนกขาว 50 ชิ้น คนจอง 7 คน
+  const case3 = computeDemandAndFairShare(7, 50)
+  assert.equal(case3.fairShare, 7, "หารได้คนละ 7 ชิ้น (ใช้ 49 ชิ้น)")
+  assert.equal(case3.remainder, 1, "มีเศษเหลือ 1 ชิ้น")
+
+  // เคสที่ 4: ของ 6 ชิ้น คนจอง 10 คน
+  const case4 = computeDemandAndFairShare(10, 6)
+  assert.equal(case4.fairShare, 0, "ของไม่พอแจกทุกคน (ฐาน 0 ชิ้น)")
+  assert.equal(case4.remainder, 6, "ต้องสุ่มแจกทั้ง 6 ชิ้น")
+
+  // ตรวจสอบโค้ด QueueManagerClient.tsx ว่ามี panel นี้จริง
+  const clientCodePath = path.resolve(process.cwd(), "web/app/queues/QueueManagerClient.tsx")
+  const clientCode = fs.readFileSync(clientCodePath, "utf8")
+  assert.ok(clientCode.includes("interestedVoters"), "ต้องมีการคำนวณ interestedVoters")
+  assert.ok(clientCode.includes("ตั้งลิมิตพอดี"), "ต้องมีปุ่มตั้งลิมิตพอดี")
+})
+
+
 
 
