@@ -357,10 +357,19 @@ export default function QueueManagerClient({
         (a) => Array.isArray(a.interested_items) && a.interested_items.includes(k)
       )
 
-      if (interested.length > totalQty) {
+      const n = interested.length
+      if (n <= 0) continue
+
+      const totalDemand = n * personalLimit
+      if (totalQty < totalDemand) {
         const guaranteed: Candidate[] = []
         const rollCandidates: Candidate[] = []
-        let remainingSlots = totalQty
+
+        // คำนวณโควตาพื้นฐานที่ทุกคนได้รับเท่ากัน
+        const baseShare = Math.min(Math.floor(totalQty / n), personalLimit)
+        // เศษของที่เหลือที่ต้องสุ่มแจก
+        const remainder = totalQty - (baseShare * n)
+        let remainingSlots = remainder
 
         // เรียงคนที่มี Carry Credit ก่อน
         const sortedInterested = [...interested].sort((a, b) => {
@@ -393,15 +402,18 @@ export default function QueueManagerClient({
           }
         }
 
-        list.push({
-          item_type: k,
-          label: ITEMS_META[k].label,
-          total_quantity: totalQty,
-          personal_limit: personalLimit,
-          guaranteedCandidates: guaranteed,
-          rollCandidates,
-          remainingSlotsToRoll: Math.max(0, remainingSlots),
-        })
+        // เฉพาะไอเทมที่มีเศษเหลือให้สุ่ม
+        if (remainder > 0 && rollCandidates.length > 0) {
+          list.push({
+            item_type: k,
+            label: ITEMS_META[k].label,
+            total_quantity: totalQty,
+            personal_limit: personalLimit,
+            guaranteedCandidates: guaranteed,
+            rollCandidates,
+            remainingSlotsToRoll: Math.max(0, remainingSlots),
+          })
+        }
       }
     }
     return list

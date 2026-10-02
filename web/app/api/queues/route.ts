@@ -616,7 +616,7 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // 3. ตรวจหาคนที่ขอ want_bid แต่ตกรอบเพราะของไม่พอ (Shortage) -> มอบ Carry Credit +1 ชดเชยสำหรับรอบหน้า
+          // 3. ตรวจหาคนที่ขอ want_bid แต่ได้ของไม่ครบตามลิมิต (Shortage) -> มอบ Carry Credit +1 ชดเชยสำหรับรอบหน้า
           const interested = (attendees || []).filter(
             (a: any) =>
               a.status === "want_bid" &&
@@ -624,10 +624,11 @@ export async function POST(req: NextRequest) {
               Array.isArray(a.interested_items) &&
               a.interested_items.includes(it)
           )
-
-          if (interested.length > totalQty) {
+          const totalDemand = interested.length * personalLimit
+          if (totalQty < totalDemand) {
             for (const a of interested) {
-              if (!awardedUserItemPairs.has(`${a.user_id}|${it}`)) {
+              const userSlotsCount = userAwardedCount[a.user_id] || 0
+              if (userSlotsCount < personalLimit) {
                 const dname = (a.profiles as any)?.display_name || "สมาชิก"
                 compensatedMembers.push({ display_name: dname, item_type: it })
 

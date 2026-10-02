@@ -466,4 +466,56 @@ test("Scenario 8: การกดคำนวณสล็อต (run_allocation)
   }
 })
 
+test("Scenario 9: กรณีสมุดการ์ด 12 ชิ้น คนขอ 10 คน ลิมิต 2/คน (ยอดต้องการ 20 ชิ้น) -> ตรวจพบ Shortage, ทุกคนได้ฐาน 1 ชิ้น, สุ่มชิงเศษ 2 ชิ้น, และ 8 คนที่ได้ไม่ครบได้รับ +1 Carry Credit ชดเชย", () => {
+  const members = Array.from({ length: 10 }, (_, i) => ({
+    user_id: `u${i + 1}`,
+    display_name: `User${i + 1}`,
+    discord_id: `500${i + 1}`,
+  }))
+
+  const totalQty = 12
+  const personalLimit = 2
+  const totalDemand = members.length * personalLimit // 10 * 2 = 20
+
+  assert.ok(totalQty < totalDemand, "12 ชิ้น < 20 ชิ้น ถือว่าของไม่พอสำหรับให้ทุกคนได้ครบตามลิมิต")
+
+  // คำนวณส่วนแบ่งพื้นฐานและเศษที่ต้องสุ่ม
+  const baseShare = Math.min(Math.floor(totalQty / members.length), personalLimit)
+  const remainder = totalQty - (baseShare * members.length)
+
+  assert.equal(baseShare, 1, "ทุกคนต้องได้รับการันตี 1 ชิ้นเท่ากัน (ใช้ไป 10 ชิ้น)")
+  assert.equal(remainder, 2, "มีเศษของเหลือ 2 ชิ้นที่ต้องเปิดสุ่มเต๋าเพื่อมอบชิ้นที่สอง")
+
+  // จำลองว่า u1 และ u2 ทอยเต๋าได้แต้มสูงสุด และได้รับโควตาส่วนเศษ
+  // เรียงลำดับสมาชิกตามคะแนนทอยเต๋า: u1 (99), u2 (95), คนอื่น (10..80)
+  const sortedMembers = [...members] // u1, u2 อยู่หัวแถว
+  const slots = allocateSlots("Album", totalQty, personalLimit, 1, 1, sortedMembers, {})
+
+  assert.equal(slots.length, 12, "ต้องแจกจ่ายของครบทั้ง 12 ชิ้น")
+
+  // ตรวจนับจำนวนสล็อตที่แต่ละคนได้รับ
+  const slotCountByUser = {}
+  for (const s of slots) {
+    slotCountByUser[s.user_id] = (slotCountByUser[s.user_id] || 0) + 1
+  }
+
+  // u1 และ u2 ได้รับ 2 ชิ้น (ครบตามลิมิต)
+  assert.equal(slotCountByUser.u1, 2)
+  assert.equal(slotCountByUser.u2, 2)
+
+  // u3 ถึง u10 ได้รับ 1 ชิ้น
+  for (let i = 3; i <= 10; i++) {
+    assert.equal(slotCountByUser[`u${i}`], 1)
+  }
+
+  // สมาชิก 8 คน (u3..u10) ที่ได้เพียง 1 ชิ้น (< personalLimit 2) ต้องได้รับแต้มชดเชย +1 Carry Credit
+  const compensatedUserIds = members
+    .filter((m) => (slotCountByUser[m.user_id] || 0) < personalLimit)
+    .map((m) => m.user_id)
+
+  assert.equal(compensatedUserIds.length, 8)
+  assert.deepEqual(compensatedUserIds, ["u3", "u4", "u5", "u6", "u7", "u8", "u9", "u10"])
+})
+
+
 
