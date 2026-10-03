@@ -937,24 +937,24 @@ export default function QueueManagerClient({
   return (
     <div className="space-y-5">
       {/* Header & Event Selector */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 shadow-lg">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 shadow-xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-zinc-100">
+              <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
                 จัดคิวและกระดานสล็อต (4 ช่อง/หน้า)
               </h1>
               <span
                 className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
                   isPollClosed
-                    ? "bg-emerald-950 text-emerald-400 border-emerald-800/60"
-                    : "bg-amber-950 text-amber-400 border-amber-800/60"
+                    ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60"
+                    : "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-800/60"
                 }`}
               >
                 {isPollClosed ? "สถานะ: ปิดโหวตแล้ว" : "สถานะ: กำลังเปิดโหวต"}
               </span>
             </div>
-            <p className="text-zinc-500 text-sm mt-1">
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
               ตั้งค่าพิกัดหน้า/ช่อง จัดลำดับคิวผู้เข้าร่วม และคำนวณสล็อตประมูล (ต้องปิดโหวตก่อนคำนวณสล็อต)
             </p>
           </div>
@@ -1806,10 +1806,10 @@ export default function QueueManagerClient({
                             ) : (
                               <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
                                 att.status === "want_bid"
-                                  ? "bg-emerald-950 text-emerald-400 border-emerald-800/60"
+                                  ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/60 font-semibold"
                                   : att.status === "no_bid"
-                                  ? "bg-amber-950 text-amber-400 border-amber-800/60"
-                                  : "bg-rose-950 text-rose-400 border-rose-800/60"
+                                  ? "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-800/60 font-semibold"
+                                  : "bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-400 border-rose-200 dark:border-rose-800/60 font-semibold"
                               }`}>{att.status}</span>
                             )}
                           </td>
@@ -1897,25 +1897,25 @@ export default function QueueManagerClient({
       {activeTab === "config" && (
         <div className="space-y-5">
           {/* Continuous Coordinates Linking Banner */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
             <div className="flex items-center gap-3">
               <span className="text-xl">🔗</span>
               <div>
                 <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-bold text-zinc-100">
+                  <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                     ลิงก์พิกัดหน้า/ช่องต่อเนื่องอัตโนมัติ (Continuous Coordinates)
                   </h4>
                   <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
                       autoLinkCoords
-                        ? "bg-emerald-950 text-emerald-300 border border-emerald-800/60"
-                        : "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                        ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60"
+                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700"
                     }`}
                   >
                     {autoLinkCoords ? "เปิดใช้งานอยู่" : "ปิดอยู่"}
                   </span>
                 </div>
-                <p className="text-xs text-zinc-500 mt-0.5">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                   เมื่อปรับจำนวนชิ้นหรือพิกัด พิกัดจะรันต่อกันทันที: สมุดการ์ด → เศษการ์ดบอส → ขนนกขาว → ขนนกดำแดง
                 </p>
               </div>
@@ -1933,8 +1933,8 @@ export default function QueueManagerClient({
                 }}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                   autoLinkCoords
-                    ? "bg-emerald-950 text-emerald-300 border-emerald-800/80 hover:bg-emerald-900"
-                    : "bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-zinc-200"
+                    ? "bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/80"
+                    : "bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700"
                 }`}
               >
                 {autoLinkCoords ? "✓ ลิงก์ต่อเนื่อง (เปิด)" : "ปิดลิงก์ (แยกอิสระ)"}
@@ -1945,7 +1945,7 @@ export default function QueueManagerClient({
                   setItemForms((prev) => recalculateContinuousChain(prev))
                   setToast({ type: "ok", text: "จัดเรียงพิกัดทั้ง 4 ไอเทมให้ต่อเนื่องกันเรียบร้อยแล้ว" })
                 }}
-                className="px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold border border-zinc-700 transition-all cursor-pointer"
+                className="px-3.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold border border-zinc-200 dark:border-zinc-700 transition-all cursor-pointer"
               >
                 จัดเรียงใหม่เดี๋ยวนี้
               </button>
@@ -1956,8 +1956,8 @@ export default function QueueManagerClient({
                   title={!isBenchReady ? "กรุณาปิดโหวตและจัดผัง Bench ให้เรียบร้อยก่อน" : "คำนวณสล็อตใหม่"}
                   className={`px-4 py-1.5 rounded-lg font-bold text-xs border transition-all cursor-pointer ${
                     !isBenchReady
-                      ? "bg-zinc-800/60 text-zinc-500 border-zinc-700/50 cursor-not-allowed opacity-60"
-                      : "bg-zinc-100 hover:bg-white text-zinc-900 border-zinc-200"
+                      ? "bg-zinc-100 dark:bg-zinc-800/60 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700/50 cursor-not-allowed opacity-60"
+                      : "bg-teal-700 hover:bg-teal-600 text-white border-teal-700 shadow-sm"
                   }`}
                 >
                   {busy ? "กำลังคำนวณ..." : !isBenchReady ? "🔒 รอปิดโหวต & Bench" : "คำนวณสล็อตใหม่"}
@@ -1983,37 +1983,37 @@ export default function QueueManagerClient({
               return (
                 <div
                   key={key}
-                  className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4"
+                  className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 space-y-4 shadow-xs"
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="text-base font-bold text-zinc-100">{meta.label}</h3>
+                        <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">{meta.label}</h3>
                         {autoLinkCoords && prevKey && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-teal-950/70 text-teal-300 border border-teal-800/50 font-medium">
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-teal-50 dark:bg-teal-950/70 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/50 font-medium">
                             🔗 ต่อจาก {ITEMS_META[prevKey].label}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-zinc-600">{meta.desc}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">{meta.desc}</p>
                     </div>
                     <div className="text-right">
-                      <div className="text-[11px] text-zinc-600">จำนวนรวม</div>
-                      <div className="text-2xl font-black font-mono text-zinc-100">
+                      <div className="text-[11px] text-zinc-500 dark:text-zinc-400">จำนวนรวม</div>
+                      <div className="text-2xl font-black font-mono text-zinc-900 dark:text-zinc-100">
                         {form.total_quantity || 0}{" "}
-                        <span className="text-xs font-normal text-zinc-600">ชิ้น</span>
+                        <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">ชิ้น</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Coord Input */}
-                  <div className="bg-zinc-800/50 border border-zinc-700/60 rounded-xl p-4 space-y-3">
-                    <div className="text-xs font-semibold text-zinc-400">
+                  <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 rounded-xl p-4 space-y-3">
+                    <div className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                       ระบุพิกัดหน้าและช่องในเกม (1 หน้ามี 4 ช่อง)
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[11px] text-zinc-500 mb-1">เริ่มต้น (หน้า / ช่อง 1-4)</label>
+                        <label className="block text-[11px] text-zinc-500 dark:text-zinc-400 mb-1">เริ่มต้น (หน้า / ช่อง 1-4)</label>
                         <div className="flex items-center gap-1.5">
                           <input
                             type="number"
@@ -2022,9 +2022,9 @@ export default function QueueManagerClient({
                             value={form.start_page}
                             onChange={(e) => handleCoordChange(key, "start_page", e.target.value)}
                             placeholder="หน้า"
-                            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
+                            className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
                           />
-                          <span className="text-zinc-600">:</span>
+                          <span className="text-zinc-400 dark:text-zinc-600">:</span>
                           <input
                             type="number"
                             min={0}
@@ -2033,12 +2033,12 @@ export default function QueueManagerClient({
                             value={form.start_slot}
                             onChange={(e) => handleCoordChange(key, "start_slot", e.target.value)}
                             placeholder="ช่อง"
-                            className="w-20 bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
+                            className="w-20 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
                           />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-[11px] text-zinc-500 mb-1">สิ้นสุด (หน้า / ช่อง 1-4)</label>
+                        <label className="block text-[11px] text-zinc-500 dark:text-zinc-400 mb-1">สิ้นสุด (หน้า / ช่อง 1-4)</label>
                         <div className="flex items-center gap-1.5">
                           <input
                             type="number"
@@ -2047,9 +2047,9 @@ export default function QueueManagerClient({
                             value={form.end_page}
                             onChange={(e) => handleCoordChange(key, "end_page", e.target.value)}
                             placeholder="หน้า"
-                            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
+                            className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
                           />
-                          <span className="text-zinc-600">:</span>
+                          <span className="text-zinc-400 dark:text-zinc-600">:</span>
                           <input
                             type="number"
                             min={0}
@@ -2058,7 +2058,7 @@ export default function QueueManagerClient({
                             value={form.end_slot}
                             onChange={(e) => handleCoordChange(key, "end_slot", e.target.value)}
                             placeholder="ช่อง"
-                            className="w-20 bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
+                            className="w-20 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg px-2.5 py-2 text-center font-mono text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
                           />
                         </div>
                       </div>
@@ -2066,35 +2066,35 @@ export default function QueueManagerClient({
                   </div>
 
                   {/* Real-time Voter Demand & Fair-Share Analysis */}
-                  <div className="bg-zinc-800/40 border border-zinc-700/50 rounded-xl p-3 space-y-2">
+                  <div className="bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/50 rounded-xl p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-1.5 text-xs text-zinc-300">
+                      <div className="flex items-center gap-1.5 text-xs text-zinc-700 dark:text-zinc-300">
                         <span className="text-sm">🙋‍♂️</span>
-                        <span className="font-semibold text-zinc-400">สมาชิกที่จอง:</span>
-                        <span className="font-bold text-sky-400 font-mono text-sm">
-                          {voterCount} <span className="text-[11px] font-normal text-zinc-500">คน</span>
+                        <span className="font-semibold text-zinc-500 dark:text-zinc-400">สมาชิกที่จอง:</span>
+                        <span className="font-bold text-sky-600 dark:text-sky-400 font-mono text-sm">
+                          {voterCount} <span className="text-[11px] font-normal text-zinc-500 dark:text-zinc-400">คน</span>
                         </span>
                       </div>
 
                       {voterCount > 0 && totalQty > 0 ? (
-                        <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                        <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
                           <span>⚖️ เฉลี่ย:</span>
-                          <span className="font-bold text-emerald-400 font-mono text-sm">
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono text-sm">
                             {fairShare}
                           </span>
-                          <span className="text-[11px] text-zinc-500">ชิ้น/คน</span>
+                          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">ชิ้น/คน</span>
                           {remainder > 0 ? (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-950/80 text-amber-300 border border-amber-800/50">
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800/50">
                               เศษ {remainder} ชิ้น
                             </span>
                           ) : (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800/50">
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/50">
                               ✓ ลงตัวพอดี
                             </span>
                           )}
                         </div>
                       ) : (
-                        <span className="text-[11px] text-zinc-600">
+                        <span className="text-[11px] text-zinc-500 dark:text-zinc-600">
                           {voterCount === 0 ? "ยังไม่มีคนจองไอเทมนี้" : "ยังไม่ได้ระบุจำนวนของ"}
                         </span>
                       )}
@@ -2102,8 +2102,8 @@ export default function QueueManagerClient({
 
                     {/* Quick Auto-Fit Limit Action */}
                     {isAdmin && voterCount > 0 && fairShare > 0 && (
-                      <div className="pt-2 border-t border-zinc-700/40 flex items-center justify-between gap-2 text-xs flex-wrap">
-                        <span className="text-[11px] text-zinc-500">
+                      <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700/40 flex items-center justify-between gap-2 text-xs flex-wrap">
+                        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
                           {isPerfectDivide
                             ? "จำนวนของหารลงตัวกับทุกคนพอดี"
                             : `หากตั้งลิมิต ${fairShare} ทุกคนจะได้เท่ากัน (เศษ ${remainder} ชิ้นเก็บไว้รอบหน้า)`}
@@ -2119,7 +2119,7 @@ export default function QueueManagerClient({
                           }}
                           className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 border active:scale-95 ${
                             Number(form.personal_limit) === fairShare
-                              ? "bg-emerald-950/80 border-emerald-600/60 text-emerald-300"
+                              ? "bg-emerald-100 dark:bg-emerald-950/80 border-emerald-300 dark:border-emerald-600/60 text-emerald-800 dark:text-emerald-300"
                               : "bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white shadow-xs"
                           }`}
                         >
@@ -2136,8 +2136,8 @@ export default function QueueManagerClient({
 
                   {/* Quantity & Limit */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-zinc-800/50 border border-zinc-700/60 rounded-xl p-3.5">
-                      <label className="block text-xs font-semibold text-zinc-400 mb-1">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 rounded-xl p-3.5">
+                      <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
                         จำนวนชิ้นรวมโดยตรง
                       </label>
                       <input
@@ -2146,11 +2146,11 @@ export default function QueueManagerClient({
                         disabled={!isAdmin}
                         value={form.total_quantity}
                         onChange={(e) => handleCoordChange(key, "total_quantity", e.target.value)}
-                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-center font-mono text-lg font-bold text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
+                        className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-center font-mono text-lg font-bold text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
                       />
                     </div>
-                    <div className="bg-zinc-800/50 border border-zinc-700/60 rounded-xl p-3.5">
-                      <label className="block text-xs font-semibold text-zinc-400 mb-1">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 rounded-xl p-3.5">
+                      <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1">
                         ลิมิตต่อคน (Limit)
                       </label>
                       <input
@@ -2159,7 +2159,7 @@ export default function QueueManagerClient({
                         disabled={!isAdmin}
                         value={form.personal_limit}
                         onChange={(e) => handleCoordChange(key, "personal_limit", e.target.value)}
-                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-center font-mono text-lg font-bold text-emerald-400 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
+                        className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-center font-mono text-lg font-bold text-emerald-600 dark:text-emerald-400 focus:outline-none focus:border-zinc-500 disabled:opacity-50"
                       />
                     </div>
                   </div>
@@ -2174,25 +2174,25 @@ export default function QueueManagerClient({
 
       {/* Modal: ยืนยันบันทึกเป็นประวัติการประมูล */}
       {showSaveHistoryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-950/80 border border-emerald-700/60 flex items-center justify-center text-xl">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-700/60 flex items-center justify-center text-xl">
                 💾
               </div>
               <div>
-                <h3 className="text-base font-bold text-zinc-100">บันทึกเป็นประวัติการประมูล</h3>
-                <p className="text-xs text-zinc-400">รอบ: {eventName} ({eventDate})</p>
+                <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">บันทึกเป็นประวัติการประมูล</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">รอบ: {eventName} ({eventDate})</p>
               </div>
             </div>
 
-            <div className="bg-zinc-800/60 rounded-xl p-4 border border-zinc-700/60 text-xs text-zinc-300 space-y-2">
+            <div className="bg-zinc-50 dark:bg-zinc-800/60 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700/60 text-xs text-zinc-600 dark:text-zinc-300 space-y-2">
               <p>
                 ระบบจะทำการ:
               </p>
-              <ul className="list-disc list-inside space-y-1 text-zinc-400">
-                <li>ปรับสถานะสล็อตทั้งหมด ({currentSlots.length} ช่อง) เป็น <b className="text-emerald-400">&quot;ประมูลสำเร็จ&quot;</b></li>
-                <li>บันทึกประวัติการรับไอเทมของสมาชิกทุกคนลงใน <b className="text-zinc-200">ประวัติการประมูล (Auction History)</b></li>
+              <ul className="list-disc list-inside space-y-1 text-zinc-500 dark:text-zinc-400">
+                <li>ปรับสถานะสล็อตทั้งหมด ({currentSlots.length} ช่อง) เป็น <b className="text-emerald-600 dark:text-emerald-400">&quot;ประมูลสำเร็จ&quot;</b></li>
+                <li>บันทึกประวัติการรับไอเทมของสมาชิกทุกคนลงใน <b className="text-zinc-800 dark:text-zinc-200">ประวัติการประมูล (Auction History)</b></li>
                 <li>รายการที่เคยบันทึกไปแล้วจะไม่ถูกบันทึกซ้ำซ้อน</li>
               </ul>
             </div>
@@ -2202,7 +2202,7 @@ export default function QueueManagerClient({
                 type="button"
                 onClick={() => setShowSaveHistoryModal(false)}
                 disabled={busy}
-                className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold border border-zinc-700 cursor-pointer transition-all"
+                className="px-4 py-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 text-xs font-semibold border border-zinc-200 dark:border-zinc-700 cursor-pointer transition-all"
               >
                 ยกเลิก
               </button>
@@ -2210,7 +2210,7 @@ export default function QueueManagerClient({
                 type="button"
                 onClick={handleSaveRoundToHistory}
                 disabled={busy}
-                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-lg shadow-emerald-950/50"
+                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-lg shadow-emerald-950/20"
               >
                 {busy ? "กำลังบันทึก..." : "💾 ยืนยันบันทึกประวัติ"}
               </button>

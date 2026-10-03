@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "RoOC Guild Auction - ระบบประมูลกิลด์",
-    short_name: "RoOC Auction",
+    name: "ระบบประมูล",
+    short_name: "ระบบประมูล",
     description: "ระบบจัดคิว สล็อต และประมูลไอเทมกิลด์ Geffen-RoOC",
     start_url: "/",
     display: "standalone",

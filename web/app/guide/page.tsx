@@ -3,7 +3,7 @@ import NavBar from "@/components/NavBar"
 import GuideClient from "./GuideClient"
 
 export const metadata = {
-  title: "คู่มือการใช้งาน — ระบบประมูล RoOC",
+  title: "คู่มือการใช้งาน — ระบบประมูล",
   description: "คู่มือการใช้งานระบบประมูลและจัดสรรไอเทมกิลด์ RoOC Geffen สำหรับสมาชิกและแอดมิน",
 }
 

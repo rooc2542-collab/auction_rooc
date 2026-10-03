@@ -1,5 +1,5 @@
-// Service Worker for RoOC Guild Auction PWA
-const CACHE_NAME = 'rooc-auction-v1';
+// Service Worker for ระบบประมูล PWA
+const CACHE_NAME = 'rooc-auction-v2';
 const PRECACHE_URLS = [
   '/',
   '/manifest.webmanifest',

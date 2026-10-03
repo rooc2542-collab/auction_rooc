@@ -99,7 +99,7 @@ export default function PWAInstallPrompt() {
 
           <div className="flex-1 min-w-0">
             <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-              ติดตั้ง RoOC Auction App
+              ติดตั้ง ระบบประมูล
               <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300">
                 PWA
               </span>

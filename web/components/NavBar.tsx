@@ -34,7 +34,7 @@ export default function NavBar({ isAdmin }: { isAdmin?: boolean }) {
             R
           </span>
           <span className="tracking-tight font-bold whitespace-nowrap text-zinc-900 dark:text-zinc-100">
-            ระบบประมูล RoOC
+            ระบบประมูล
           </span>
         </Link>
 

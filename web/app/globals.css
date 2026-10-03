@@ -137,26 +137,35 @@ html:not(.dark) .hover\:text-zinc-200:hover { color: #18181b !important; }
 
 /* Status & Item Badges in Light Mode */
 html:not(.dark) .bg-emerald-950,
+html:not(.dark) .bg-emerald-950\/80,
+html:not(.dark) .bg-emerald-950\/70,
 html:not(.dark) .bg-emerald-950\/60,
 html:not(.dark) .bg-emerald-950\/40 { background-color: #ecfdf5 !important; }
 html:not(.dark) .text-emerald-400,
 html:not(.dark) .text-emerald-300 { color: #047857 !important; }
+html:not(.dark) .border-emerald-800\/80,
 html:not(.dark) .border-emerald-800\/60,
-html:not(.dark) .border-emerald-800\/50 { border-color: #a7f3d0 !important; }
+html:not(.dark) .border-emerald-800\/50,
+html:not(.dark) .border-emerald-600\/60 { border-color: #a7f3d0 !important; }
 
 html:not(.dark) .bg-rose-950,
+html:not(.dark) .bg-rose-950\/80,
 html:not(.dark) .bg-rose-950\/60,
 html:not(.dark) .bg-rose-950\/40 { background-color: #fff1f2 !important; }
 html:not(.dark) .text-rose-400,
 html:not(.dark) .text-rose-300 { color: #be123c !important; }
-html:not(.dark) .border-rose-800\/50,
-html:not(.dark) .border-rose-800\/60 { border-color: #fecdd3 !important; }
+html:not(.dark) .border-rose-800\/80,
+html:not(.dark) .border-rose-800\/60,
+html:not(.dark) .border-rose-800\/50 { border-color: #fecdd3 !important; }
 
 html:not(.dark) .bg-amber-950,
+html:not(.dark) .bg-amber-950\/80,
+html:not(.dark) .bg-amber-950\/70,
 html:not(.dark) .bg-amber-950\/60,
 html:not(.dark) .bg-amber-950\/40 { background-color: #fffbeb !important; }
 html:not(.dark) .text-amber-400,
 html:not(.dark) .text-amber-300 { color: #b45309 !important; }
+html:not(.dark) .border-amber-800\/80,
 html:not(.dark) .border-amber-800\/60,
 html:not(.dark) .border-amber-800\/50 { border-color: #fde68a !important; }
 html:not(.dark) .bg-amber-500\/10 { background-color: #fef3c7 !important; }

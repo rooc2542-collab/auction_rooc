@@ -29,13 +29,13 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "RoOC Guild Auction - ระบบประมูลกิลด์",
-  description: "ระบบจัดคิว สล็อต และประมูลไอเทมกิลด์ Geffen-RoOC",
-  applicationName: "RoOC Auction",
+  title: "ระบบประมูล",
+  description: "ระบบจัดคิว สล็อต และประมูลไอเทมกิลด์ Geffen-Rooc",
+  applicationName: "ระบบประมูล",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "RoOC Auction",
+    title: "ระบบประมูล",
   },
   formatDetection: {
     telephone: false,
