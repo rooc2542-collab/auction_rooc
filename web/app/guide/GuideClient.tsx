@@ -7,7 +7,7 @@ interface Props {
   isAdmin?: boolean
 }
 
-type TabKey = "member" | "admin" | "credits" | "faq"
+type TabKey = "member" | "admin" | "credits" | "pwa" | "faq"
 
 export default function GuideClient({ isAdmin }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>("member")
@@ -33,8 +33,8 @@ export default function GuideClient({ isAdmin }: Props) {
             คู่มือการใช้งานระบบประมูลและจัดสรรไอเทมกิลด์
           </h1>
           <p className="text-zinc-600 dark:text-zinc-300 text-sm sm:text-base max-w-3xl leading-relaxed">
-            คู่มือฉบับสมบูรณ์สำหรับสมาชิกและแอดมิน เพื่อความเข้าใจตรงกัน โปร่งใส ตรวจสอบได้ 100% 
-            ตั้งแต่ขั้นตอนการลงทะเบียนผ่าน Discord จนถึงการคุมกระดานสล็อต 4 ช่องและการรับของในเกม
+            คู่มือฉบับสมบูรณ์สำหรับสมาชิกและแอดมิน เพื่อความเข้าใจตรงกัน โปร่งใส ยุติธรรม ตรวจสอบได้ 100% 
+            ครอบคลุมตั้งแต่การลงทะเบียน โหวตจัดคิว สุ่มของขาดแคลน ไปจนถึงการติดตั้งใช้งานบนมือถือ (PWA)
           </p>
 
           <div className="flex flex-wrap gap-2 pt-2">
@@ -48,7 +48,10 @@ export default function GuideClient({ isAdmin }: Props) {
               ⭐ Carry Credits System
             </span>
             <span className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 text-xs font-mono border border-zinc-200 dark:border-zinc-700 shadow-xs">
-              🔍 100% Audit History
+              🎲 Random Roll Shortage
+            </span>
+            <span className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 text-xs font-mono border border-zinc-200 dark:border-zinc-700 shadow-xs">
+              📱 Mobile PWA Application
             </span>
           </div>
         </div>
@@ -58,9 +61,9 @@ export default function GuideClient({ isAdmin }: Props) {
       <div className="flex flex-wrap gap-2 p-1.5 bg-zinc-200 dark:bg-zinc-900/90 rounded-xl border border-zinc-300 dark:border-zinc-800">
         <button
           onClick={() => setActiveTab("member")}
-          className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 min-w-[130px] px-3.5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === "member"
-              ? "bg-teal-700 text-white shadow-md"
+              ? "bg-teal-700 text-white shadow-md font-bold"
               : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800"
           }`}
         >
@@ -70,9 +73,9 @@ export default function GuideClient({ isAdmin }: Props) {
 
         <button
           onClick={() => setActiveTab("admin")}
-          className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 min-w-[130px] px-3.5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === "admin"
-              ? "bg-teal-700 text-white shadow-md"
+              ? "bg-teal-700 text-white shadow-md font-bold"
               : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800"
           }`}
         >
@@ -82,9 +85,9 @@ export default function GuideClient({ isAdmin }: Props) {
 
         <button
           onClick={() => setActiveTab("credits")}
-          className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 min-w-[130px] px-3.5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === "credits"
-              ? "bg-teal-700 text-white shadow-md"
+              ? "bg-teal-700 text-white shadow-md font-bold"
               : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800"
           }`}
         >
@@ -93,10 +96,22 @@ export default function GuideClient({ isAdmin }: Props) {
         </button>
 
         <button
+          onClick={() => setActiveTab("pwa")}
+          className={`flex-1 min-w-[130px] px-3.5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            activeTab === "pwa"
+              ? "bg-teal-700 text-white shadow-md font-bold"
+              : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          }`}
+        >
+          <span>📱</span>
+          <span>ใช้งานบนมือถือ (App PWA)</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab("faq")}
-          className={`flex-1 min-w-[140px] px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 min-w-[130px] px-3.5 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === "faq"
-              ? "bg-teal-700 text-white shadow-md"
+              ? "bg-teal-700 text-white shadow-md font-bold"
               : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800"
           }`}
         >
@@ -170,7 +185,7 @@ export default function GuideClient({ isAdmin }: Props) {
                       <span>Join the war / Want to bid</span>
                     </div>
                     <div className="text-[12px] text-zinc-300">
-                      ลงวอร์ + <strong>ต้องการลุ้นรับของ</strong> รอบนี้
+                      ลงวอร์ + <strong>ต้องการลุ้นรับของ</strong> รอบนี้ พร้อมเลือกประเภทไอเทมที่ต้องการ
                     </div>
                   </div>
 
@@ -180,7 +195,7 @@ export default function GuideClient({ isAdmin }: Props) {
                       <span>Join / Do not want to bid</span>
                     </div>
                     <div className="text-[12px] text-zinc-300">
-                      ลงวอร์ + <strong>สละสิทธิ์รับของ</strong> เพื่อสะสมแต้ม Carry Credit ลัดคิวรอบหน้า!
+                      ลงวอร์ + <strong>สละสิทธิ์รับของ</strong> เพื่อสะสมแต้ม Carry Credit (+1) ลัดคิวรอบหน้า!
                     </div>
                   </div>
 
@@ -204,7 +219,7 @@ export default function GuideClient({ isAdmin }: Props) {
               </div>
               <div className="space-y-2 flex-1">
                 <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-base">
-                  ตรวจสอบลำดับและพิกัดสล็อตบนเว็บไซต์
+                  ตรวจสอบลำดับและพิกัดสล็อตบนเว็บไซต์ (หรือบนมือถือ)
                 </h3>
                 <p className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed">
                   เข้าสู่หน้า{" "}
@@ -213,8 +228,13 @@ export default function GuideClient({ isAdmin }: Props) {
                   </Link>{" "}
                   เพื่อดูว่าคุณได้คิวที่ <strong>Page ไหน ช่องที่เท่าไหร่ (1-4)</strong> โดยระบบจัดสล็อตจะตรงกับหน้าต่างประมูลในเกม Ragnarok Origin ทันที
                 </p>
-                <div className="p-3 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-600 dark:text-zinc-400">
-                  💡 <strong>Tip:</strong> หากเห็นชื่อตัวเองขึ้นแถบสีเหลือง <em>&quot;รอรับของ&quot;</em> ให้เตรียมตัวกดบิดตามช่องที่ระบุไว้ เมื่อประมูลสำเร็จสถานะจะเปลี่ยนเป็นสีเขียว <em>&quot;ได้รับแล้ว&quot;</em>
+                <div className="p-3 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-600 dark:text-zinc-400 space-y-1">
+                  <div>
+                    💡 <strong>Tip:</strong> หากเห็นชื่อตัวเองขึ้น <em>&quot;รอประมูล&quot;</em> ให้เตรียมตัวกดบิดตามช่องที่ระบุไว้ เมื่อประมูลสำเร็จสถานะจะเปลี่ยนเป็น <em>&quot;ประมูลเสร็จแล้ว&quot;</em>
+                  </div>
+                  <div>
+                    🎲 <strong>กรณีของขาดแคลน:</strong> หากของไม่พอกับจำนวนคนขอ ระบบจะแจกฐานเท่าเทียมให้ก่อนคนละ 1 ชิ้น และเปิดสุ่มแย่งเศษที่เหลืออย่างโปร่งใส <strong>คนที่ตกรอบจะได้แต้ม Carry Credit +1 ชดเชยทันที</strong>
+                  </div>
                 </div>
               </div>
             </div>
@@ -267,7 +287,7 @@ export default function GuideClient({ isAdmin }: Props) {
                 <span>ขั้นตอนการดำเนินการสำหรับหัวกิลด์และแอดมิน</span>
               </h2>
               <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
-                Workflow ครบวงจรตั้งแต่ก่อนเริ่มวอร์ ระหว่างประมูล จนถึงการบันทึกประวัติหลังจบงาน
+                Workflow ครบวงจรตั้งแต่ก่อนเริ่มวอร์ คำนวณสล็อต สุ่มของขาดแคลน จนถึงการบันทึกประวัติจบงาน
               </p>
             </div>
 
@@ -279,7 +299,7 @@ export default function GuideClient({ isAdmin }: Props) {
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-700">
                     Phase 1: ก่อนเริ่มวอร์
                   </span>
-                  <span className="text-xs text-zinc-500">Discord</span>
+                  <span className="text-xs text-zinc-500 font-mono">Discord</span>
                 </div>
                 <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">
                   1. เปิดโพลนับคนเข้าร่วม
@@ -307,7 +327,7 @@ export default function GuideClient({ isAdmin }: Props) {
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
                     Phase 2: จัดผังคน
                   </span>
-                  <span className="text-xs text-zinc-500">Web Dashboard</span>
+                  <span className="text-xs text-zinc-500 font-mono">Web Dashboard</span>
                 </div>
                 <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">
                   2. ตรวจสอบที่ Bench Organizer
@@ -325,24 +345,33 @@ export default function GuideClient({ isAdmin }: Props) {
               <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700">
-                    Phase 3: ตั้งค่าไอเทม
+                    Phase 3: ตั้งค่าไอเทม &amp; คำนวณสล็อต
                   </span>
-                  <span className="text-xs text-zinc-500">Web Dashboard</span>
+                  <span className="text-xs text-zinc-500 font-mono">Web Dashboard</span>
                 </div>
                 <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">
-                  3. กำหนดไอเทม &amp; จัดสรรสล็อตอัตโนมัติ
+                  3. กำหนดไอเทม &amp; ระบบจัดสรรเท่าเทียม
                 </h3>
                 <p className="text-xs text-zinc-600 dark:text-zinc-300">
                   ไปที่หน้า{" "}
                   <Link href="/queues" className="text-teal-600 dark:text-teal-400 underline font-semibold">
                     จัดคิวและสล็อต
                   </Link>{" "}
-                  -&gt; แท็บ <strong>ตั้งค่า</strong>:
+                  -&gt; แท็บ <strong>ตั้งค่าพิกัด &amp; ลิมิต</strong>:
                 </p>
-                <ul className="text-[12px] text-zinc-600 dark:text-zinc-300 space-y-1 list-disc list-inside">
-                  <li>ใส่จำนวนชิ้นของไอเทม: สมุดการ์ด, เศษบอส, ขนขาว, ขนดำแดง</li>
-                  <li>ระบบมี <strong>Auto-link Coordinates</strong> คำนวณพิกัดหน้า/ช่องต่อเนื่องให้อัตโนมัติ</li>
-                  <li>กดปุ่ม <strong>&quot;จัดสรรสล็อตอัตโนมัติ&quot;</strong> ระบบจะเรียงคิวตาม Carry Credit ทันที</li>
+                <ul className="text-[12px] text-zinc-600 dark:text-zinc-300 space-y-1.5 list-disc list-inside">
+                  <li>
+                    <strong>ดูยอดคนจองแบบ Real-time:</strong> ในแต่ละกล่องไอเทมจะแสดงจำนวนสมาชิกที่โหวตจอง เช่น <code>🙋‍♂️ สมาชิกที่จอง: 10 คน</code>
+                  </li>
+                  <li>
+                    <strong>ปุ่มลัด [🎯 ตั้งลิมิตพอดี]:</strong> คลิกเดียวตั้งค่าลิมิตให้หารลงตัวกับยอดคนทันที เช่น มี 10 ชิ้น คนขอ 10 คน ลิมิตจะปรับเป็น 1
+                  </li>
+                  <li>
+                    <strong>สล็อตกระจายเท่าเทียม (Equitable Base):</strong> หากของมี 12 ชิ้น คนขอ 10 คน ลิมิต 2 ระบบจะแจกฐานให้คนละ 1 ชิ้นเท่ากันทุกคนก่อน และเปิดสุ่มแย่งเศษ 2 ชิ้น
+                  </li>
+                  <li>
+                    <strong>คำนวณสล็อตใหม่ (Read-Only Preview):</strong> การกดคำนวณสล็อตเป็นการจำลองดูผลล่วงหน้า <em>จะยังไม่มีการตัดแต้มเครดิตหรือบันทึกข้อมูลใดๆ</em> ปลอดภัย 100%
+                  </li>
                 </ul>
               </div>
 
@@ -350,21 +379,56 @@ export default function GuideClient({ isAdmin }: Props) {
               <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
-                    Phase 4: ระหว่างประมูล
+                    Phase 4: สุ่มของขาดแคลน
                   </span>
-                  <span className="text-xs text-zinc-500">กระดานสด 4 ช่อง</span>
+                  <span className="text-xs text-zinc-500 font-mono">Random Roll</span>
                 </div>
                 <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">
-                  4. ควบคุมหน้าต่างกระดานสล็อตสด
+                  4. ปิดโหวต &amp; สุ่มผู้โชคดี (Random Roll Modal)
                 </h3>
                 <p className="text-xs text-zinc-600 dark:text-zinc-300">
-                  สลับไปแท็บ <strong>กระดานสล็อต</strong>:
+                  เมื่อถึงเวลา ให้กดปุ่ม <strong>&quot;ปิดโหวตรอบนี้&quot;</strong>:
                 </p>
-                <ul className="text-[12px] text-zinc-600 dark:text-zinc-300 space-y-1 list-disc list-inside">
-                  <li><strong>กดมอบรางวัล (Award):</strong> เมื่อของตกถึงสมาชิก กดแจกทีละช่อง หรือติ๊กหลายช่องแจกทีเดียว</li>
-                  <li><strong>กดข้ามคิว (Skip):</strong> หากสมาชิกไม่อยู่ในเวลาประมูล</li>
-                  <li><strong>Export ภาพกระดาน:</strong> แคปเจอร์ภาพผังสล็อตส่งลง LINE/Discord ได้ทันที</li>
+                <ul className="text-[12px] text-zinc-600 dark:text-zinc-300 space-y-1.5 list-disc list-inside">
+                  <li>หากพบว่าไอเทมชิ้นไหนมีของน้อยกว่าคนขอ จะมีปุ่มสีม่วง <strong>&quot;🎲 สุ่มผู้โชคดี&quot;</strong> ปรากฏขึ้นมา</li>
+                  <li>คลิกเพื่อเปิดหน้าต่างสุ่มฉลากสด แสดงภาพหมุนสุ่มและประกาศผลผู้โชคดีอย่างโปร่งใส</li>
+                  <li>สมาชิกที่ตกรอบจะได้รับ <strong>Carry Credit +1 ชดเชย</strong> สำหรับรอบถัดไปอัตโนมัติ</li>
                 </ul>
+              </div>
+
+              {/* Phase 5 */}
+              <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 space-y-2.5 md:col-span-2">
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                    Phase 5: ควบคุมกระดานสด &amp; บันทึกประวัติรอบนี้
+                  </span>
+                  <span className="text-xs text-zinc-500 font-mono">Live Slot Board &amp; History Save</span>
+                </div>
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">
+                  5. คุมกระดานประมูลในเกม &amp; บันทึกผลรอบนี้เป็นประวัติ (สำคัญมาก!)
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-zinc-600 dark:text-zinc-300">
+                  <div className="p-3 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-1">
+                    <div className="font-bold text-zinc-900 dark:text-zinc-100">📌 ระหว่างการประมูล</div>
+                    <ul className="space-y-1 list-disc list-inside text-[11px]">
+                      <li><strong>กดประมูลทีละช่อง:</strong> ติ๊กเลือกช่องสล็อต แล้วกดยืนยัน</li>
+                      <li><strong>เลือกหลายช่อง (Batch Award):</strong> เลือกช่องในหน้านี้หรือทุกหน้า แล้วกดมอบรางวัลพร้อมกันผ่านแถบ Floating Bar ด้านล่าง</li>
+                      <li><strong>ข้ามคิว (Skip):</strong> หากสมาชิกไม่อยู่ในเวลาประมูล</li>
+                    </ul>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 space-y-1">
+                    <div className="font-bold text-emerald-800 dark:text-emerald-300">💾 ปุ่ม &quot;บันทึกผลรอบนี้เป็นประวัติ&quot; (Commit Point)</div>
+                    <p className="text-[11px] leading-relaxed">
+                      เมื่อการประมูลเสร็จสิ้น ให้กดปุ่มสีเขียว <strong>&quot;💾 บันทึกผลรอบนี้เป็นประวัติ&quot;</strong> เพื่อ:
+                    </p>
+                    <ul className="space-y-0.5 list-disc list-inside text-[11px] text-emerald-900 dark:text-emerald-200">
+                      <li>บันทึกผลรอบนี้เข้าสู่ระบบประวัติ (Audit History) ถาวร</li>
+                      <li>ตัดแต้มเครดิตของผู้ที่ได้รับของจริง</li>
+                      <li>มอบแต้มชดเชย (+1 Credit) แก่ผู้ที่ไม่ได้ของ หรือได้ไม่ครบตามลิมิต</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -421,16 +485,16 @@ export default function GuideClient({ isAdmin }: Props) {
                 <span>กลไก Carry Credits (แต้มสะสมความทุ่มเท)</span>
               </h2>
               <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
-                ระบบที่ออกแบบมาเพื่อให้คนช่วยกิลด์วอร์สม่ำเสมอได้รับรางวัลอย่างคุ้มค่าและยุติธรรมที่สุด
+                ระบบที่ออกแบบมาเพื่อให้คนช่วยกิลด์วอร์สม่ำเสมอได้รับรางวัลอย่างคุ้มค่า ยุติธรรม และไม่เสียเปรียบ
               </p>
             </div>
 
-            {/* Core Principle */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Core Principles */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/60 space-y-2">
                 <div className="text-2xl">🤝</div>
                 <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">
-                  1. ยิ่งช่วยวอร์ ยิ่งได้แต้ม
+                  1. ช่วยวอร์ สะสมแต้ม
                 </h3>
                 <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
                   เมื่อสมาชิกเลือก <strong>&quot;Join the war / Do not want to bid&quot;</strong> จะได้รับ <strong>+1 Credit</strong> ในไอเทมประเภทนั้น สะสมไว้ในบัญชีของคุณทันที
@@ -440,20 +504,30 @@ export default function GuideClient({ isAdmin }: Props) {
               <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/60 space-y-2">
                 <div className="text-2xl">🚀</div>
                 <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">
-                  2. สิทธิ์ลัดคิวในรอบที่ต้องการ
+                  2. สิทธิ์ลัดคิวรอบถัดไป
                 </h3>
                 <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
-                  ในรอบที่คุณตัดสินใจเลือก <strong>&quot;Want to bid&quot;</strong> ระบบ Auto-allocate จะจัดอันดับให้คนที่ <strong>มีแต้ม Credit สูงสุดขึ้นรับของก่อน</strong>
+                  ในรอบที่คุณตัดสินใจเลือก <strong>&quot;Want to bid&quot;</strong> ระบบจัดสล็อตจะจัดอันดับให้คนที่มี <strong>แต้ม Credit สูงสุดขึ้นรับของก่อน</strong>
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/60 space-y-2">
+                <div className="text-2xl">🛡️</div>
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">
+                  3. แต้มชดเชยของไม่พอ
+                </h3>
+                <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
+                  หากมาวอร์และขอของ แต่ของไม่พอ หรือตกรอบสุ่ม หรือได้ไม่ครบตามลิมิต ระบบจะมอบ <strong>+1 Carry Credit ชดเชย</strong> สำหรับรอบถัดไปให้โดยอัตโนมัติ
                 </p>
               </div>
 
               <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/60 space-y-2">
                 <div className="text-2xl">⚖️</div>
                 <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm">
-                  3. ตัดแต้มเมื่อได้รับของ
+                  4. ตัดแต้มเมื่อได้รับของ
                 </h3>
                 <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
-                  เมื่อคุณได้รับของรางวัลจากกระดานประมูลสำเร็จ แต้ม Credit ของไอเทมนั้นจะถูกหักออก เพื่อเปิดโอกาสให้เพื่อนสมาชิกท่านอื่นขึ้นมารับต่อในรอบต่อไป
+                  แต้มจะถูกหักออกเฉพาะผู้ที่ได้รับของจริงเมื่อแอดมินกด <strong>&quot;บันทึกผลรอบนี้เป็นประวัติ&quot;</strong> เพื่อเปิดโอกาสให้เพื่อนสมาชิกท่านอื่นขึ้นมารับต่อในรอบถัดไป
                 </p>
               </div>
             </div>
@@ -489,7 +563,152 @@ export default function GuideClient({ isAdmin }: Props) {
         </div>
       )}
 
-      {/* TAB CONTENT 4: FAQ */}
+      {/* TAB CONTENT 4: MOBILE APP & PWA */}
+      {activeTab === "pwa" && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-6 shadow-sm">
+            <div className="border-b border-zinc-200 dark:border-zinc-800 pb-4">
+              <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                <span>📱</span>
+                <span>การติดตั้งและใช้งานบนมือถือ (Mobile Application - PWA)</span>
+              </h2>
+              <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
+                ติดตั้งระบบประมูล RoOC ไว้บนหน้าจอมือถือของคุณ เปิดดูคิวสด พิกัดหน้า/ช่องในเกมได้สะดวกแบบเรียลไทม์
+              </p>
+            </div>
+
+            {/* Why Install */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-3.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/50 space-y-1">
+                <div className="text-sm font-bold text-teal-800 dark:text-teal-300 flex items-center gap-1.5">
+                  <span>⚡</span>
+                  <span>เปิดเต็มจอ Standalone</span>
+                </div>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                  ไม่มีแถบ URL บราวเซอร์ เปิดใช้งานได้เต็มจอและโหลดเร็วกว่าเดิม
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/50 space-y-1">
+                <div className="text-sm font-bold text-teal-800 dark:text-teal-300 flex items-center gap-1.5">
+                  <span>👆</span>
+                  <span>Thumb-Friendly Nav Bar</span>
+                </div>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                  แถบเมนูด้านล่าง 5 ปุ่ม แตะเปลี่ยนหน้า คุมสล็อต และดูเครดิตด้วยนิ้วโป้งมือเดียว
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/50 space-y-1">
+                <div className="text-sm font-bold text-teal-800 dark:text-teal-300 flex items-center gap-1.5">
+                  <span>🎮</span>
+                  <span>จอที่สองขณะเล่นเกม</span>
+                </div>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                  ตั้งมือถือไว้ข้างจอคอม ดูพิกัดสล็อตสดแล้วกดบิดในเกมตามได้ทันที
+                </p>
+              </div>
+            </div>
+
+            {/* Step-by-Step Installation Guide */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              {/* iOS Guide */}
+              <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 space-y-4">
+                <div className="flex items-center gap-2.5 pb-2 border-b border-zinc-200 dark:border-zinc-700">
+                  <span className="text-xl">🍏</span>
+                  <div>
+                    <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
+                      สำหรับ iPhone / iPad (Safari)
+                    </h3>
+                    <p className="text-[11px] text-zinc-500">ติดตั้งผ่าน Safari ใน 3 สเต็ปง่ายๆ</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-xs text-zinc-700 dark:text-zinc-300">
+                  <div className="flex items-start gap-3">
+                    <span className="w-5 h-5 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                      1
+                    </span>
+                    <div>
+                      เปิดเว็บนี้ด้วย <strong>Safari</strong> บน iPhone ของคุณ
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="w-5 h-5 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                      2
+                    </span>
+                    <div>
+                      แตะที่ปุ่มแชร์ <strong>Share (ไอคอนสี่เหลี่ยมลูกศรชี้ขึ้น ⎋)</strong> ที่แถบด้านล่างของหน้าจอ
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="w-5 h-5 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                      3
+                    </span>
+                    <div>
+                      เลื่อนลงมาแล้วเลือก <strong>&quot;เพิ่มไปยังหน้าจอโฮม&quot; (Add to Home Screen)</strong> แล้วกด <strong>&quot;เพิ่ม&quot; (Add)</strong> ที่มุมบนขวา
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-teal-100/60 dark:bg-teal-950/60 border border-teal-300 dark:border-teal-800 text-[11px] text-teal-900 dark:text-teal-200">
+                  ✨ จะมีไอคอนแอป RoOC อยู่บนหน้าจอมือถือของคุณทันที เปิดใช้งานได้ลื่นไหล ไม่ซูมเด้งไปมา
+                </div>
+              </div>
+
+              {/* Android Guide */}
+              <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 space-y-4">
+                <div className="flex items-center gap-2.5 pb-2 border-b border-zinc-200 dark:border-zinc-700">
+                  <span className="text-xl">🤖</span>
+                  <div>
+                    <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
+                      สำหรับ Android (Chrome)
+                    </h3>
+                    <p className="text-[11px] text-zinc-500">ติดตั้งง่ายในคลิกเดียวผ่าน Google Chrome</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-xs text-zinc-700 dark:text-zinc-300">
+                  <div className="flex items-start gap-3">
+                    <span className="w-5 h-5 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                      1
+                    </span>
+                    <div>
+                      เปิดเว็บนี้ผ่าน <strong>Google Chrome</strong> บนมือถือ Android
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="w-5 h-5 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                      2
+                    </span>
+                    <div>
+                      ระบบจะแสดงแถบแจ้งเตือน <strong>&quot;ติดตั้ง RoOC Auction App&quot;</strong> ขึ้นมาโดยอัตโนมัติ
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="w-5 h-5 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                      3
+                    </span>
+                    <div>
+                      กดปุ่ม <strong>&quot;ติดตั้ง&quot;</strong> หรือแตะเมนูสามจุด (⋮) ด้านขวาบน แล้วเลือก <strong>&quot;ติดตั้งแอป&quot; (Install App)</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-teal-100/60 dark:bg-teal-950/60 border border-teal-300 dark:border-teal-800 text-[11px] text-teal-900 dark:text-teal-200">
+                  ✨ แอปจะถูกติดตั้งลงในหน้ารวมแอปของเครื่อง สามารถเปิดใช้งานได้เสมือนแอปจาก Play Store ทันที
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB CONTENT 5: FAQ */}
       {activeTab === "faq" && (
         <div className="space-y-4">
           <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-5 shadow-sm">
@@ -501,6 +720,33 @@ export default function GuideClient({ isAdmin }: Props) {
             </div>
 
             <div className="space-y-4 text-sm">
+              <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/60 space-y-1.5">
+                <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-teal-700 dark:text-teal-400">
+                  Q: กดปุ่ม &quot;คำนวณสล็อตใหม่&quot; แล้วข้อมูลหรือแต้มเครดิตจะถูกบันทึกทันทีเลยไหม?
+                </h4>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                  A: <strong>ไม่ถูกบันทึกครับ</strong> การกด &quot;คำนวณสล็อตใหม่&quot; เป็นเพียงการแสดงผลตัวอย่างล่วงหน้า (Preview / Read-Only) แอดมินสามารถทดลองเปลี่ยนจำนวนหรือปรับลิมิตได้ตามต้องการ ระบบจะตัดแต้มเครดิตและบันทึกประวัติก็ต่อเมื่อกดปุ่ม <strong>&quot;💾 บันทึกผลรอบนี้เป็นประวัติ&quot;</strong> เท่านั้น
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/60 space-y-1.5">
+                <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-teal-700 dark:text-teal-400">
+                  Q: กรณีของมีไม่พอ หรือคนขอได้ของไม่ครบตามลิมิต ระบบจัดการอย่างไร?
+                </h4>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                  A: ระบบจะทำการ <strong>แจกฐานคนละ 1 ชิ้นเท่ากันทุกคนก่อน</strong> (เช่น มี 12 ชิ้น คนขอ 10 คน จะแจกคนละ 1 ชิ้น รวม 10 ชิ้น) ส่วนเศษที่เหลือ 2 ชิ้น จะมีปุ่มสีม่วง <strong>&quot;🎲 สุ่มผู้โชคดี&quot;</strong> ให้แอดมินกดเปิดสุ่มอย่างโปร่งใส และทุกคนที่ได้ของไม่ครบจะได้รับแต้ม <strong>Carry Credit +1 ชดเชย</strong> สำหรับรอบถัดไปอัตโนมัติเมื่อบันทึกประวัติ
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/60 space-y-1.5">
+                <h4 className="font-bold text-zinc-900 dark:text-zinc-100 text-teal-700 dark:text-teal-400">
+                  Q: ปุ่ม &quot;🎯 ตั้งลิมิตพอดี&quot; ช่วยอะไร และมีประโยชน์อย่างไร?
+                </h4>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                  A: ช่วยให้แอดมินไม่ต้องคิดเลขหรือสลับหน้าจอนับคนครับ ระบบจะนับยอดคนที่โหวตจองจริงในรอบนั้น แล้วคำนวณสัดส่วนที่หารลงตัว (Fair Share) ให้ทันที เช่น มี 10 ชิ้น คนขอ 10 คน ปุ่มจะแนะนำลิมิต 1 ชิ้น เมื่อคลิกแล้วจะใส่ค่าลงช่องลิมิตให้ทันที ของจะไม่ขาดแคลนและสมาชิกทุกคนได้ของเท่ากันครบทุกคน
+                </p>
+              </div>
+
               <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/60 space-y-1.5">
                 <h4 className="font-bold text-zinc-900 dark:text-zinc-100">
                   Q: ลืมกดโหวตใน Discord ก่อนเริ่มวอร์ สามารถขอรับของได้ไหม?

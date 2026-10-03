@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RoOC Guild Auction — Web Application
 
-## Getting Started
+เว็บแอปพลิเคชันระบบประมูลและจัดสรรไอเทมกิลด์ Ragnarok Origin Classic (RoOC Geffen) เชื่อมต่อกับ Discord Bot และฐานข้อมูล Supabase
 
-First, run the development server:
+## 🌟 ฟีเจอร์หลัก (Key Features)
+
+1. **ระบบจัดคิวและสล็อต 4 ช่อง (4-Slots In-Game Grid System)**:
+   - จำลองหน้าต่างประมูลในเกม Ragnarok Origin แบบ 1:1 (4 ช่องต่อหน้า)
+   - คำนวณพิกัดต่อเนื่องอัตโนมัติทั้ง 4 ไอเทม (สมุดการ์ด, เศษบอส, ขนนกขาว, ขนนกดำแดง)
+   - รองรับการมอบของแบบ 1-Click หรือแบบหลายช่องพร้อมกัน (Batch Award) ผ่าน Floating Action Bar
+
+2. **ระบบวิเคราะห์ยอดคนจอง & ปุ่มลัดตั้งลิมิตพอดี (Real-time Voter Demand & Auto-Fit Limit)**:
+   - แสดงยอดสมาชิกที่โหวตจองไอเทมแบบเรียลไทม์ในหน้าตั้งค่า
+   - ปุ่มลัดคลิกเดียว `[🎯 ตั้งลิมิตพอดี]` คำนวณสัดส่วนหารลงตัว ป้องกันปัญหาของขาดแคลน
+   - สล็อตกระจายเท่าเทียม (Equitable Base-Share First): แจกฐานคนละ 1 ชิ้นเท่ากันทุกคนก่อน และเปิดสุ่มแย่งเศษที่เหลือ
+
+3. **ระบบสุ่มจับฉลากผู้โชคดี (Random Roll Modal)**:
+   - สำหรับกรณีที่ไอเทมมีน้อยกว่าจำนวนคนที่ขอ หรือมีเศษไอเทมที่ต้องแย่งชิง
+   - มีอนิเมชันสุ่มโปร่งใส ยุติธรรม พร้อมประกาศผลทันที
+
+4. **ระบบแต้มสะสมความทุ่มเท & แต้มชดเชย (Carry Credits System)**:
+   - ช่วยวอร์แต่ไม่รับของ (🟡): ได้รับ **+1 Carry Credit** สะสมไว้ลัดคิวรอบหน้า
+   - **แต้มชดเชยของไม่พอ (Shortage Compensation)**: สมาชิกที่มาวอร์และขอของ แต่ของไม่พอ หรือตกรอบจากการสุ่ม หรือได้ไม่ครบตามลิมิต จะได้รับ **+1 Carry Credit** ชดเชยอัตโนมัติ
+   - **Commit Point**: การกด "คำนวณสล็อตใหม่" เป็น Read-Only Preview ระบบจะตัดแต้มและมอบแต้มชดเชยก็ต่อเมื่อกด **"💾 บันทึกผลรอบนี้เป็นประวัติ"** เท่านั้น
+
+5. **รองรับการติดตั้งบนมือถือแบบ Mobile Application (PWA - Progressive Web App)**:
+   - สามารถติดตั้งเป็นแอปบนหน้าจอโฮมได้ทั้ง **iOS (Safari)** และ **Android (Chrome)**
+   - เปิดใช้งานแบบ Standalone เต็มหน้าจอ ไร้แถบ URL เสมือนแอปแท้
+   - มี **Bottom Navigation Bar 5 แท็บ** สำหรับมือถือ แตะเปลี่ยนหน้าด้วยนิ้วโป้งมือเดียว
+   - ป้องกัน Safari Auto-Zoom และรองรับขอบจอ iPhone Dynamic Island (Safe Area)
+
+6. **ระบบตรวจสอบและประวัติย้อนหลัง 100% (Audit History)**:
+   - ตรวจสอบประวัติการแจกของ วันที่ ผู้รับ ประเภทไอเทม และแอดมินผู้ดำเนินการได้ตลอด 24 ชั่วโมง
+
+---
+
+## 🚀 เริ่มต้นใช้งาน (Getting Started)
+
+ติดตั้ง dependencies และรันเซิร์ฟเวอร์:
 
 ```bash
+# ติดตั้ง dependencies
+npm install
+
+# รันโหมด Development
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# รันชุดทดสอบ Scenario Test Suite
+node tests/auction_scenarios.test.mjs
+
+# Build สำหรับ Production
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+เปิด [http://localhost:3000](http://localhost:3000) บนบราวเซอร์เพื่อเริ่มใช้งาน
